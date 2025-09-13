@@ -1,11 +1,12 @@
-import "./App.css";
+import "./App.scss";
 import Dashboard from "./components/Dashboard";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 function App() {
   return (  
-    <>
-    <Dashboard/>
-    </>
+    <ErrorBoundary>
+      <Dashboard/>
+    </ErrorBoundary>
   );
 }
 

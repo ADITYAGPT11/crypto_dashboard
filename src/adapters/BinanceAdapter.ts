@@ -28,6 +28,7 @@ export class BinanceAdapter extends EventEmitter {
     const ws = this.clients[marketType];
 
     ws.on("message", (msg) => {
+      
       if(msg.e === 'aggTrade') {
         const transformedData : GenericMarketData = {
           exchange: 'Binance',
@@ -37,14 +38,21 @@ export class BinanceAdapter extends EventEmitter {
           timeStamp: msg.T
         }
         this.emit("marketData", transformedData);
-
+      } else if (msg.e === 'depth') {
+        // Handle depth data if needed
+      } else {
       }
+    });
+
+    ws.on("open", () => {
+    });
+
+    ws.on("error", (error) => {
     });
   }
 
   async connectAll() {
     await Promise.all([this.clients.spot.connect(), this.clients.futures.connect()]);
-    console.log("✅ Binance connected (spot + futures)");
   }
 
   subscribe(symbols: string[] | string, streams: ("bookTicker" | "aggTrade" | "depth")[] = ["bookTicker"]) {

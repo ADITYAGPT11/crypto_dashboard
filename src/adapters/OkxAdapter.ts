@@ -18,6 +18,7 @@ export class OkxAdapter extends EventEmitter {
 
   private setupHandlers() {
     this.ws.on("message", (msg) => {
+      
       if (msg.arg?.channel === "tickers" && msg.data?.length) {
         const d = msg.data[0];
         const transformedData: GenericMarketData = {
@@ -29,6 +30,13 @@ export class OkxAdapter extends EventEmitter {
         };
         this.emit("marketData", transformedData);
       }
+    });
+
+    this.ws.on("open", () => {
+    });
+
+    this.ws.on("error", (error) => {
+      console.error('OKX WebSocket error:', error);
     });
   }
 
