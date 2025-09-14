@@ -86,7 +86,7 @@ const PriceRow = memo(({
               )}
             </div>
           ) : (
-            <div className={styles.neutral}>-</div>
+            <div className={`${styles.spread} ${styles.neutral}`}>-</div>
           )}
         </td>
       )}
@@ -200,6 +200,8 @@ function Dashboard() {
   const totalExchanges = exchanges.length;
   const totalDataPoints = tickers.length;
 
+  // Always sort exchanges for consistent column order
+  const sortedExchanges = [...exchanges].sort();
   
   return (
     <div className={styles.dashboard}>
@@ -251,7 +253,7 @@ function Dashboard() {
             <tr>
               <th>Asset</th>
               <th>Market</th>
-              {exchanges.length > 0 ? exchanges.map((ex) => (
+              {sortedExchanges.length > 0 ? sortedExchanges.map((ex) => (
                 <th key={ex}>{ex} Price</th>
               )) : (
                 <>
@@ -270,7 +272,7 @@ function Dashboard() {
                     key={`${symbol}-${type}`}
                     symbol={symbol}
                     type={type}
-                    exchanges={exchanges}
+                    exchanges={sortedExchanges}
                     getPrice={getPrice}
                     removeSymbol={removeSymbol}
                   />
@@ -293,13 +295,19 @@ function Dashboard() {
                       <span className={styles.type}>{type}</span>
                     </td>
                     <td>
-                      <div className={styles.loadingRow}>Loading...</div>
+                      <div>
+                        <div className={styles.skeleton}></div>
+                        <div className={styles.skeletonExchange}></div>
+                      </div>
                     </td>
                     <td>
-                      <div className={styles.loadingRow}>Loading...</div>
+                      <div>
+                        <div className={styles.skeleton}></div>
+                        <div className={styles.skeletonExchange}></div>
+                      </div>
                     </td>
                     <td>
-                      <div className={styles.loadingRow}>-</div>
+                      <div className={styles.skeleton}></div>
                     </td>
                   </tr>
                 ))

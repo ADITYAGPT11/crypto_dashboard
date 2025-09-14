@@ -1,3 +1,22 @@
+// Color Palette
+$color-bg-main: #0a0b0d;
+$color-bg-card: #1a1d24;
+$color-bg-card-alt: #232630;
+$color-border: #2e323e;
+$color-border-strong: #4caf50;
+$color-text-main: #ffffff;
+$color-text-secondary: #b5b7c0;
+$color-accent-green: #4caf50;
+$color-accent-blue: #2196f3;
+$color-positive: #4caf50;
+$color-negative: #f44336;
+$color-neutral-bg: #232630;
+$color-neutral-border: #2e323e;
+$color-spread-positive-bg: rgba(76, 175, 80, 0.1);
+$color-spread-positive-border: rgba(76, 175, 80, 0.3);
+$color-spread-negative-bg: rgba(244, 67, 54, 0.1);
+$color-spread-negative-border: rgba(244, 67, 54, 0.3);
+
 .dashboard {
   padding: 0;
   background: #0a0b0d; // Darker background like professional trading platforms
@@ -119,6 +138,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  table-layout: fixed;
 
   th, td {
     padding: 16px 20px;
@@ -283,6 +303,10 @@
   font-size: 16px;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
   
   &.positive {
     color: #4caf50;
@@ -302,6 +326,15 @@
 
   &.neutral {
     color: #b5b7c0;
+    background: #232630;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #2e323e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 28px;
   }
 }
 
@@ -309,7 +342,7 @@
   text-align: center;
   color: #b5b7c0;
   font-style: italic;
-  padding: 40px;
+  padding: 16px 20px; // Match normal td padding
 }
 
 // Symbol Search Styles
@@ -519,6 +552,30 @@
   &:hover::before {
     left: 100%;
   }
+}
+
+.skeleton {
+  display: inline-block;
+  height: 20px;
+  width: 80px;
+  background: linear-gradient(90deg, #232630 25%, #2e323e 50%, #232630 75%);
+  border-radius: 6px;
+  animation: skeleton-loading 1.2s infinite linear;
+}
+
+.skeletonExchange {
+  display: inline-block;
+  height: 14px;
+  width: 48px;
+  margin-top: 6px;
+  background: #232630;
+  border-radius: 4px;
+  opacity: 0.5;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: -80px 0; }
+  100% { background-position: 80px 0; }
 }
 
 // Responsive design
