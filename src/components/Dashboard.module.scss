@@ -1,34 +1,15 @@
-// Color Palette
-$color-bg-main: #0a0b0d;
-$color-bg-card: #1a1d24;
-$color-bg-card-alt: #232630;
-$color-border: #2e323e;
-$color-border-strong: #4caf50;
-$color-text-main: #ffffff;
-$color-text-secondary: #b5b7c0;
-$color-accent-green: #4caf50;
-$color-accent-blue: #2196f3;
-$color-positive: #4caf50;
-$color-negative: #f44336;
-$color-neutral-bg: #232630;
-$color-neutral-border: #2e323e;
-$color-spread-positive-bg: rgba(76, 175, 80, 0.1);
-$color-spread-positive-border: rgba(76, 175, 80, 0.3);
-$color-spread-negative-bg: rgba(244, 67, 54, 0.1);
-$color-spread-negative-border: rgba(244, 67, 54, 0.3);
-
 .dashboard {
   padding: 0;
-  background: #0a0b0d; // Darker background like professional trading platforms
+  background: var(--background-primary);
   min-height: 100vh;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #ffffff;
+  font-family: var(--font-family);
+  color: var(--text-primary);
   overflow-x: auto;
 }
 
 .header {
-  background: linear-gradient(135deg, #1a1d24 0%, #232630 100%);
-  border-bottom: 1px solid #2e323e;
+  background: linear-gradient(135deg, var(--background-secondary) 0%, var(--background-primary) 100%);
+  border-bottom: 1px solid var(--border-primary);
   padding: 20px 24px;
   position: sticky;
   top: 0;
@@ -47,9 +28,9 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 .title {
   font-size: 24px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-primary);
   margin: 0;
-  background: linear-gradient(135deg, #4caf50, #2196f3);
+  background: linear-gradient(135deg, var(--accent-positive), var(--accent-blue));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -66,18 +47,18 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: #b5b7c0;
+  color: var(--text-secondary);
 }
 
 .statusIndicator {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #4caf50;
+  background: var(--accent-positive);
   animation: pulse 2s infinite;
   
   &.disconnected {
-    background: #f44336;
+    background: var(--accent-negative);
   }
 }
 
@@ -96,8 +77,8 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 }
 
 .metricCard {
-  background: linear-gradient(135deg, #1a1d24 0%, #232630 100%);
-  border: 1px solid #2e323e;
+  background: linear-gradient(135deg, var(--background-secondary) 0%, var(--background-primary) 100%);
+  border: 1px solid var(--border-primary);
   border-radius: 12px;
   padding: 20px;
   text-align: center;
@@ -106,20 +87,20 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    border-color: #4caf50;
+    border-color: var(--accent-positive);
   }
 }
 
 .metricValue {
   font-size: 24px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .metricLabel {
   font-size: 12px;
-  color: #b5b7c0;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -127,9 +108,9 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 .tableContainer {
   margin: 24px;
   width: calc(100% - 48px);
-  background: linear-gradient(135deg, #1a1d24 0%, #232630 100%);
+  background: linear-gradient(135deg, var(--background-secondary) 0%, var(--background-primary) 100%);
   border-radius: 16px;
-  border: 1px solid #2e323e;
+  border: 1px solid var(--border-primary);
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
@@ -143,16 +124,16 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   th, td {
     padding: 16px 20px;
     text-align: left;
-    border-bottom: 1px solid #2e323e;
+    border-bottom: 1px solid var(--border-primary);
   }
 
   thead {
-    background: linear-gradient(135deg, #232630 0%, #2a2d38 100%);
+    background: linear-gradient(135deg, var(--background-primary) 0%, var(--background-secondary) 100%);
     
     th {
       font-size: 12px;
       font-weight: 600;
-      color: #b5b7c0;
+      color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.5px;
       padding: 20px;
@@ -167,8 +148,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
     cursor: pointer;
 
     &:hover {
-      background: linear-gradient(135deg, #2a2d38 0%, #323640 100%);
-      transform: scale(1.01);
+      background: linear-gradient(135deg, var(--background-secondary) 0%, #323640 100%);
     }
 
     &:last-child td {
@@ -178,7 +158,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 
   td {
     font-weight: 500;
-    color: #ffffff;
+    color: var(--text-primary);
     position: relative;
   }
 }
@@ -186,7 +166,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 .symbol {
   font-weight: 700;
   font-size: 16px;
-  color: #ffffff;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -194,7 +174,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 }
 
 .removeButton {
-  background: #f44336;
+  background: var(--accent-negative);
   color: white;
   border: none;
   border-radius: 50%;
@@ -224,7 +204,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4caf50, #2196f3);
+  background: linear-gradient(135deg, var(--accent-positive), var(--accent-blue));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,12 +214,12 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 }
 
 .type {
-  color: #b5b7c0;
+  color: var(--text-secondary);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 4px 8px;
-  background: #2e323e;
+  background: var(--border-primary);
   border-radius: 4px;
   display: inline-block;
 }
@@ -247,17 +227,17 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 .price {
   font-weight: 600;
   font-size: 16px;
-  color: #ffffff;
+  color: var(--text-primary);
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   transition: all 0.3s ease;
   
   &.priceUp {
-    color: #4caf50;
+    color: var(--accent-positive);
     animation: priceUp 0.5s ease-out;
   }
   
   &.priceDown {
-    color: #f44336;
+    color: var(--accent-negative);
     animation: priceDown 0.5s ease-out;
   }
 }
@@ -294,7 +274,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 
 .exchange {
   font-weight: 600;
-  color: #b5b7c0;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -309,7 +289,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   min-height: 28px;
   
   &.positive {
-    color: #4caf50;
+    color: var(--accent-positive);
     background: rgba(76, 175, 80, 0.1);
     padding: 4px 8px;
     border-radius: 6px;
@@ -317,7 +297,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   }
 
   &.negative {
-    color: #f44336;
+    color: var(--accent-negative);
     background: rgba(244, 67, 54, 0.1);
     padding: 4px 8px;
     border-radius: 6px;
@@ -325,11 +305,11 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   }
 
   &.neutral {
-    color: #b5b7c0;
-    background: #232630;
+    color: var(--text-secondary);
+    background: var(--background-primary);
     padding: 4px 8px;
     border-radius: 6px;
-    border: 1px solid #2e323e;
+    border: 1px solid var(--border-primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -340,7 +320,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 
 .loadingRow {
   text-align: center;
-  color: #b5b7c0;
+  color: var(--text-secondary);
   font-style: italic;
   padding: 16px 20px; // Match normal td padding
 }
@@ -361,29 +341,29 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 .searchInput {
   width: 100%;
   padding: 12px 40px 12px 16px;
-  background: linear-gradient(135deg, #1a1d24 0%, #232630 100%);
-  border: 1px solid #2e323e;
-  border-radius: 8px;
-  color: #ffffff;
+  background: linear-gradient(135deg, var(--background-secondary) 0%, var(--background-primary) 100%);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 500;
   transition: all 0.3s ease;
   
   &:focus {
     outline: none;
-    border-color: #4caf50;
+    border-color: var(--accent-positive);
     box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
   }
   
   &::placeholder {
-    color: #b5b7c0;
+    color: var(--text-secondary);
   }
 }
 
 .searchIcon {
   position: absolute;
   right: 12px;
-  color: #b5b7c0;
+  color: var(--text-secondary);
   font-size: 16px;
   pointer-events: none;
 }
@@ -393,9 +373,9 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   top: 100%;
   left: 0;
   right: 0;
-  background: linear-gradient(135deg, #1a1d24 0%, #232630 100%);
-  border: 1px solid #2e323e;
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--background-secondary) 0%, var(--background-primary) 100%);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   z-index: 1000;
   max-height: 300px;
@@ -407,10 +387,10 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   padding: 12px 16px 8px;
   font-size: 12px;
   font-weight: 600;
-  color: #b5b7c0;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid #2e323e;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .suggestionItem {
@@ -422,11 +402,11 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   gap: 12px;
   
   &:hover {
-    background: linear-gradient(135deg, #2a2d38 0%, #323640 100%);
+    background: linear-gradient(135deg, var(--background-primary) 0%, var(--background-secondary) 100%);
   }
   
   &:last-child {
-    border-radius: 0 0 8px 8px;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
   }
 }
 
@@ -434,7 +414,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4caf50, #2196f3);
+  background: linear-gradient(135deg, var(--accent-positive), var(--accent-blue));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -447,7 +427,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 .suggestionItem span {
   flex: 1;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
@@ -455,7 +435,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #4caf50;
+  background: var(--accent-positive);
   color: white;
   display: flex;
   align-items: center;
@@ -473,14 +453,14 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 .noResults {
   padding: 20px 16px;
   text-align: center;
-  color: #b5b7c0;
+  color: var(--text-secondary);
   font-style: italic;
 }
 
 .loadingState {
   padding: 20px 16px;
   text-align: center;
-  color: #b5b7c0;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -490,8 +470,8 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
 .loadingSpinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #2e323e;
-  border-top: 2px solid #4caf50;
+  border: 2px solid var(--border-primary);
+  border-top: 2px solid var(--accent-positive);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -529,7 +509,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, #4caf50, transparent);
+    background: linear-gradient(90deg, transparent, var(--accent-positive), transparent);
   }
 }
 
@@ -558,7 +538,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   display: inline-block;
   height: 20px;
   width: 80px;
-  background: linear-gradient(90deg, #232630 25%, #2e323e 50%, #232630 75%);
+  background: linear-gradient(90deg, var(--background-primary) 25%, var(--border-primary) 50%, var(--background-primary) 75%);
   border-radius: 6px;
   animation: skeleton-loading 1.2s infinite linear;
 }
@@ -568,7 +548,7 @@ $color-spread-negative-border: rgba(244, 67, 54, 0.3);
   height: 14px;
   width: 48px;
   margin-top: 6px;
-  background: #232630;
+  background: var(--background-primary);
   border-radius: 4px;
   opacity: 0.5;
 }

@@ -5,6 +5,7 @@ import { FastMarketDataLookup } from "../utils/fastLookup";
 import { RealTimeClock } from "./RealTimeClock";
 import { SymbolSearch } from "./SymbolSearch";
 import styles from "./Dashboard.module.scss";
+import ArbitragePanel from "./ArbitragePanel";
 
 // Memoized row component for ultra-fast rendering
 const PriceRow = memo(({ 
@@ -94,12 +95,22 @@ const PriceRow = memo(({
   );
 });
 
+interface ArbitrageOpportunity {
+  symbol: string;
+  spread: number;
+  spreadPercent: number;
+  bestAsk: { exchange: string; price: number };
+  bestBid: { exchange: string; price: number };
+}
+
 function Dashboard() {
   const fastLookup = useRef(new FastMarketDataLookup());
   const [tickers, setTickers] = useState<GenericMarketData[]>([]);
   const [exchanges, setExchanges] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [symbolList, setSymbolList] = useState<string[]>(["BTC-USDT", "ETH-USDT"]); // Dynamic symbol list
+  const [arbitrageOpportunities, setArbitrageOpportunities] = useState<ArbitrageOpportunity[]>([]);
+  const ARBITRAGE_THRESHOLD_PERCENT = 0.1; // Example threshold: 0.1%
 
   // Ultra-fast price lookup - O(1) complexity
   const getPrice = useCallback((
@@ -166,6 +177,42 @@ function Dashboard() {
         msg.currentPrice,
         msg.timeStamp
       );
+
+      // --- START ARBITRAGE LOGIC ---
+      const exchanges = fastLookup.current.getExchanges();
+      if (exchanges.length === 2) {
+          const price1 = fastLookup.current.getPrice(exchanges[0], msg.symbol, msg.type);
+          const price2 = fastLookup.current.getPrice(exchanges[1], msg.symbol, msg.type);
+
+          if (price1 && price2) {
+              const spread = price1 - price2;
+              const spreadPercent = (spread / price2) * 100;
+
+              if (Math.abs(spreadPercent) > ARBITRAGE_THRESHOLD_PERCENT) {
+                  const newOpportunity: ArbitrageOpportunity = {
+                      symbol: msg.symbol,
+                      spread: spread,
+                      spreadPercent: spreadPercent,
+                      // Placeholder data until we have order books
+                      bestAsk: { exchange: price1 > price2 ? exchanges[1] : exchanges[0], price: Math.min(price1, price2) },
+                      bestBid: { exchange: price1 > price2 ? exchanges[0] : exchanges[1], price: Math.max(price1, price2) },
+                  };
+
+                  // Update state, avoiding duplicates
+                  setArbitrageOpportunities(prev => {
+                      const existingIndex = prev.findIndex(opp => opp.symbol === newOpportunity.symbol);
+                      if (existingIndex !== -1) {
+                          const updated = [...prev];
+                          updated[existingIndex] = newOpportunity;
+                          return updated;
+                      } else {
+                          return [...prev, newOpportunity];
+                      }
+                  });
+              }
+          }
+      }
+      // --- END ARBITRAGE LOGIC ---
 
       // Update UI immediately for real-time performance
       const allData = fastLookup.current.getAllData();
@@ -316,6 +363,7 @@ function Dashboard() {
           </tbody>
         </table>
       </div>
+      <ArbitragePanel opportunities={arbitrageOpportunities} />
     </div>
   );
 }

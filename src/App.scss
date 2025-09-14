@@ -1,6 +1,24 @@
+:root {
+  --background-primary: #1a1a1a;
+  --background-secondary: #2c2c2c;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --accent-positive: #4caf50;
+  --accent-negative: #f44336;
+  --accent-neutral: #a0a0a0;
+  --border-primary: #333;
+  --border-radius: 8px;
+  --font-family: 'Roboto', sans-serif;
+}
+
 * {
-  width: 100%;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: var(--font-family);
+}
+
+body {
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
 }
