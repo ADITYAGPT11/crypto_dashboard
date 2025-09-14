@@ -1,13 +1,6 @@
 import React from 'react';
 import styles from './ArbitragePanel.module.scss';
-
-interface ArbitrageOpportunity {
-  symbol: string;
-  spread: number;
-  spreadPercent: number;
-  bestAsk: { exchange: string; price: number };
-  bestBid: { exchange: string; price: number };
-}
+import type { ArbitrageOpportunity } from '../types/marketData';
 
 interface ArbitragePanelProps {
   opportunities: ArbitrageOpportunity[];

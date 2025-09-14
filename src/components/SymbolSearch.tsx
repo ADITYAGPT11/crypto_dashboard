@@ -14,11 +14,16 @@ export const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps)
   const [isLoading, setIsLoading] = useState(false);
   const [allSymbols, setAllSymbols] = useState<string[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
-  const symbolService = useRef(SymbolService.getInstance());
+  const symbolService = useRef<SymbolService | null>(null);
 
-  // Load symbols on component mount
   useEffect(() => {
+    // Initialize service on the client side
+    if (!symbolService.current) {
+        symbolService.current = SymbolService.getInstance();
+    }
+
     const loadSymbols = async () => {
+      if (!symbolService.current) return;
       setIsLoading(true);
       try {
         const symbols = await symbolService.current.fetchAllSymbols();
@@ -35,6 +40,7 @@ export const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps)
 
   // Filter suggestions based on search term
   useEffect(() => {
+    if (!symbolService.current) return;
     if (searchTerm.length === 0) {
       // Show popular symbols when no search term
       const popularSymbols = symbolService.current.getPopularSymbols();

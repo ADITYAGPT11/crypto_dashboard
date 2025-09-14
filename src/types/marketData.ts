@@ -10,3 +10,11 @@ export interface CanonicalSymbol {
   base: string;
   quote: string;
 }
+
+export interface ArbitrageOpportunity {
+  symbol: string;
+  spread: number;
+  spreadPercent: number;
+  bestAsk: { exchange: string; price: number };
+  bestBid: { exchange: string; price: number };
+}
