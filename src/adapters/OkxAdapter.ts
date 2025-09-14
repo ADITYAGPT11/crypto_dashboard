@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
 import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
 import type { GenericMarketData } from "../types/marketData";
+import { parseOkxSymbol, formatCanonicalSymbol } from "../utils/symbolUtils";
 
 type Subscription = { symbol: string; type: "SPOT" | "SWAP" };
 
@@ -21,10 +22,11 @@ export class OkxAdapter extends EventEmitter {
       
       if (msg.arg?.channel === "tickers" && msg.data?.length) {
         const d = msg.data[0];
+        // d.instId is already in BTC-USDT or BTC-USDT-SWAP format
         const transformedData: GenericMarketData = {
           exchange: "OKX",
           type: d.instId.includes("SWAP") ? "FUT" : "SPOT",
-          symbol: d.instId,
+          symbol: formatCanonicalSymbol(parseOkxSymbol(d.instId)),
           currentPrice: parseFloat(d.last),
           timeStamp: parseInt(d.ts),
         };
@@ -56,7 +58,7 @@ export class OkxAdapter extends EventEmitter {
 
     const args = arr.map((s) => ({
       channel: "tickers",
-      instId: type === "SPOT" ? `${s}-USDT` : `${s}-USDT-SWAP`,
+      instId: type === "SPOT" ? s : `${s}-SWAP`,
     }));
 
     this.ws.send({ op: "subscribe", args });

@@ -30,7 +30,10 @@ export class SymbolService {
           !symbol.symbol.includes('BEAR') &&
           !symbol.symbol.includes('BULL')
         )
-        .map((symbol: any) => symbol.symbol.replace('USDT', ''))
+        .map((symbol: any) => {
+          const base = symbol.symbol.replace('USDT', '');
+          return `${base}-USDT`;
+        })
         .sort();
       
       this.updateAllSymbols();
@@ -53,7 +56,7 @@ export class SymbolService {
           !instrument.instId.includes('UP') &&
           !instrument.instId.includes('DOWN')
         )
-        .map((instrument: any) => instrument.baseCcy)
+        .map((instrument: any) => `${instrument.baseCcy}-USDT`)
         .sort();
       
       this.updateAllSymbols();
@@ -84,10 +87,10 @@ export class SymbolService {
 
   getPopularSymbols(): string[] {
     return [
-      'BTC', 'ETH', 'BNB', 'ADA', 'SOL', 'XRP', 'DOT', 'AVAX', 
-      'MATIC', 'LINK', 'UNI', 'LTC', 'ATOM', 'NEAR', 'FTM',
-      'ALGO', 'VET', 'ICP', 'FIL', 'TRX', 'ETC', 'XLM', 'HBAR',
-      'DOGE', 'SHIB', 'PEPE', 'WIF', 'BONK', 'FLOKI'
+      'BTC-USDT', 'ETH-USDT', 'BNB-USDT', 'ADA-USDT', 'SOL-USDT', 'XRP-USDT', 'DOT-USDT', 'AVAX-USDT', 
+      'MATIC-USDT', 'LINK-USDT', 'UNI-USDT', 'LTC-USDT', 'ATOM-USDT', 'NEAR-USDT', 'FTM-USDT',
+      'ALGO-USDT', 'VET-USDT', 'ICP-USDT', 'FIL-USDT', 'TRX-USDT', 'ETC-USDT', 'XLM-USDT', 'HBAR-USDT',
+      'DOGE-USDT', 'SHIB-USDT', 'PEPE-USDT', 'WIF-USDT', 'BONK-USDT', 'FLOKI-USDT'
     ];
   }
 

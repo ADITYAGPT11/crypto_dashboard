@@ -5,3 +5,8 @@ export type GenericMarketData = {
   currentPrice: number;
   timeStamp: number;
 };
+
+export interface CanonicalSymbol {
+  base: string;
+  quote: string;
+}

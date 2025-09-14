@@ -1,21 +1,28 @@
-/**
- * Symbol normalization utilities for different exchanges
- */
+import type { CanonicalSymbol } from '../types/marketData';
 
-export function normalizeSymbol(symbol: string): string {
-  // Remove common suffixes and prefixes
-  return symbol
-    .replace(/-USDT$/i, '')  // Remove -USDT suffix (OKX)
-    .replace(/USDT$/i, '')   // Remove USDT suffix (Binance)
-    .replace(/-SWAP$/i, '')  // Remove -SWAP suffix (OKX futures)
-    .toUpperCase();
+// List of known quote assets for parsing
+const KNOWN_QUOTES = ['USDT', 'BTC', 'ETH', 'BUSD', 'USD', 'EUR', 'TRY', 'BNB'];
+
+// Parse Binance symbol (e.g., BTCUSDT)
+export function parseBinanceSymbol(symbol: string): CanonicalSymbol {
+  for (const quote of KNOWN_QUOTES) {
+    if (symbol.endsWith(quote)) {
+      return {
+        base: symbol.slice(0, -quote.length),
+        quote,
+      };
+    }
+  }
+  throw new Error(`Unknown Binance symbol format: ${symbol}`);
 }
 
-export function createSymbolKey(exchange: string, symbol: string, type: string): string {
-  const normalizedSymbol = normalizeSymbol(symbol);
-  return `${exchange}-${normalizedSymbol}-${type}`;
+// Parse OKX symbol (e.g., BTC-USDT)
+export function parseOkxSymbol(symbol: string): CanonicalSymbol {
+  const [base, quote] = symbol.split('-');
+  return { base, quote };
 }
 
-export function extractBaseSymbol(symbol: string): string {
-  return normalizeSymbol(symbol);
+// Format canonical symbol to string (e.g., BTC-USDT)
+export function formatCanonicalSymbol({ base, quote }: CanonicalSymbol): string {
+  return `${base}-${quote}`;
 }

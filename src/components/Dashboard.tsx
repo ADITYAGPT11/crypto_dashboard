@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback, memo } from "react";
 import { MarketDataService } from "../services/MarketDataService";
 import type { GenericMarketData } from "../types/marketData";
 import { FastMarketDataLookup } from "../utils/fastLookup";
-import { extractBaseSymbol } from "../utils/symbolUtils";
 import { RealTimeClock } from "./RealTimeClock";
 import { SymbolSearch } from "./SymbolSearch";
 import styles from "./Dashboard.module.scss";
@@ -100,7 +99,7 @@ function Dashboard() {
   const [tickers, setTickers] = useState<GenericMarketData[]>([]);
   const [exchanges, setExchanges] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
-  const [symbolList, setSymbolList] = useState<string[]>(["BTC", "ETH"]); // Dynamic symbol list
+  const [symbolList, setSymbolList] = useState<string[]>(["BTC-USDT", "ETH-USDT"]); // Dynamic symbol list
 
   // Ultra-fast price lookup - O(1) complexity
   const getPrice = useCallback((
@@ -108,8 +107,7 @@ function Dashboard() {
     exchange: string,
     type: string
   ): number | null => {
-    const normalizedSymbol = extractBaseSymbol(symbol);
-    return fastLookup.current.getPrice(exchange, normalizedSymbol, type);
+    return fastLookup.current.getPrice(exchange, symbol, type);
   }, []);
 
   // Add symbol function

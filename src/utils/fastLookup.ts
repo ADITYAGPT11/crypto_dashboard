@@ -1,5 +1,3 @@
-import { createSymbolKey, extractBaseSymbol } from './symbolUtils';
-
 /**
  * Ultra-fast lookup data structure for market data
  * Optimized for O(1) lookups and minimal memory allocation
@@ -14,14 +12,13 @@ export class FastMarketDataLookup {
   }>();
 
   update(exchange: "Binance" | "OKX", symbol: string, type: "SPOT" | "FUT", currentPrice: number, timeStamp: number) {
-    const normalizedSymbol = extractBaseSymbol(symbol);
-    const key = createSymbolKey(exchange, normalizedSymbol, type);
-    this.data.set(key, { exchange, symbol: normalizedSymbol, type, currentPrice, timeStamp });
+    // Use symbol as-is for key
+    const key = `${exchange}:${symbol}:${type}`;
+    this.data.set(key, { exchange, symbol, type, currentPrice, timeStamp });
   }
 
   getPrice(exchange: string, symbol: string, type: string): number | null {
-    const normalizedSymbol = extractBaseSymbol(symbol);
-    const key = createSymbolKey(exchange, normalizedSymbol, type);
+    const key = `${exchange}:${symbol}:${type}`;
     return this.data.get(key)?.currentPrice || null;
   }
 
