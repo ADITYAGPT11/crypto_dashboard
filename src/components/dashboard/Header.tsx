@@ -1,30 +1,26 @@
 import React from 'react';
 import { RealTimeClock } from '../RealTimeClock';
-import styles from './Header.module.scss';
+import ThemeToggleButton from '../ThemeToggleButton';
+import './Header.scss';
 
 interface HeaderProps {
   hasData: boolean;
-  totalDataPoints: number;
-  totalExchanges: number;
+  theme: string;
+  toggleTheme: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ hasData, totalDataPoints, totalExchanges }) => {
+const Header: React.FC<HeaderProps> = ({ hasData, theme, toggleTheme }) => {
   return (
-    <div className={styles.header}>
-      <div className={styles.headerContent}>
-        <h1 className={styles.title}>Multi Exchange Dashboard</h1>
-        <div className={styles.statusBar}>
-          <div className={styles.statusItem}>
-            <div className={`${styles.statusIndicator} ${hasData ? '' : styles.disconnected}`}></div>
+    <div className="header">
+      <div className="header-content">
+        <h1 className="title">Multi Exchange Dashboard</h1>
+        <div className="status-bar">
+          <div className="status-item">
+            <div className={`status-indicator ${hasData ? '' : 'disconnected'}`}></div>
             <span>{hasData ? 'Live' : 'Connecting...'}</span>
           </div>
-          <div className={styles.statusItem}>
-            <span>{totalDataPoints} Data Points</span>
-          </div>
-          <div className={styles.statusItem}>
-            <span>{totalExchanges} Exchanges</span>
-          </div>
           <RealTimeClock />
+          <ThemeToggleButton theme={theme} toggleTheme={toggleTheme} />
         </div>
       </div>
     </div>

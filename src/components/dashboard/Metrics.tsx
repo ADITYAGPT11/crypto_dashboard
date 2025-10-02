@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './Metrics.module.scss';
+import './Metrics.scss';
 
 interface MetricsProps {
   totalSymbols: number;
@@ -9,18 +9,18 @@ interface MetricsProps {
 
 const Metrics: React.FC<MetricsProps> = ({ totalSymbols, totalExchanges, totalDataPoints }) => {
   return (
-    <div className={styles.metrics}>
-      <div className={styles.metricCard}>
-        <div className={styles.metricValue}>{totalSymbols}</div>
-        <div className={styles.metricLabel}>Symbols</div>
+    <div className="metrics">
+      <div className="metric-card">
+        <div className="metric-value">{totalSymbols}</div>
+        <div className="metric-label">Symbols</div>
       </div>
-      <div className={styles.metricCard}>
-        <div className={styles.metricValue}>{totalExchanges}</div>
-        <div className={styles.metricLabel}>Exchanges</div>
+      <div className="metric-card">
+        <div className="metric-value">{totalExchanges}</div>
+        <div className="metric-label">Exchanges</div>
       </div>
-      <div className={styles.metricCard}>
-        <div className={styles.metricValue}>{totalDataPoints}</div>
-        <div className={styles.metricLabel}>Live Data</div>
+      <div className="metric-card">
+        <div className="metric-value">{totalDataPoints}</div>
+        <div className="metric-label">Live Data</div>
       </div>
     </div>
   );

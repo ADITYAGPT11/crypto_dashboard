@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { SymbolService } from '../services/SymbolService';
-import styles from './Dashboard.module.scss';
+import './SymbolSearch.scss';
 
 interface SymbolSearchProps {
   onAddSymbol: (symbol: string) => void;
@@ -81,51 +81,51 @@ export const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps)
   };
 
   return (
-    <div className={styles.searchContainer} ref={searchRef}>
-      <div className={styles.searchInputContainer}>
+    <div className="search-container" ref={searchRef}>
+      <div className="search-input-container">
         <input
           type="text"
           placeholder="Search and add symbols..."
           value={searchTerm}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
-          className={styles.searchInput}
+          className="search-input"
         />
-        <div className={styles.searchIcon}>🔍</div>
+        <div className="search-icon">🔍</div>
       </div>
       
       {isOpen && (
-        <div className={styles.suggestionsDropdown}>
+        <div className="suggestions-dropdown">
           {isLoading ? (
-            <div className={styles.loadingState}>
-              <div className={styles.loadingSpinner}></div>
+            <div className="loading-state">
+              <div className="loading-spinner"></div>
               Loading symbols...
             </div>
           ) : suggestions.length > 0 ? (
             <>
-              <div className={styles.suggestionsHeader}>
+              <div className="suggestions-header">
                 {searchTerm.length === 0 ? 'Popular Symbols' : 'Search Results'}
               </div>
               {suggestions.map((symbol) => (
                 <div
                   key={symbol}
-                  className={styles.suggestionItem}
+                  className="suggestion-item"
                   onClick={() => handleSymbolSelect(symbol)}
                 >
-                  <div className={styles.symbolIcon}>
+                  <div className="symbol-icon">
                     {symbol.charAt(0).toUpperCase()}
                   </div>
                   <span>{symbol}</span>
-                  <div className={styles.addButton}>+</div>
+                  <div className="add-button">+</div>
                 </div>
               ))}
             </>
           ) : searchTerm.length > 0 ? (
-            <div className={styles.noResults}>
+            <div className="no-results">
               No symbols found for "{searchTerm}"
             </div>
           ) : (
-            <div className={styles.noResults}>
+            <div className="no-results">
               No popular symbols available
             </div>
           )}

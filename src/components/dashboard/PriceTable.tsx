@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import styles from './PriceTable.module.scss';
+import './PriceTable.scss';
 import PriceRow from './PriceRow';
 
 interface PriceTableProps {
@@ -20,8 +20,8 @@ const PriceTable: React.FC<PriceTableProps> = ({
   removeSymbol,
 }) => {
   return (
-    <div className={styles.tableContainer}>
-      <table className={styles.table}>
+    <div className="table-container">
+      <table className="table">
         <thead>
           <tr>
             <th>Asset</th>
@@ -57,30 +57,30 @@ const PriceTable: React.FC<PriceTableProps> = ({
               ['SPOT', 'FUT'].map((type) => ( // Using hardcoded types for skeleton
                 <tr key={`${symbol}-${type}`}>
                   <td>
-                    <div className={styles.symbol}>
-                      <div className={styles.symbolIcon}>
+                    <div className="symbol">
+                      <div className="symbol-icon">
                         {symbol.charAt(0).toUpperCase()}
                       </div>
                       {symbol}
                     </div>
                   </td>
                   <td>
-                    <span className={styles.type}>{type}</span>
+                    <span className="type">{type}</span>
                   </td>
                   <td>
                     <div>
-                      <div className={styles.skeleton}></div>
-                      <div className={styles.skeletonExchange}></div>
+                      <div className="skeleton"></div>
+                      <div className="skeleton-exchange"></div>
                     </div>
                   </td>
                   <td>
                     <div>
-                      <div className={styles.skeleton}></div>
-                      <div className={styles.skeletonExchange}></div>
+                      <div className="skeleton"></div>
+                      <div className="skeleton-exchange"></div>
                     </div>
                   </td>
                   <td>
-                    <div className={styles.skeleton}></div>
+                    <div className="skeleton"></div>
                   </td>
                 </tr>
               ))

@@ -1,5 +1,4 @@
 import React, { memo } from 'react';
-import styles from './PriceTable.module.scss';
 
 interface PriceRowProps {
   symbol: string;
@@ -34,13 +33,13 @@ const PriceRow: React.FC<PriceRowProps> = memo(({
   return (
     <tr>
       <td>
-        <div className={styles.symbol}>
-          <div className={styles.symbolIcon}>
+        <div className="symbol">
+          <div className="symbol-icon">
             {getSymbolIcon(symbol)}
           </div>
           {symbol}
           <button
-            className={styles.removeButton}
+            className="remove-button"
             onClick={(e) => {
               e.stopPropagation();
               removeSymbol(symbol);
@@ -52,25 +51,25 @@ const PriceRow: React.FC<PriceRowProps> = memo(({
         </div>
       </td>
       <td>
-        <span className={styles.type}>{type}</span>
+        <span className="type">{type}</span>
       </td>
       {prices.map((p, i) => (
         <td key={`${symbol}-${type}-${exchanges[i]}`}>
           <div>
-            <div className={styles.price}>
+            <div className="price">
               {p ? `$${p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-"}
             </div>
-            <div className={styles.exchange}>{exchanges[i]}</div>
+            <div className="exchange">{exchanges[i]}</div>
           </div>
         </td>
       ))}
       {exchanges.length === 2 && (
         <td>
           {spread !== null ? (
-            <div className={`${styles.spread} ${
-              spread > 0 ? styles.positive :
-              spread < 0 ? styles.negative :
-              styles.neutral
+            <div className={`spread ${
+              spread > 0 ? "positive" :
+              spread < 0 ? "negative" :
+              "neutral"
             }`}>
               <div>
                 {spread > 0 ? '+' : ''}${spread.toFixed(2)}
@@ -82,7 +81,7 @@ const PriceRow: React.FC<PriceRowProps> = memo(({
               )}
             </div>
           ) : (
-            <div className={`${styles.spread} ${styles.neutral}`}>-</div>
+            <div className="spread neutral">-</div>
           )}
         </td>
       )}

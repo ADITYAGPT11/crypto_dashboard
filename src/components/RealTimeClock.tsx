@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import styles from './Dashboard.module.scss';
 
 export const RealTimeClock = () => {
   const [time, setTime] = useState(new Date());
@@ -13,7 +12,7 @@ export const RealTimeClock = () => {
   }, []);
 
   return (
-    <div className={styles.statusItem}>
+    <div className="status-item">
       <span>{time.toLocaleTimeString('en-US', { 
         hour12: false,
         hour: '2-digit',

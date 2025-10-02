@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './ArbitragePanel.module.scss';
+import './ArbitragePanel.scss';
 import type { ArbitrageOpportunity } from '../types/marketData';
 
 interface ArbitragePanelProps {
@@ -7,35 +7,41 @@ interface ArbitragePanelProps {
 }
 
 const ArbitragePanel: React.FC<ArbitragePanelProps> = ({ opportunities }) => {
-  if (opportunities.length === 0) {
-    return null; // Don't render if no opportunities
-  }
-
   return (
-    <div className={styles.arbitragePanel}>
+    <div className="arbitrage-panel">
       <h2>Arbitrage Opportunities</h2>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Symbol</th>
-            <th>Spread</th>
-            <th>Best Ask (Buy At)</th>
-            <th>Best Bid (Sell At)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {opportunities.map((opp, index) => (
-            <tr key={index}>
-              <td>{opp.symbol}</td>
-              <td className={opp.spreadPercent > 0 ? styles.positive : styles.negative}>
-                {opp.spread.toFixed(2)} ({opp.spreadPercent.toFixed(3)}%)
-              </td>
-              <td>{opp.bestAsk.exchange} - ${opp.bestAsk.price.toFixed(2)}</td>
-              <td>{opp.bestBid.exchange} - ${opp.bestBid.price.toFixed(2)}</td>
+      {opportunities.length === 0 ? (
+        <div className="no-opportunities">No arbitrage opportunities detected.</div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Spread (%)</th>
+              <th>Best Ask (Buy At)</th>
+              <th>Best Bid (Sell At)</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {opportunities.map((opp, index) => (
+              <tr key={`${opp.symbol}-${index}`}>
+                <td className="symbol">{opp.symbol}</td>
+                <td className={`spread-percent ${opp.spreadPercent > 0 ? 'positive' : 'negative'}`}>
+                  {opp.spreadPercent.toFixed(3)}%
+                </td>
+                <td className="exchange-info">
+                  <span className="exchange-name">{opp.bestAsk.exchange}: </span>
+                  <span className="price">${opp.bestAsk.price.toFixed(2)}</span>
+                </td>
+                <td className="exchange-info">
+                  <span className="exchange-name">{opp.bestBid.exchange}: </span>
+                  <span className="price">${opp.bestBid.price.toFixed(2)}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 };

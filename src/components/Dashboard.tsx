@@ -7,9 +7,14 @@ import ArbitragePanel from "./ArbitragePanel";
 import Header from "./dashboard/Header";
 import Metrics from "./dashboard/Metrics";
 import PriceTable from "./dashboard/PriceTable";
-import styles from "./Dashboard.module.scss";
+import './Dashboard.scss';
 
-function Dashboard() {
+interface DashboardProps {
+  theme: string;
+  toggleTheme: () => void;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ theme, toggleTheme }) => {
   const fastLookup = useRef(new FastMarketDataLookup());
   const marketDataService = useRef<MarketDataService | null>(null);
   const [tickers, setTickers] = useState<GenericMarketData[]>([]);
@@ -126,33 +131,35 @@ function Dashboard() {
   const sortedExchanges = [...exchanges].sort();
   
   return (
-    <div className={styles.dashboard}>
+    <div className={`dashboard ${theme}`}>
       <Header 
-        hasData={hasData} 
-        totalDataPoints={totalDataPoints} 
-        totalExchanges={totalExchanges} 
-      />
-      
-      <div className={styles.searchContainer}>
-        <SymbolSearch onAddSymbol={addSymbol} currentSymbols={symbolList} />
-      </div>
-
-      <Metrics 
-        totalSymbols={totalSymbols} 
-        totalExchanges={totalExchanges} 
-        totalDataPoints={totalDataPoints} 
-      />
-      
-      <PriceTable 
-        symbols={symbolList}
-        types={types}
-        exchanges={sortedExchanges}
         hasData={hasData}
-        getPrice={getPrice}
-        removeSymbol={removeSymbol}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
+      
+      <div className="container">
+        <div className="search-container">
+          <SymbolSearch onAddSymbol={addSymbol} currentSymbols={symbolList} />
+        </div>
 
-      <ArbitragePanel opportunities={arbitrageOpportunities} />
+        <Metrics 
+          totalSymbols={totalSymbols} 
+          totalExchanges={totalExchanges} 
+          totalDataPoints={totalDataPoints} 
+        />
+        
+        <PriceTable 
+          symbols={symbolList}
+          types={types}
+          exchanges={sortedExchanges}
+          hasData={hasData}
+          getPrice={getPrice}
+          removeSymbol={removeSymbol}
+        />
+
+        <ArbitragePanel opportunities={arbitrageOpportunities} />
+      </div>
     </div>
   );
 }
