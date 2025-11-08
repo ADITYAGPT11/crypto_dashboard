@@ -8,6 +8,7 @@ import Header from "./dashboard/Header";
 import Metrics from "./dashboard/Metrics";
 import PriceTable from "./dashboard/PriceTable";
 import './Dashboard.scss';
+import FundingPanel from "./FundingPanel";
 
 interface DashboardProps {
   theme: string;
@@ -159,6 +160,8 @@ const Dashboard: React.FC<DashboardProps> = ({ theme, toggleTheme }) => {
         />
 
         <ArbitragePanel opportunities={arbitrageOpportunities} />
+
+        <FundingPanel opportunities={[]} />
       </div>
     </div>
   );

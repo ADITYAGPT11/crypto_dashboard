@@ -4,6 +4,13 @@ import type { GenericMarketData } from "../types/marketData";
 
 type MarketType = "spot" | "futures";
 
+interface BinanceMessage {
+    e: string;
+    s: string;
+    p: string;
+    T: number;
+}
+
 export class BinanceAdapter extends EventEmitter {
   private clients: Record<MarketType, BaseWebSocketClient>;
   private subscribedSymbols: Set<string> = new Set();
@@ -27,7 +34,7 @@ export class BinanceAdapter extends EventEmitter {
   private setupHandlers(marketType: MarketType) {
     const ws = this.clients[marketType];
 
-    ws.on("message", (msg) => {
+    ws.on("message", (msg: BinanceMessage) => {
 
       if (msg.e === 'aggTrade') {
         // Inline normalization: BTCUSDT -> BTC-USDT
@@ -59,11 +66,11 @@ export class BinanceAdapter extends EventEmitter {
         this.emit("marketData", transformedData);
       } else if (msg.e === 'depth') {
         // Handle depth data if needed
-      } else {
       }
     });
 
     ws.on("open", () => {
+      // new subscription logic here
     });
 
     ws.on("error", (error) => {

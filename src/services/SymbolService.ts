@@ -1,6 +1,18 @@
 /**
  * Service to fetch real-time symbol data from exchanges
  */
+interface BinanceSymbol {
+  status: string;
+  symbol: string;
+}
+
+interface OkxInstrument {
+  state: string;
+  quoteCcy: string;
+  instId: string;
+  baseCcy: string;
+}
+
 export class SymbolService {
   private static instance: SymbolService | null = null;
   private binanceSymbols: string[] = [];
@@ -22,7 +34,7 @@ export class SymbolService {
       const data = await response.json();
       
       this.binanceSymbols = data.symbols
-        .filter((symbol: any) => 
+        .filter((symbol: BinanceSymbol) => 
           symbol.status === 'TRADING' && 
           symbol.symbol.endsWith('USDT') &&
           !symbol.symbol.includes('UP') &&
@@ -30,7 +42,7 @@ export class SymbolService {
           !symbol.symbol.includes('BEAR') &&
           !symbol.symbol.includes('BULL')
         )
-        .map((symbol: any) => {
+        .map((symbol: BinanceSymbol) => {
           const base = symbol.symbol.replace('USDT', '');
           return `${base}-USDT`;
         })
@@ -50,13 +62,13 @@ export class SymbolService {
       const data = await response.json();
       
       this.okxSymbols = data.data
-        .filter((instrument: any) => 
+        .filter((instrument: OkxInstrument) => 
           instrument.state === 'live' && 
           instrument.quoteCcy === 'USDT' &&
           !instrument.instId.includes('UP') &&
           !instrument.instId.includes('DOWN')
         )
-        .map((instrument: any) => `${instrument.baseCcy}-USDT`)
+        .map((instrument: OkxInstrument) => `${instrument.baseCcy}-USDT`)
         .sort();
       
       this.updateAllSymbols();
