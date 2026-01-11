@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import './App.scss';
 import Dashboard from './components/MainContainer/MainContainer';
-import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   const [theme, setTheme] = useState('light');
@@ -16,9 +15,7 @@ function App() {
 
   return (
     <div className="app">
-      <ErrorBoundary>
-        <Dashboard theme={theme} toggleTheme={toggleTheme} />
-      </ErrorBoundary>
+      <Dashboard theme={theme} toggleTheme={toggleTheme} />
     </div>
   );
 }
