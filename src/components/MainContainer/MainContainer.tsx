@@ -2,13 +2,13 @@ import { useEffect, useState, useRef, useCallback, memo } from "react";
 import { MarketDataService } from "../../services/MarketDataService";
 import type { GenericMarketData, ArbitrageOpportunity } from "../../types/marketData";
 import { FastMarketDataLookup } from "../../utils/fastLookup";
-import { SymbolSearch } from "../SymbolSearch";
 import ArbitragePanel from "../ArbitragePanel/ArbitragePanel";
 import Header from "../dashboard/Header";
 import Metrics from "../dashboard/Metrics";
 import PriceTable from "../dashboard/PriceTable";
 import FundingPanel from "../FundingPanel/FundingPanel";
 import styles from "./MainContainer.module.scss";
+import SymbolSearch from "../../common-components/SymbolSearch";
 
 interface DashboardProps {
   theme: string;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { SymbolService } from '../services/SymbolService';
+import { SymbolService } from '../../services/SymbolService';
 import './SymbolSearch.scss';
 
 interface SymbolSearchProps {
@@ -7,7 +7,7 @@ interface SymbolSearchProps {
   currentSymbols: string[];
 }
 
-export const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps) => {
+const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -19,7 +19,7 @@ export const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps)
   useEffect(() => {
     // Initialize service on the client side
     if (!symbolService.current) {
-        symbolService.current = SymbolService.getInstance();
+      symbolService.current = SymbolService.getInstance();
     }
 
     const loadSymbols = async () => {
@@ -93,7 +93,7 @@ export const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps)
         />
         <div className="search-icon">🔍</div>
       </div>
-      
+
       {isOpen && (
         <div className="suggestions-dropdown">
           {isLoading ? (
@@ -134,3 +134,6 @@ export const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps)
     </div>
   );
 };
+
+
+export default SymbolSearch;

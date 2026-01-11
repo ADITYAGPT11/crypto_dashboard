@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export const RealTimeClock = () => {
+const RealTimeClock = () => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -13,7 +13,7 @@ export const RealTimeClock = () => {
 
   return (
     <div className="status-item">
-      <span>{time.toLocaleTimeString('en-US', { 
+      <span>{time.toLocaleTimeString('en-US', {
         hour12: false,
         hour: '2-digit',
         minute: '2-digit',
@@ -22,3 +22,5 @@ export const RealTimeClock = () => {
     </div>
   );
 };
+
+export default RealTimeClock;

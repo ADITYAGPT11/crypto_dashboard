@@ -1,7 +1,7 @@
 import React from 'react';
-import { RealTimeClock } from '../RealTimeClock';
-import ThemeToggleButton from '../ThemeToggleButton';
+import ThemeToggleButton from '../ThemeToggle/ThemeToggleButton';
 import './Header.scss';
+import RealTimeClock from '../../common-components/RealTimeClock';
 
 interface HeaderProps {
   hasData: boolean;
