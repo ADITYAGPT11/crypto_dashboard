@@ -1,15 +1,13 @@
 import React from 'react';
-import ThemeToggleButton from '../ThemeToggle/ThemeToggleButton';
+import ThemeToggle from '../ThemeToggle/ThemeToggle';
 import './Header.scss';
 import RealTimeClock from '../../common-components/RealTimeClock';
 
 interface HeaderProps {
   hasData: boolean;
-  theme: string;
-  toggleTheme: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ hasData, theme, toggleTheme }) => {
+const Header: React.FC<HeaderProps> = ({ hasData }) => {
   return (
     <div className="header">
       <div className="header-content">
@@ -20,7 +18,7 @@ const Header: React.FC<HeaderProps> = ({ hasData, theme, toggleTheme }) => {
             <span>{hasData ? 'Live' : 'Connecting...'}</span>
           </div>
           <RealTimeClock />
-          <ThemeToggleButton theme={theme} toggleTheme={toggleTheme} />
+          <ThemeToggle />
         </div>
       </div>
     </div>

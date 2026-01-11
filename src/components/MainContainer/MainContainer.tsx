@@ -10,12 +10,7 @@ import FundingPanel from "../FundingPanel/FundingPanel";
 import styles from "./MainContainer.module.scss";
 import SymbolSearch from "../../common-components/SymbolSearch";
 
-interface DashboardProps {
-  theme: string;
-  toggleTheme: () => void;
-}
-
-const MainContainer: React.FC<DashboardProps> = ({ theme, toggleTheme }) => {
+const MainContainer: React.FC = () => {
   const fastLookup = useRef(new FastMarketDataLookup());
   const marketDataService = useRef<MarketDataService | null>(null);
 
@@ -133,8 +128,8 @@ const MainContainer: React.FC<DashboardProps> = ({ theme, toggleTheme }) => {
   const hasData = exchanges.length > 0 && types.length > 0;
 
   return (
-    <div className={`${styles.dashboard} ${styles[theme]}`}>
-      <Header hasData={hasData} theme={theme} toggleTheme={toggleTheme} />
+    <div className={`${styles.dashboard} `}>
+      <Header hasData={hasData} />
 
       <div className={styles.container}>
         <div className={styles.searchContainer}>

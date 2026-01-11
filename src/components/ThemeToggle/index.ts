@@ -1,1 +1,2 @@
-export { default } from './ThemeToggleButton';
+export { default } from './ThemeToggle';
+export * from './constants';
