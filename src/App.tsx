@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import './App.scss';
-import Dashboard from './components/Dashboard';
+import Dashboard from './components/MainContainer/MainContainer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {

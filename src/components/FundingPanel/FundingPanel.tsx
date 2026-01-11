@@ -1,6 +1,6 @@
 import React from 'react';
-import './FundingPanel.scss';
-import type { FundingOpportunity } from '../types/marketData';
+import styles from './FundingPanel.module.scss';
+import type { FundingOpportunity } from '../../types/marketData';
 
 interface FundingPanelProps {
     opportunities: FundingOpportunity[];
@@ -8,12 +8,12 @@ interface FundingPanelProps {
 
 const FundingPanel: React.FC<FundingPanelProps> = ({ opportunities }) => {
     return (
-        <div className="funding-panel">
+        <div className={styles.fundingPanel}>
             <h2>Funding Opportunities</h2>
             {opportunities.length === 0 ? (
-                <div className="no-opportunities">No funding opportunities detected.</div>
+                <div className={styles.noOpportunities}>No funding opportunities detected.</div>
             ) : (
-                <table className="table">
+                <table className={styles.table}>
                     <thead>
                         <tr>
                             <th>Symbol</th>
@@ -25,10 +25,10 @@ const FundingPanel: React.FC<FundingPanelProps> = ({ opportunities }) => {
                     <tbody>
                         {opportunities.map((opp, index) => (
                             <tr key={`${opp.symbol}-${index}`}>
-                                <td className="symbol">{opp.symbol}</td>
-                                <td className="symbol">{opp.exchange}</td>
-                                <td className="symbol">{opp.fundingRate}</td>
-                                <td className="symbol">{opp.fundingInterval}</td>
+                                <td className={styles.symbol}>{opp.symbol}</td>
+                                <td className={styles.symbol}>{opp.exchange}</td>
+                                <td className={styles.symbol}>{opp.fundingRate}</td>
+                                <td className={styles.symbol}>{opp.fundingInterval}</td>
 
                             </tr>
                         ))}

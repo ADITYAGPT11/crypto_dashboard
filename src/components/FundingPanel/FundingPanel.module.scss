@@ -1,0 +1,89 @@
+@import '../../App.scss';
+
+.fundingPanel {
+    background-color: var(--background-secondary);
+    padding: 24px;
+    border-radius: 8px;
+    border: 1px solid var(--border-primary);
+    margin-top: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-primary);
+      padding-bottom: 16px;
+    }
+  
+    .noOpportunities {
+      text-align: center;
+      color: var(--text-secondary);
+      padding: 30px 0;
+      font-style: italic;
+    }
+  
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      color: var(--text-primary);
+      font-size: 15px;
+  
+      th, td {
+        padding: 16px 20px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-primary);
+      }
+  
+      thead {
+        th {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          background-color: var(--background-primary);
+        }
+      }
+  
+      tbody tr {
+        transition: background-color 0.2s ease;
+        &:last-child td {
+          border-bottom: none;
+        }
+        &:hover {
+          background-color: var(--background-primary);
+        }
+      }
+  
+      .symbol {
+        font-weight: 600;
+      }
+  
+      .spread-percent {
+        font-weight: 700;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      }
+  
+      .positive {
+        color: var(--accent-positive);
+      }
+  
+      .negative {
+        color: var(--accent-negative);
+      }
+  
+      .exchangeInfo {
+        font-size: 14px;
+        .exchangeName {
+          font-weight: 500;
+          color: var(--text-secondary);
+        }
+        .price {
+          font-weight: 600;
+          font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+      }
+    }
+  }
