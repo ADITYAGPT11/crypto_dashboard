@@ -1,13 +1,18 @@
-import './App.scss';
-import Header from './components/dashboard/Header';
-import Dashboard from './components/MainContainer/MainContainer';
+import { Route, Routes } from "react-router-dom";
+import "./App.scss";
+import Header from "./components/dashboard/Header";
+import Dashboard from "./components/MainContainer/MainContainer";
+import AboutUs from "./components/AboutUs";
 
 function App() {
-
   return (
     <div className="app">
       <Header />
-      <Dashboard />
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/about" element={<AboutUs />} />
+      </Routes>
+      
     </div>
   );
 }
