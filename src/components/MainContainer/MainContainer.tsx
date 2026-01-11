@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef, useCallback, memo } from "react";
 import { MarketDataService } from "../../services/MarketDataService";
-import type { GenericMarketData, ArbitrageOpportunity } from "../../types/marketData";
+import type {
+  GenericMarketData,
+  ArbitrageOpportunity,
+} from "../../types/marketData";
 import { FastMarketDataLookup } from "../../utils/fastLookup";
 import ArbitragePanel from "../ArbitragePanel/ArbitragePanel";
-import Header from "../dashboard/Header";
 import Metrics from "../dashboard/Metrics";
 import PriceTable from "../dashboard/PriceTable";
 import FundingPanel from "../FundingPanel/FundingPanel";
@@ -17,8 +19,13 @@ const MainContainer: React.FC = () => {
   const [tickers, setTickers] = useState<GenericMarketData[]>([]);
   const [exchanges, setExchanges] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
-  const [symbolList, setSymbolList] = useState<string[]>(["BTC-USDT", "ETH-USDT"]);
-  const [arbitrageOpportunities, setArbitrageOpportunities] = useState<ArbitrageOpportunity[]>([]);
+  const [symbolList, setSymbolList] = useState<string[]>([
+    "BTC-USDT",
+    "ETH-USDT",
+  ]);
+  const [arbitrageOpportunities, setArbitrageOpportunities] = useState<
+    ArbitrageOpportunity[]
+  >([]);
 
   const ARBITRAGE_THRESHOLD_PERCENT = 0.1;
 
@@ -32,14 +39,14 @@ const MainContainer: React.FC = () => {
   const addSymbol = useCallback(
     (symbol: string) => {
       if (!symbolList.includes(symbol)) {
-        setSymbolList(prev => [...prev, symbol]);
+        setSymbolList((prev) => [...prev, symbol]);
       }
     },
     [symbolList]
   );
 
   const removeSymbol = useCallback((symbol: string) => {
-    setSymbolList(prev => prev.filter(s => s !== symbol));
+    setSymbolList((prev) => prev.filter((s) => s !== symbol));
   }, []);
 
   useEffect(() => {
@@ -63,8 +70,16 @@ const MainContainer: React.FC = () => {
       const exchanges = fastLookup.current.getExchanges();
 
       if (exchanges.length === 2) {
-        const price1 = fastLookup.current.getPrice(exchanges[0], msg.symbol, msg.type);
-        const price2 = fastLookup.current.getPrice(exchanges[1], msg.symbol, msg.type);
+        const price1 = fastLookup.current.getPrice(
+          exchanges[0],
+          msg.symbol,
+          msg.type
+        );
+        const price2 = fastLookup.current.getPrice(
+          exchanges[1],
+          msg.symbol,
+          msg.type
+        );
 
         if (price1 && price2) {
           const spread = price1 - price2;
@@ -85,8 +100,10 @@ const MainContainer: React.FC = () => {
               },
             };
 
-            setArbitrageOpportunities(prev => {
-              const idx = prev.findIndex(o => o.symbol === newOpportunity.symbol);
+            setArbitrageOpportunities((prev) => {
+              const idx = prev.findIndex(
+                (o) => o.symbol === newOpportunity.symbol
+              );
               if (idx !== -1) {
                 const copy = [...prev];
                 copy[idx] = newOpportunity;
@@ -104,8 +121,8 @@ const MainContainer: React.FC = () => {
     };
 
     service.on("marketData", handler);
-    service.on("connected", data => console.log("Service connected:", data));
-    service.on("error", error => console.error("Service error:", error));
+    service.on("connected", (data) => console.log("Service connected:", data));
+    service.on("error", (error) => console.error("Service error:", error));
 
     return () => {
       service.off("marketData", handler);
@@ -129,8 +146,6 @@ const MainContainer: React.FC = () => {
 
   return (
     <div className={`${styles.dashboard} `}>
-      <Header hasData={hasData} />
-
       <div className={styles.container}>
         <div className={styles.searchContainer}>
           <SymbolSearch onAddSymbol={addSymbol} currentSymbols={symbolList} />
