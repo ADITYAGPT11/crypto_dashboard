@@ -1,0 +1,25 @@
+.header {
+  background-color: var(--background-secondary);
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border-primary);
+
+  .headerContent {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+
+    .title {
+      font-size: 24px;
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .rightSection {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+  }
+}
