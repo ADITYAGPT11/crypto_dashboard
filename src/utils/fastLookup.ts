@@ -4,14 +4,14 @@
  */
 export class FastMarketDataLookup {
   private data = new Map<string, {
-    exchange: "Binance" | "OKX";
+    exchange: "BINANCE" | "OKX";
     symbol: string;
     type: "SPOT" | "FUT";
     currentPrice: number;
     timeStamp: number;
   }>();
 
-  update(exchange: "Binance" | "OKX", symbol: string, type: "SPOT" | "FUT", currentPrice: number, timeStamp: number) {
+  update(exchange: "BINANCE" | "OKX", symbol: string, type: "SPOT" | "FUT", currentPrice: number, timeStamp: number) {
     // Use symbol as-is for key
     const key = `${exchange}:${symbol}:${type}`;
     this.data.set(key, { exchange, symbol, type, currentPrice, timeStamp });

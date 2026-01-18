@@ -261,8 +261,10 @@ export class BaseWebSocketClient {
       // if lastMessageAt is stale beyond interval + timeout, force reconnect
       const now = Date.now();
       if (
+        this.opts.heartbeat.intervalMs &&
+        this.opts.heartbeat.timeoutMs &&
         now - this.lastMessageAt >
-        this.opts.heartbeat.intervalMs + this.opts.heartbeat.timeoutMs
+          this.opts.heartbeat.intervalMs + this.opts.heartbeat.timeoutMs
       ) {
         if (this.opts.debug)
           console.warn("[BaseWS] connection stale - forcing reconnect");

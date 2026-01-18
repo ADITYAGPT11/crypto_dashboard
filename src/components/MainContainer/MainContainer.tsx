@@ -9,7 +9,7 @@ import FundingPanel from "../FundingPanel/FundingPanel";
 import styles from "./MainContainer.module.scss";
 import SymbolSearch from "../../common-components/SymbolSearch";
 
-const EXCHANGES = ["Binance", "OKX"];
+const EXCHANGES = ["BINANCE", "OKX"];
 const TYPES = ["SPOT", "FUT"];
 
 const MainContainer: React.FC = () => {

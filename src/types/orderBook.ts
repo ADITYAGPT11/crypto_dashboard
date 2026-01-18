@@ -4,7 +4,7 @@ export interface OrderBookEntry {
 }
 
 export interface OrderBook {
-  exchange: "Binance" | "OKX";
+  exchange: "BINANCE" | "OKX";
   symbol: string;
   bids: OrderBookEntry[];
   asks: OrderBookEntry[];

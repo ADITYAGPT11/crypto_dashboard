@@ -1,5 +1,5 @@
 export type GenericMarketData = {
-  exchange: "Binance" | "OKX";
+  exchange: "BINANCE" | "OKX";
   symbol: string;
   type: "SPOT" | "FUT";
   currentPrice: number;
@@ -21,7 +21,7 @@ export interface ArbitrageOpportunity {
 
 export interface FundingOpportunity {
   symbol: string;
-  exchange : string
-  fundingRate: number
-  fundingInterval: number
+  exchange: string;
+  fundingRate: number;
+  fundingInterval: number;
 }

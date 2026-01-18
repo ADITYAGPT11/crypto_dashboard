@@ -5,10 +5,10 @@ import type { GenericMarketData } from "../types/marketData";
 type MarketType = "spot" | "futures";
 
 interface BinanceMessage {
-    e: string;
-    s: string;
-    p: string;
-    T: number;
+  e: string;
+  s: string;
+  p: string;
+  T: number;
 }
 
 export class BinanceAdapter extends EventEmitter {
@@ -34,37 +34,23 @@ export class BinanceAdapter extends EventEmitter {
   private setupHandlers(marketType: MarketType) {
     const ws = this.clients[marketType];
 
-    ws.on("message", (msg: BinanceMessage) => {
-
-      if (msg.e === 'aggTrade') {
+    ws.on("message", (rawMsg) => {
+      const msg = rawMsg as BinanceMessage;
+      if (msg.e === "aggTrade") {
         // Inline normalization: BTCUSDT -> BTC-USDT
         let symbolKey = msg.s;
-        if (symbolKey.endsWith('USDT')) {
-          symbolKey = symbolKey.replace('USDT', '-USDT');
-        } else if (symbolKey.endsWith('BTC')) {
-          symbolKey = symbolKey.replace('BTC', '-BTC');
-        } else if (symbolKey.endsWith('ETH')) {
-          symbolKey = symbolKey.replace('ETH', '-ETH');
-        } else if (symbolKey.endsWith('BUSD')) {
-          symbolKey = symbolKey.replace('BUSD', '-BUSD');
-        } else if (symbolKey.endsWith('USD')) {
-          symbolKey = symbolKey.replace('USD', '-USD');
-        } else if (symbolKey.endsWith('EUR')) {
-          symbolKey = symbolKey.replace('EUR', '-EUR');
-        } else if (symbolKey.endsWith('TRY')) {
-          symbolKey = symbolKey.replace('TRY', '-TRY');
-        } else if (symbolKey.endsWith('BNB')) {
-          symbolKey = symbolKey.replace('BNB', '-BNB');
+        if (symbolKey.endsWith("USDT")) {
+          symbolKey = symbolKey.replace("USDT", "-USDT");
         }
         const transformedData: GenericMarketData = {
-          exchange: 'Binance',
-          type: marketType === 'spot' ? 'SPOT' : 'FUT',
+          exchange: "BINANCE",
+          type: marketType === "spot" ? "SPOT" : "FUT",
           symbol: symbolKey,
           currentPrice: parseFloat(msg.p),
-          timeStamp: msg.T
-        }
+          timeStamp: msg.T,
+        };
         this.emit("marketData", transformedData);
-      } else if (msg.e === 'depth') {
+      } else if (msg.e === "depth") {
         // Handle depth data if needed
       }
     });
@@ -74,15 +60,21 @@ export class BinanceAdapter extends EventEmitter {
     });
 
     ws.on("error", (error) => {
-      console.error('Binance WebSocket error:', error);
+      console.error("Binance WebSocket error:", error);
     });
   }
 
   async connectAll() {
-    await Promise.all([this.clients.spot.connect(), this.clients.futures.connect()]);
+    await Promise.all([
+      this.clients.spot.connect(),
+      this.clients.futures.connect(),
+    ]);
   }
 
-  subscribe(symbols: string[] | string, streams: ("bookTicker" | "aggTrade" | "depth")[] = ["bookTicker"]) {
+  subscribe(
+    symbols: string[] | string,
+    streams: ("bookTicker" | "aggTrade" | "depth")[] = ["bookTicker"],
+  ) {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
     arr.forEach((s) => this.subscribedSymbols.add(s.toUpperCase()));
 

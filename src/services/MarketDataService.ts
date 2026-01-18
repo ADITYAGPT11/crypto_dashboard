@@ -37,7 +37,7 @@ export class MarketDataService extends EventEmitter {
 
       const liveService = LiveMarketDataService.getInstance();
 
-      // Binance
+      // BINANCE
       this.binance.on("marketData", (msg) => {
         liveService.update(
           msg.exchange,

@@ -13,7 +13,7 @@ export function useLivePrice(
     return service.subscribe(exchange, symbol, type, () => {
       forceUpdate((x) => x + 1);
     });
-  }, [exchange, symbol, type]);
+  }, [exchange, symbol, type, service]);
 
   return service.getPrice(exchange, symbol, type);
 }

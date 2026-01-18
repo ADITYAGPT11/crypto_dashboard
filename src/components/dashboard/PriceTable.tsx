@@ -29,7 +29,7 @@ const PriceTable: React.FC<PriceTableProps> = ({
               exchanges.map((ex) => <th key={ex}>{ex} Price</th>)
             ) : (
               <>
-                <th>Binance Price</th>
+                <th>BINANCE Price</th>
                 <th>OKX Price</th>
               </>
             )}

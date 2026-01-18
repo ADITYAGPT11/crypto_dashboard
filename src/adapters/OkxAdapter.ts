@@ -18,8 +18,8 @@ export class OkxAdapter extends EventEmitter {
   }
 
   private setupHandlers() {
-    this.ws.on("message", (msg) => {
-      
+    this.ws.on("message", (rawMsg) => {
+      const msg = rawMsg as any;
       if (msg.arg?.channel === "tickers" && msg.data?.length) {
         const d = msg.data[0];
         // d.instId is already in BTC-USDT or BTC-USDT-SWAP format
@@ -34,11 +34,10 @@ export class OkxAdapter extends EventEmitter {
       }
     });
 
-    this.ws.on("open", () => {
-    });
+    this.ws.on("open", () => {});
 
     this.ws.on("error", (error) => {
-      console.error('OKX WebSocket error:', error);
+      console.error("OKX WebSocket error:", error);
     });
   }
 
@@ -50,7 +49,9 @@ export class OkxAdapter extends EventEmitter {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
 
     arr.forEach((s) => {
-      if (!this.subscribed.find((sub) => sub.symbol === s && sub.type === type)) {
+      if (
+        !this.subscribed.find((sub) => sub.symbol === s && sub.type === type)
+      ) {
         this.subscribed.push({ symbol: s, type });
       }
     });
