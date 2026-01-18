@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
 import { BinanceAdapter } from "../adapters/BinanceAdapter";
 import { OkxAdapter } from "../adapters/OkxAdapter";
+import { LiveMarketDataService } from "./LiveMarketDataService";
 
 export class MarketDataService extends EventEmitter {
   private static instance: MarketDataService | null = null;
@@ -20,58 +21,49 @@ export class MarketDataService extends EventEmitter {
   }
 
   async startMarketData(symbol: string | string[]) {
-    // Always allow re-initialization for new symbols
     if (this.isInitialized) {
-      this.binance.subscribe(symbol, ["aggTrade" , "depth"]);
+      this.binance.subscribe(symbol, ["aggTrade", "depth"]);
       this.okx.subscribe(symbol, "SPOT");
       this.okx.subscribe(symbol, "SWAP");
       return;
     }
 
     try {
-      // connect all exchanges in parallel
-      await Promise.all([
-        this.binance.connectAll(),
-        this.okx.connect()
-      ]);
+      await Promise.all([this.binance.connectAll(), this.okx.connect()]);
 
-      // subscribe to spot + futures/swap
-      this.binance.subscribe(symbol, ["aggTrade" , "depth"]);
+      this.binance.subscribe(symbol, ["aggTrade", "depth"]);
       this.okx.subscribe(symbol, "SPOT");
       this.okx.subscribe(symbol, "SWAP");
 
-      // ---------- Forward Events ----------
+      const liveService = LiveMarketDataService.getInstance();
+
       // Binance
-      this.binance.on("marketData", (data) => {
-        this.emit("marketData", data);
-      });
-      this.binance.on("connected", (e) => {
-        this.emit("connected", e);
-      });
-      this.binance.on("disconnected", (e) => {
-        this.emit("disconnected", e);
-      });
-      this.binance.on("error", (e) => {
-        this.emit("error", e);
+      this.binance.on("marketData", (msg) => {
+        liveService.update(
+          msg.exchange,
+          msg.symbol,
+          msg.type,
+          msg.currentPrice,
+        );
+
+        this.emit("marketData", msg);
       });
 
       // OKX
-      this.okx.on("marketData", (data) => {
-        this.emit("marketData", data);
-      });
-      this.okx.on("connected", (e) => {
-        this.emit("connected", e);
-      });
-      this.okx.on("disconnected", (e) => {
-        this.emit("disconnected", e);
-      });
-      this.okx.on("error", (e) => {
-        this.emit("error", e);
+      this.okx.on("marketData", (msg) => {
+        liveService.update(
+          msg.exchange,
+          msg.symbol,
+          msg.type,
+          msg.currentPrice,
+        );
+
+        this.emit("marketData", msg);
       });
 
       this.isInitialized = true;
     } catch (error) {
-      console.error('Error initializing MarketDataService:', error);
+      console.error("Error initializing MarketDataService:", error);
     }
   }
 }

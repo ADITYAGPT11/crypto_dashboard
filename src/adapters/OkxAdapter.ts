@@ -44,7 +44,6 @@ export class OkxAdapter extends EventEmitter {
 
   async connect() {
     await this.ws.connect();
-    console.log("✅ OKX WebSocket connected");
   }
 
   subscribe(symbols: string | string[], type: "SPOT" | "SWAP") {

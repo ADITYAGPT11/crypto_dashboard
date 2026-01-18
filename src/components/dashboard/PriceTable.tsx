@@ -1,13 +1,12 @@
-import React, { memo } from 'react';
-import './PriceTable.scss';
-import PriceRow from './PriceRow';
+import React, { memo } from "react";
+import "./PriceTable.scss";
+import PriceRow from "./PriceRow";
 
 interface PriceTableProps {
   symbols: string[];
   types: string[];
   exchanges: string[];
   hasData: boolean;
-  getPrice: (symbol: string, exchange: string, type: string) => number | null;
   removeSymbol: (symbol: string) => void;
 }
 
@@ -16,7 +15,6 @@ const PriceTable: React.FC<PriceTableProps> = ({
   types,
   exchanges,
   hasData,
-  getPrice,
   removeSymbol,
 }) => {
   return (
@@ -26,17 +24,20 @@ const PriceTable: React.FC<PriceTableProps> = ({
           <tr>
             <th>Asset</th>
             <th>Market</th>
-            {exchanges.length > 0 ? exchanges.map((ex) => (
-              <th key={ex}>{ex} Price</th>
-            )) : (
+
+            {exchanges.length > 0 ? (
+              exchanges.map((ex) => <th key={ex}>{ex} Price</th>)
+            ) : (
               <>
                 <th>Binance Price</th>
                 <th>OKX Price</th>
               </>
             )}
+
             <th>Spread</th>
           </tr>
         </thead>
+
         <tbody>
           {hasData ? (
             symbols.map((symbol) =>
@@ -46,15 +47,14 @@ const PriceTable: React.FC<PriceTableProps> = ({
                   symbol={symbol}
                   type={type}
                   exchanges={exchanges}
-                  getPrice={getPrice}
                   removeSymbol={removeSymbol}
                 />
               ))
             )
           ) : (
-            // Show loading rows
+            // Skeleton rows
             symbols.map((symbol) =>
-              ['SPOT', 'FUT'].map((type) => ( // Using hardcoded types for skeleton
+              ["SPOT", "FUT"].map((type) => (
                 <tr key={`${symbol}-${type}`}>
                   <td>
                     <div className="symbol">
@@ -67,18 +67,14 @@ const PriceTable: React.FC<PriceTableProps> = ({
                   <td>
                     <span className="type">{type}</span>
                   </td>
+
                   <td>
-                    <div>
-                      <div className="skeleton"></div>
-                      <div className="skeleton-exchange"></div>
-                    </div>
+                    <div className="skeleton"></div>
                   </td>
                   <td>
-                    <div>
-                      <div className="skeleton"></div>
-                      <div className="skeleton-exchange"></div>
-                    </div>
+                    <div className="skeleton"></div>
                   </td>
+
                   <td>
                     <div className="skeleton"></div>
                   </td>
