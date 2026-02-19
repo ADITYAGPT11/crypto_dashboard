@@ -1,5 +1,5 @@
 export type GenericMarketData = {
-  exchange: "BINANCE" | "OKX";
+  exchange: "BINANCE" | "OKX" | "DELTA";
   symbol: string;
   type: "SPOT" | "FUT";
   currentPrice: number;

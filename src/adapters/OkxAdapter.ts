@@ -5,6 +5,18 @@ import { parseOkxSymbol, formatCanonicalSymbol } from "../utils/symbolUtils";
 
 type Subscription = { symbol: string; type: "SPOT" | "SWAP" };
 
+interface OkxMessage {
+  arg: {
+    channel: string;
+    instId: string;
+  };
+  data: Array<{
+    instId: string;
+    last: string;
+    ts: string;
+  }>;
+}
+
 export class OkxAdapter extends EventEmitter {
   private ws: BaseWebSocketClient;
   private subscribed: Subscription[] = [];
@@ -19,7 +31,7 @@ export class OkxAdapter extends EventEmitter {
 
   private setupHandlers() {
     this.ws.on("message", (rawMsg) => {
-      const msg = rawMsg as any;
+      const msg = rawMsg as OkxMessage;
       if (msg.arg?.channel === "tickers" && msg.data?.length) {
         const d = msg.data[0];
         // d.instId is already in BTC-USDT or BTC-USDT-SWAP format

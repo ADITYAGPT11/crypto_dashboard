@@ -2,11 +2,13 @@ import { EventEmitter } from "events";
 import { BinanceAdapter } from "../adapters/BinanceAdapter";
 import { OkxAdapter } from "../adapters/OkxAdapter";
 import { LiveMarketDataService } from "./LiveMarketDataService";
+import { DeltaExchangeAdapter } from "../adapters/DeltaExchangeAdapter";
 
 export class MarketDataService extends EventEmitter {
   private static instance: MarketDataService | null = null;
   private binance = new BinanceAdapter();
   private okx = new OkxAdapter();
+  private delta = new DeltaExchangeAdapter();
   private isInitialized = false;
 
   private constructor() {
@@ -22,18 +24,25 @@ export class MarketDataService extends EventEmitter {
 
   async startMarketData(symbol: string | string[]) {
     if (this.isInitialized) {
+      console.log('ihi', symbol)
       this.binance.subscribe(symbol, ["aggTrade", "depth"]);
       this.okx.subscribe(symbol, "SPOT");
       this.okx.subscribe(symbol, "SWAP");
+      this.delta.subscribe(symbol);
       return;
     }
 
     try {
-      await Promise.all([this.binance.connectAll(), this.okx.connect()]);
+      await Promise.all([this.binance.connectAll(),
+         this.okx.connect(),
+        this.delta.connect()
+      ]);
 
       this.binance.subscribe(symbol, ["aggTrade", "depth"]);
       this.okx.subscribe(symbol, "SPOT");
       this.okx.subscribe(symbol, "SWAP");
+      this.delta.subscribe(symbol);
+
 
       const liveService = LiveMarketDataService.getInstance();
 
