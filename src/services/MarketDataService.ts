@@ -24,7 +24,6 @@ export class MarketDataService extends EventEmitter {
 
   async startMarketData(symbol: string | string[]) {
     if (this.isInitialized) {
-      console.log('ihi', symbol)
       this.binance.subscribe(symbol, ["aggTrade", "depth"]);
       this.okx.subscribe(symbol, "SPOT");
       this.okx.subscribe(symbol, "SWAP");
@@ -60,6 +59,18 @@ export class MarketDataService extends EventEmitter {
 
       // OKX
       this.okx.on("marketData", (msg) => {
+        liveService.update(
+          msg.exchange,
+          msg.symbol,
+          msg.type,
+          msg.currentPrice,
+        );
+
+        this.emit("marketData", msg);
+      });
+
+      // DELTA EXCHANGE
+      this.delta.on("marketData", (msg) => {
         liveService.update(
           msg.exchange,
           msg.symbol,

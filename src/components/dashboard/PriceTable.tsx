@@ -23,65 +23,54 @@ const PriceTable: React.FC<PriceTableProps> = ({
         <thead>
           <tr>
             <th>Asset</th>
-            <th>Market</th>
-
-            {exchanges.length > 0 ? (
-              exchanges.map((ex) => <th key={ex}>{ex} Price</th>)
-            ) : (
-              <>
-                <th>BINANCE Price</th>
-                <th>OKX Price</th>
-              </>
-            )}
-
-            <th>Spread</th>
+            {exchanges.map((exchange) => (
+              <th key={exchange}>{exchange}</th>
+            ))}
           </tr>
         </thead>
 
         <tbody>
-          {hasData ? (
-            symbols.map((symbol) =>
-              types.map((type) => (
-                <PriceRow
-                  key={`${symbol}-${type}`}
-                  symbol={symbol}
-                  type={type}
-                  exchanges={exchanges}
-                  removeSymbol={removeSymbol}
-                />
-              ))
-            )
-          ) : (
-            // Skeleton rows
-            symbols.map((symbol) =>
-              ["SPOT", "FUT"].map((type) => (
-                <tr key={`${symbol}-${type}`}>
-                  <td>
-                    <div className="symbol">
-                      <div className="symbol-icon">
-                        {symbol.charAt(0).toUpperCase()}
+          {hasData
+            ? symbols.map((symbol) =>
+                types.map((type) => (
+                  <PriceRow
+                    key={`${symbol}-${type}`}
+                    symbol={symbol}
+                    type={type}
+                    exchanges={exchanges}
+                    removeSymbol={removeSymbol}
+                  />
+                )),
+              )
+            : // Skeleton rows
+              symbols.map((symbol) =>
+                ["SPOT", "FUT"].map((type) => (
+                  <tr key={`${symbol}-${type}`}>
+                    <td>
+                      <div className="symbol">
+                        <div className="symbol-icon">
+                          {symbol.charAt(0).toUpperCase()}
+                        </div>
+                        {symbol}
                       </div>
-                      {symbol}
-                    </div>
-                  </td>
-                  <td>
-                    <span className="type">{type}</span>
-                  </td>
+                    </td>
+                    <td>
+                      <span className="type">{type}</span>
+                    </td>
 
-                  <td>
-                    <div className="skeleton"></div>
-                  </td>
-                  <td>
-                    <div className="skeleton"></div>
-                  </td>
+                    <td>
+                      <div className="skeleton"></div>
+                    </td>
+                    <td>
+                      <div className="skeleton"></div>
+                    </td>
 
-                  <td>
-                    <div className="skeleton"></div>
-                  </td>
-                </tr>
-              ))
-            )
-          )}
+                    <td>
+                      <div className="skeleton"></div>
+                    </td>
+                  </tr>
+                )),
+              )}
         </tbody>
       </table>
     </div>

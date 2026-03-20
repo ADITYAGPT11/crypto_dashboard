@@ -18,29 +18,23 @@ const PriceRow: React.FC<Props> = ({
     <tr>
       <td>
         <div className="symbol">
-          <div className="symbol-icon">
-            {symbol.charAt(0).toUpperCase()}
-          </div>
-          {symbol}
-          <button className="remove-button" onClick={() => removeSymbol(symbol)}>✕</button>
+          <span>
+            {symbol}-{type}
+          </span>
+          <button
+            className="remove-button"
+            onClick={() => removeSymbol(symbol)}
+          >
+            ✕
+          </button>
         </div>
-      </td>
-
-      <td>
-        <span className="type">{type}</span>
       </td>
 
       {exchanges.map((exchange) => (
         <td key={exchange}>
-          <PriceCell
-            exchange={exchange}
-            symbol={symbol}
-            type={type}
-          />
+          <PriceCell exchange={exchange} symbol={symbol} type={type} />
         </td>
       ))}
-
-      <td>—</td>
     </tr>
   );
 };
