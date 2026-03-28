@@ -1,4 +1,4 @@
-import { EventEmitter } from "events";
+import EventEmitter from "eventemitter3";
 import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
 import type { GenericMarketData } from "../types/marketData";
 
