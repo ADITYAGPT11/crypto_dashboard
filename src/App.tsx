@@ -3,6 +3,7 @@ import "./App.scss";
 import Header from "./components/Header/Header";
 import Dashboard from "./components/MainContainer/MainContainer";
 import AboutUs from "./components/AboutUs";
+import OptionScanner from "./components/Scanner";
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/about" element={<AboutUs />} />
+        <Route path="/option-scanner" element={<OptionScanner />} />
       </Routes>
       
     </div>

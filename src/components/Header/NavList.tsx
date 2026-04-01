@@ -6,6 +6,7 @@ export const NavList: React.FC = () => {
     <nav className={styles.navListWarpper}>
       <Link className={styles.link} to="/">Home</Link>
       <Link className={styles.link} to="/about">About</Link>
+      <Link className={styles.link} to="/option-scanner">Opt. Scanner</Link>
     </nav>
   );
 };
