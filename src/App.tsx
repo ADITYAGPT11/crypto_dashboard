@@ -12,7 +12,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/about" element={<AboutUs />} />
-        <Route path="/option-scanner" element={<OptionScanner />} />
+        {/* <Route path="/option-scanner" element={<OptionScanner />} /> */}
       </Routes>
       
     </div>

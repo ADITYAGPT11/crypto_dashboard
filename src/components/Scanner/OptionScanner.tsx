@@ -22,6 +22,16 @@ const OptionScanner: React.FC = () => {
     setError(null);
     
     try {
+      // Try to auto-login if not authenticated
+      try {
+        const authStatus = await angleOneService.autoLogin();
+        if (!authStatus.success) {
+          throw new Error(authStatus.error || 'Auto-login failed');
+        }
+      } catch (authErr) {
+        console.warn('Auto-login failed, attempting with existing token if available:', authErr);
+      }
+
       const data = await angleOneService.getOptionChain(selectedSymbol);
       if (data) {
         setOptionChain(data);
@@ -29,8 +39,12 @@ const OptionScanner: React.FC = () => {
       } else {
         setError('No option chain data available');
       }
-    } catch (err) {
-      setError('Failed to fetch option chain. Please try again.');
+    } catch (err: any) {
+      if (err.message === 'Not authenticated') {
+        setError('Authentication required. Please check your .env credentials for auto-login.');
+      } else {
+        setError(`Error: ${err.message || 'Failed to fetch option chain'}`);
+      }
       console.error('Option chain fetch error:', err);
     } finally {
       setLoading(false);
@@ -218,7 +232,7 @@ const OptionScanner: React.FC = () => {
 
       {!loading && !optionChain && (
         <div className={styles.noticeBanner}>
-          <span>Option data is publicly accessible - no login required</span>
+          <span>Option Greeks require authentication. Please login to access real-time data.</span>
         </div>
       )}
 

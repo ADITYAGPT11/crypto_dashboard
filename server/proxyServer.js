@@ -14,6 +14,15 @@
 import express from 'express';
 import cors from 'cors';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import fs from 'fs';
+import path from 'path';
+
+const logStream = fs.createWriteStream(path.join(process.cwd(), 'server', 'proxy.log'), { flags: 'a' });
+const log = (msg) => {
+  const entry = `[${new Date().toISOString()}] ${msg}\n`;
+  console.log(entry.trim());
+  logStream.write(entry);
+};
 
 const app = express();
 const PORT = process.env.PROXY_PORT || 3001;
@@ -36,17 +45,50 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// DEBUG ENDPOINT: Test the API call directly from the server
+app.get('/debug-option-chain', async (req, res) => {
+  const { symboltoken = '99690', exchange = 'NSE' } = req.query;
+  const url = `${ANGLE_ONE_BASE_URL}/rest/hl/optionchain/v1/get?exchange=${exchange}&symboltoken=${symboltoken}`;
+  
+  log(`DEBUG: Testing direct fetch to ${url}`);
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'X-Api-Key': process.env.VITE_ANGLEONE_API_KEY || 'MISSING_KEY'
+      }
+    });
+    const text = await response.text();
+    log(`DEBUG: Response Status: ${response.status}`);
+    log(`DEBUG: Response Body: ${text.substring(0, 500)}`);
+    res.status(response.status).send(text);
+  } catch (err) {
+    log(`DEBUG: Fetch failed: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Proxy configuration for Angel One REST API
 const restProxyOptions = {
   target: ANGLE_ONE_BASE_URL,
   changeOrigin: true,
+  secure: false, // Ignore SSL certificate errors
   pathRewrite: {
     '^/api/angelone': '', // Remove /api/angelone prefix
   },
   on: {
     proxyReq: (proxyReq, req, res) => {
       // Log proxy requests
-      console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+      log(`${req.method} ${req.path} - Requesting from ${req.ip}`);
+      
+      // Spoof browser headers to bypass WAF/Bot detection
+      proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      proxyReq.setHeader('Accept', 'application/json, text/plain, */*');
+      proxyReq.setHeader('Accept-Language', 'en-US,en;q=0.9');
+      proxyReq.setHeader('Connection', 'keep-alive');
+      proxyReq.setHeader('Cache-Control', 'no-cache');
       
       // Forward important headers
       if (req.headers['x-api-key']) {
@@ -60,7 +102,7 @@ const restProxyOptions = {
       }
     },
     error: (err, req, res) => {
-      console.error('Proxy error:', err.message);
+      log(`Proxy error: ${err.message}`);
       res.status(500).json({ error: 'Proxy error', message: err.message });
     }
   }

@@ -88,8 +88,8 @@ interface AngelOneLTPResponse {
 
 export class AngleOneService {
   private credentials: AngleOneCredentials | null = null;
-  private accessToken: string | null = null;
-  private refreshToken: string | null = null;
+  private accessToken: string | null = localStorage.getItem('angelone_access_token');
+  private refreshToken: string | null = localStorage.getItem('angelone_refresh_token');
   private apiKey: string = '';
   private ws: WebSocket | null = null;
   private subscribers: Map<string, Set<(data: OptionChainData) => void>> = new Map();
@@ -155,6 +155,10 @@ export class AngleOneService {
       if (data.jwtToken) {
         this.accessToken = data.jwtToken;
         this.refreshToken = data.refreshToken || null;
+        localStorage.setItem('angelone_access_token', data.jwtToken);
+        if (data.refreshToken) {
+          localStorage.setItem('angelone_refresh_token', data.refreshToken);
+        }
         this.connectionStatus = 'connected';
         console.log('Successfully authenticated with Angel One');
         return { success: true };
@@ -205,24 +209,39 @@ export class AngleOneService {
 
   async getOptionChain(symbol: string, exchange: 'NSE' | 'BSE' = 'NSE'): Promise<OptionChainData | null> {
     try {
-      const nseSymbol = symbol === 'NIFTY' ? 'NIFTY' : 
-                        symbol === 'BANKNIFTY' ? 'BANKNIFTY' : 
-                        symbol;
+      if (!this.accessToken) {
+        console.error('Authentication required for Option Greeks API');
+        throw new Error('Not authenticated');
+      }
+
+      // Angel One requires numeric tokens for the symboltoken parameter.
+      const tokenMapping: Record<string, string> = {
+        'NIFTY': '99690',
+        'BANKNIFTY': '99691',
+        'FINNIFTY': '99692',
+      };
       
-      // Option chain data doesn't require authentication - use direct API URL
+      const token = tokenMapping[symbol] || symbol;
+      
+      // The Greeks API is a POST request as per documentation
+      const url = `${getBaseUrl()}/optiongreeks`;
+      console.log(`Fetching option greeks from: ${url}`);
+      
       const response = await fetch(
-        `${getBaseUrl()}/hl/optionchain/v1/get?exchange=${exchange}&symboltoken=${nseSymbol}`,
+        url,
         {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Api-Key': this.apiKey,
-          },
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            symboltoken: token,
+            exchange: exchange,
+          }),
         }
       );
 
       if (!response.ok) {
-        console.error('Option chain fetch error:', response.status, await response.text());
+        const errorText = await response.text();
+        console.error('Option Greeks fetch error:', response.status, errorText);
         return null;
       }
 
@@ -233,7 +252,7 @@ export class AngleOneService {
       }
       return null;
     } catch (error) {
-      console.error('Failed to fetch option chain:', error);
+      console.error('Failed to fetch option chain Greeks:', error);
       return null;
     }
   }
@@ -245,11 +264,15 @@ export class AngleOneService {
     const strikesMap = new Map<number, OptionStrike>();
     let underlyingPrice = 0;
 
-    records.forEach(record => {
-      if (record.lotSize && !underlyingPrice) {
-        underlyingPrice = record.strike;
-      }
+    // Find underlying price by looking for the most common strike or a record with a hint
+    // In a real scenario, we'd fetch the LTP separately, but here we'll try to find the ATM
+    // since we don't have a dedicated underlyingPrice field in this response type.
+    if (records.length > 0) {
+      // Heuristic: The strike around the middle of the records is usually near ATM
+      underlyingPrice = records[Math.floor(records.length / 2)].strike;
+    }
 
+    records.forEach(record => {
       const strike: OptionStrike = {
         strike: record.strike,
       };
@@ -288,20 +311,20 @@ export class AngleOneService {
     };
   }
 
-  private createOptionData(record: AngelOneOrderBookResponse['data'][0]) {
+  private createOptionData(record: any) {
     return {
-      symbol: record.nseSymbol,
-      lastPrice: 0,
-      change: 0,
-      volume: 0,
-      openInterest: 0,
-      bid: 0,
-      ask: 0,
-      iv: 0,
-      delta: 0,
-      gamma: 0,
-      theta: 0,
-      vega: 0,
+      symbol: record.nseSymbol || '',
+      lastPrice: record.lastPrice || 0,
+      change: record.change || 0,
+      volume: record.volume || 0,
+      openInterest: record.openInterest || 0,
+      bid: record.bid || 0,
+      ask: record.ask || 0,
+      iv: record.iv || 0,
+      delta: record.delta || 0,
+      gamma: record.gamma || 0,
+      theta: record.theta || 0,
+      vega: record.vega || 0,
     };
   }
 
