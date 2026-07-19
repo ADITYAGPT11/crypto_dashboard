@@ -3,11 +3,11 @@ import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
 import type { GenericMarketData } from "../types/marketData";
 
 interface DeltaTradeMessage {
-  type: "all_trades";
-  symbol: string; // e.g. BTCUSDT
-  product_id: number;
-  price: string;
-  timestamp: number;
+  type: "trades";
+  sy: string; // symbol, e.g. "BTCUSD"
+  p: string;  // price, e.g. "64612.0"
+  s: number;  // size
+  ts: number; // timestamp in microseconds
 }
 
 interface DeltaProduct {
@@ -32,7 +32,7 @@ export class DeltaExchangeAdapter extends EventEmitter {
 
   constructor() {
     super();
-    this.ws = new BaseWebSocketClient("wss://socket.delta.exchange", {
+    this.ws = new BaseWebSocketClient("wss://public-socket.india.delta.exchange", {
       autoReconnect: true,
     });
     this.setupHandlers();
@@ -42,23 +42,41 @@ export class DeltaExchangeAdapter extends EventEmitter {
     this.ws.on("message", (rawMsg) => {
       const msg = rawMsg as DeltaTradeMessage;
 
-      if (msg.type === "all_trades") {
-
-        // Normalize BTCUSDT → BTC-USDT
-        let symbolKey = msg.symbol;
-        if (symbolKey.endsWith("USDT")) {
-          symbolKey = symbolKey.replace("USDT", "-USDT");
+      if (msg.type === "trades") {
+        // Normalize Delta format → canonical BTC-USDT
+        let symbolKey = msg.sy;
+        if (symbolKey.endsWith("USDT") && !symbolKey.includes("-")) {
+          symbolKey = symbolKey.slice(0, -4) + "-USDT";
+        } else if (symbolKey.endsWith("USD") && !symbolKey.includes("-")) {
+          symbolKey = symbolKey.slice(0, -3) + "-USDT";
         }
 
         const transformedData: GenericMarketData = {
           exchange: "DELTA",
           type: "FUT",
           symbol: symbolKey,
-          currentPrice: parseFloat(msg.price),
-          timeStamp: msg.timestamp,
+          currentPrice: parseFloat(msg.p),
+          timeStamp: msg.ts / 1000, // microseconds → ms
         };
 
         this.emit("marketData", transformedData);
+      }
+    });
+
+    // Re-subscribe all tracked symbols whenever the WebSocket (re)connects
+    this.ws.on("open", () => {
+      if (this.subscribedProducts.size > 0) {
+        this.ws.send({
+          type: "subscribe",
+          payload: {
+            channels: [
+              {
+                name: "trades",
+                symbols: Array.from(this.subscribedProducts),
+              },
+            ],
+          },
+        });
       }
     });
 
@@ -112,9 +130,10 @@ export class DeltaExchangeAdapter extends EventEmitter {
    * Subscribe using symbol(s) — auto converts to product_ids
    */
   async subscribe(symbolOrSymbols: string | string[]): Promise<void> {
+    // Delta India uses USD-quoted symbols (BTCUSD) not USDT-quoted (BTCUSDT)
     const deltaSymbol = Array.isArray(symbolOrSymbols)
-      ? symbolOrSymbols.map((s) => s.replace("-USDT", "USDT"))
-      : symbolOrSymbols.replace("-USDT", "USDT");
+      ? symbolOrSymbols.map((s) => s.replace("-USDT", "USD"))
+      : symbolOrSymbols.replace("-USDT", "USD");
     const result = deltaSymbol; // await this.symbolToProductIdHelper(deltaSymbol);
     if (!result) {
       console.warn("No product_id found for:", symbolOrSymbols);
@@ -130,7 +149,7 @@ export class DeltaExchangeAdapter extends EventEmitter {
       payload: {
         channels: [
           {
-            name: "all_trades",
+            name: "trades",
             symbols: productIds,
           },
         ],

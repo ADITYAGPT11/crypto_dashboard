@@ -19,10 +19,10 @@ export class BinanceAdapter extends EventEmitter {
     super();
 
     this.clients = {
-      spot: new BaseWebSocketClient("wss://stream.binance.com:9443/ws", {
+      spot: new BaseWebSocketClient("wss://stream.binance.com/ws", {
         autoReconnect: true,
       }),
-      futures: new BaseWebSocketClient("wss://fstream.binance.com/ws", {
+      futures: new BaseWebSocketClient("wss://fstream.binance.com/market/ws", {
         autoReconnect: true,
       }),
     };
