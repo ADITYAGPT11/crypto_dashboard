@@ -9,11 +9,15 @@ interface BinanceMessage {
   s: string;
   p: string;
   T: number;
+  // Fields for markPriceUpdate
+  P?: string;  // estimated settle price
+  r?: string;  // funding rate
 }
 
 export class BinanceAdapter extends EventEmitter {
   private clients: Record<MarketType, BaseWebSocketClient>;
   private subscribedSymbols: Set<string> = new Set();
+  private prevFundingTime: Record<string, number> = {}; // symbol → previous T
 
   constructor() {
     super();
@@ -52,6 +56,29 @@ export class BinanceAdapter extends EventEmitter {
         this.emit("marketData", transformedData);
       } else if (msg.e === "depth") {
         // Handle depth data if needed
+      } else if (msg.e === "markPriceUpdate" && marketType === "futures") {
+        // Binance: r = funding rate, T = next funding time (futures only)
+        if (msg.r !== undefined && msg.T !== undefined) {
+          let symbolKey = msg.s;
+          if (symbolKey.endsWith("USDT")) {
+            symbolKey = symbolKey.replace("USDT", "-USDT");
+          }
+          // Derive interval from difference between consecutive T values
+          let interval = 28800;
+          const prevT = this.prevFundingTime[msg.s];
+          if (prevT !== undefined && msg.T > prevT) {
+            const computed = (msg.T - prevT) / 1000;
+            if (computed > 0 && computed <= 86400) interval = computed;
+          }
+          this.prevFundingTime[msg.s] = msg.T;
+          this.emit("fundingRate", {
+            exchange: "BINANCE",
+            symbol: symbolKey,
+            fundingRate: parseFloat(msg.r),
+            nextFundingTime: msg.T,
+            fundingInterval: interval,
+          });
+        }
       }
     });
 
@@ -99,5 +126,22 @@ export class BinanceAdapter extends EventEmitter {
         ws.send(JSON.stringify(payload));
       }
     });
+  }
+
+  /** Subscribe to funding rate (markPrice) stream on futures only */
+  subscribeFundingRate(symbols: string[] | string) {
+    const arr = Array.isArray(symbols) ? symbols : [symbols];
+    const params: string[] = arr.map((s) =>
+      s.replace("-USDT", "USDT").toLowerCase() + "@markPrice"
+    );
+    const payload = {
+      method: "SUBSCRIBE",
+      params,
+      id: Date.now(),
+    };
+    const ws = this.clients.futures;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(payload));
+    }
   }
 }

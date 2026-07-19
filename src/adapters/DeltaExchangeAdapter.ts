@@ -10,6 +10,14 @@ interface DeltaTradeMessage {
   ts: number; // timestamp in microseconds
 }
 
+interface DeltaFundingRateMessage {
+  type: "funding_rate";
+  sy: string;      // symbol, e.g. "BTCUSD"
+  fr: number;      // funding rate (already a number, e.g. 0.01)
+  nfr: number;     // next funding time in microseconds
+  fi: number;      // funding interval in seconds (e.g. 28800 for 8h)
+}
+
 interface DeltaProduct {
   id: number;
   symbol: string;
@@ -61,19 +69,36 @@ export class DeltaExchangeAdapter extends EventEmitter {
 
         this.emit("marketData", transformedData);
       }
+
+      // Handle funding_rate channel (Delta India sends flat message with sy/fr/nfr)
+      const frMsg = rawMsg as DeltaFundingRateMessage;
+      if (frMsg.type === "funding_rate" && frMsg.sy) {
+        let symbolKey = frMsg.sy;
+        if (symbolKey.endsWith("USDT") && !symbolKey.includes("-")) {
+          symbolKey = symbolKey.slice(0, -4) + "-USDT";
+        } else if (symbolKey.endsWith("USD") && !symbolKey.includes("-")) {
+          symbolKey = symbolKey.slice(0, -3) + "-USDT";
+        }
+        this.emit("fundingRate", {
+          exchange: "DELTA",
+          symbol: symbolKey,
+          fundingRate: frMsg.fr,
+          nextFundingTime: Math.floor(frMsg.nfr / 1000), // microseconds → ms
+          fundingInterval: frMsg.fi, // already in seconds
+        });
+      }
     });
 
     // Re-subscribe all tracked symbols whenever the WebSocket (re)connects
     this.ws.on("open", () => {
       if (this.subscribedProducts.size > 0) {
+        const symbols = Array.from(this.subscribedProducts);
         this.ws.send({
           type: "subscribe",
           payload: {
             channels: [
-              {
-                name: "trades",
-                symbols: Array.from(this.subscribedProducts),
-              },
+              { name: "trades", symbols },
+              { name: "funding_rate", symbols },
             ],
           },
         });
@@ -148,10 +173,8 @@ export class DeltaExchangeAdapter extends EventEmitter {
       type: "subscribe",
       payload: {
         channels: [
-          {
-            name: "trades",
-            symbols: productIds,
-          },
+          { name: "trades", symbols: productIds },
+          { name: "funding_rate", symbols: productIds },
         ],
       },
     });

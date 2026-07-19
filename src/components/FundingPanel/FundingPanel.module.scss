@@ -58,30 +58,39 @@
       .symbol {
         font-weight: 600;
       }
-  
-      .spread-percent {
+
+      .exchange {
+        color: var(--text-secondary);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .price {
+        font-weight: 600;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      }
+
+      .rate {
         font-weight: 700;
         font-family: 'JetBrains Mono', 'Fira Code', monospace;
       }
-  
+
+      .interval {
+        color: var(--text-secondary);
+      }
+
+      .nextTime {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 13px;
+      }
+
       .positive {
         color: var(--accent-positive);
       }
-  
+
       .negative {
         color: var(--accent-negative);
-      }
-  
-      .exchangeInfo {
-        font-size: 14px;
-        .exchangeName {
-          font-weight: 500;
-          color: var(--text-secondary);
-        }
-        .price {
-          font-weight: 600;
-          font-family: 'JetBrains Mono', 'Fira Code', monospace;
-        }
       }
     }
   }

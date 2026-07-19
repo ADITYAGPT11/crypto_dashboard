@@ -5,7 +5,6 @@ import type { ArbitrageOpportunity } from "../../types/marketData";
 import ArbitragePanel from "../ArbitragePanel/ArbitragePanel";
 import Metrics from "../dashboard/Metrics";
 import PriceTable from "../dashboard/PriceTable";
-import FundingPanel from "../FundingPanel/FundingPanel";
 import styles from "./MainContainer.module.scss";
 import SymbolSearch from "../../common-components/SymbolSearch";
 
@@ -41,7 +40,7 @@ const MainContainer: React.FC = () => {
 
     const service = marketDataService.current;
 
-    const handler = (opportunity: ArbitrageOpportunity) => {
+    const arbHandler = (opportunity: ArbitrageOpportunity) => {
       setArbitrageOpportunities((prev) => {
         const idx = prev.findIndex((o) => o.symbol === opportunity.symbol);
         if (idx !== -1) {
@@ -53,10 +52,10 @@ const MainContainer: React.FC = () => {
       });
     };
 
-    service.on("arbitrage", handler);
+    service.on("arbitrage", arbHandler);
 
     return () => {
-      service.off("arbitrage", handler);
+      service.off("arbitrage", arbHandler);
     };
   }, []);
 
@@ -88,7 +87,6 @@ const MainContainer: React.FC = () => {
         />
 
         <ArbitragePanel opportunities={arbitrageOpportunities} />
-        <FundingPanel opportunities={[]} />
       </div>
     </div>
   );

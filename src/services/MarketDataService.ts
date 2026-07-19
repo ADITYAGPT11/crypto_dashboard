@@ -25,8 +25,10 @@ export class MarketDataService extends EventEmitter {
   async startMarketData(symbol: string | string[]) {
     if (this.isInitialized) {
       this.binance.subscribe(symbol, ["aggTrade", "depth"]);
+      this.binance.subscribeFundingRate(symbol);
       this.okx.subscribe(symbol, "SPOT");
       this.okx.subscribe(symbol, "SWAP");
+      this.okx.subscribeFundingRate(symbol);
       this.delta.subscribe(symbol);
       return;
     }
@@ -38,8 +40,10 @@ export class MarketDataService extends EventEmitter {
       ]);
 
       this.binance.subscribe(symbol, ["aggTrade", "depth"]);
+      this.binance.subscribeFundingRate(symbol);
       this.okx.subscribe(symbol, "SPOT");
       this.okx.subscribe(symbol, "SWAP");
+      this.okx.subscribeFundingRate(symbol);
       this.delta.subscribe(symbol);
 
 
@@ -53,8 +57,16 @@ export class MarketDataService extends EventEmitter {
           msg.type,
           msg.currentPrice,
         );
-
         this.emit("marketData", msg);
+      });
+      this.binance.on("fundingRate", (fr) => {
+        liveService.updateFundingRate(fr.exchange, fr.symbol, {
+          rate: fr.fundingRate,
+          nextFundingTime: fr.nextFundingTime,
+          fundingInterval: fr.fundingInterval,
+          nextFundingRate: fr.nextFundingRate,
+        });
+        this.emit("fundingRate", fr);
       });
 
       // OKX
@@ -65,8 +77,16 @@ export class MarketDataService extends EventEmitter {
           msg.type,
           msg.currentPrice,
         );
-
         this.emit("marketData", msg);
+      });
+      this.okx.on("fundingRate", (fr) => {
+        liveService.updateFundingRate(fr.exchange, fr.symbol, {
+          rate: fr.fundingRate,
+          nextFundingTime: fr.nextFundingTime,
+          fundingInterval: fr.fundingInterval,
+          nextFundingRate: fr.nextFundingRate,
+        });
+        this.emit("fundingRate", fr);
       });
 
       // DELTA EXCHANGE
@@ -77,8 +97,16 @@ export class MarketDataService extends EventEmitter {
           msg.type,
           msg.currentPrice,
         );
-
         this.emit("marketData", msg);
+      });
+      this.delta.on("fundingRate", (fr) => {
+        liveService.updateFundingRate(fr.exchange, fr.symbol, {
+          rate: fr.fundingRate,
+          nextFundingTime: fr.nextFundingTime,
+          fundingInterval: fr.fundingInterval,
+          nextFundingRate: fr.nextFundingRate,
+        });
+        this.emit("fundingRate", fr);
       });
 
       this.isInitialized = true;

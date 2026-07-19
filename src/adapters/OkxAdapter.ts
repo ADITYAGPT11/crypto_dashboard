@@ -14,6 +14,10 @@ interface OkxMessage {
     instId: string;
     last: string;
     ts: string;
+    fundingRate?: string;
+    fundingTime?: string; // next settlement time
+    prevFundingTime?: string; // previous settlement time
+    nextFundingRate?: string; // predicted rate for next period
   }>;
 }
 
@@ -44,6 +48,30 @@ export class OkxAdapter extends EventEmitter {
         };
         this.emit("marketData", transformedData);
       }
+
+      // Handle funding-rate channel
+      if (msg.arg?.channel === "funding-rate" && msg.data?.length) {
+        const d = msg.data[0];
+        const symbol = formatCanonicalSymbol(parseOkxSymbol(d.instId));
+        // OKX sends next settlement time in 'fundingTime' (not 'nextFundingTime')
+        // 'nextFundingTime' is the one AFTER next (16h from now)
+        const nextFundingTime = d.fundingTime ? parseInt(d.fundingTime) : 0;
+        const nextFr = d.nextFundingRate ? parseFloat(d.nextFundingRate) : undefined;
+        // Derive interval from actual data: prevFundingTime → fundingTime
+        let interval = 28800; // default 8h
+        if (d.fundingTime && d.prevFundingTime) {
+          const computed = (parseInt(d.fundingTime) - parseInt(d.prevFundingTime)) / 1000;
+          if (computed > 0 && computed <= 86400) interval = computed;
+        }
+        this.emit("fundingRate", {
+          exchange: "OKX",
+          symbol,
+          fundingRate: parseFloat(d.fundingRate || "0"),
+          nextFundingTime,
+          fundingInterval: interval,
+          nextFundingRate: isNaN(nextFr as number) ? undefined : nextFr,
+        });
+      }
     });
 
     this.ws.on("open", () => {});
@@ -73,6 +101,16 @@ export class OkxAdapter extends EventEmitter {
       instId: type === "SPOT" ? s : `${s}-SWAP`,
     }));
 
+    this.ws.send({ op: "subscribe", args });
+  }
+
+  /** Subscribe to funding rate updates for SWAP instruments */
+  subscribeFundingRate(symbols: string | string[]) {
+    const arr = Array.isArray(symbols) ? symbols : [symbols];
+    const args = arr.map((s) => ({
+      channel: "funding-rate",
+      instId: `${s}-SWAP`,
+    }));
     this.ws.send({ op: "subscribe", args });
   }
 }

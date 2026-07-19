@@ -106,9 +106,15 @@
   display: inline-block;
 }
 
-.price {
+.price-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.price-cell .price {
   font-weight: 600;
-  font-size: 16px;
+  font-size: 15px;
   color: var(--text-primary);
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   transition: all 0.3s ease;
@@ -120,6 +126,44 @@
   &.price-down {
     color: var(--accent-negative);
   }
+}
+
+.funding-info {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  opacity: 0.85;
+  letter-spacing: 0.3px;
+  transition: color 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+
+  &.positive {
+    color: var(--accent-positive);
+  }
+
+  &.negative {
+    color: var(--accent-negative);
+  }
+}
+
+.fr-rate {
+  font-weight: 600;
+}
+
+.fr-sep {
+  opacity: 0.3;
+  margin: 0 5px;
+  user-select: none;
+}
+
+.fr-interval {
+  opacity: 0.7;
+}
+
+.fr-next {
+  opacity: 0.85;
 }
 
 .exchange {
