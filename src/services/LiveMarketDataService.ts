@@ -27,12 +27,7 @@ export class LiveMarketDataService {
     return `${exchange}|${symbol}|${type}`;
   }
 
-  update(
-    exchange: string,
-    symbol: string,
-    type: string,
-    price: number
-  ) {
+  update(exchange: string, symbol: string, type: string, price: number) {
     const key = this.makeKey(exchange, symbol, type);
     this.prices.set(key, price);
 
@@ -46,12 +41,7 @@ export class LiveMarketDataService {
     return this.prices.get(this.makeKey(exchange, symbol, type)) ?? null;
   }
 
-  subscribe(
-    exchange: string,
-    symbol: string,
-    type: string,
-    cb: Listener
-  ) {
+  subscribe(exchange: string, symbol: string, type: string, cb: Listener) {
     const key = this.makeKey(exchange, symbol, type);
 
     if (!this.listeners.has(key)) {
@@ -81,11 +71,7 @@ export class LiveMarketDataService {
     return this.fundingRates.get(this.makeKey(exchange, symbol, "FUT")) ?? null;
   }
 
-  subscribeFundingRate(
-    exchange: string,
-    symbol: string,
-    cb: Listener
-  ) {
+  subscribeFundingRate(exchange: string, symbol: string, cb: Listener) {
     const key = this.makeKey(exchange, symbol, "FUT");
 
     if (!this.frListeners.has(key)) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 const RealTimeClock = () => {
   const [time, setTime] = useState(new Date());
@@ -13,12 +13,14 @@ const RealTimeClock = () => {
 
   return (
     <div className="status-item">
-      <span>{time.toLocaleTimeString('en-US', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      })}</span>
+      <span>
+        {time.toLocaleTimeString("en-US", {
+          hour12: false,
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })}
+      </span>
     </div>
   );
 };

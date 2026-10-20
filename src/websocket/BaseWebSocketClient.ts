@@ -48,8 +48,7 @@ export class BaseWebSocketClient {
         pingPayload: options.heartbeat?.pingPayload ?? null,
         intervalMs: options.heartbeat?.intervalMs ?? 20_000,
         timeoutMs: options.heartbeat?.timeoutMs ?? 10_000,
-        expectPongPredicate:
-          options.heartbeat?.expectPongPredicate ?? undefined,
+        expectPongPredicate: options.heartbeat?.expectPongPredicate ?? undefined,
       },
       debug: options.debug ?? false,
     };
@@ -58,10 +57,7 @@ export class BaseWebSocketClient {
   // ----------------------
   // Event API
   // ----------------------
-  on(
-    event: "open" | "message" | "close" | "error" | "reconnect" | "flush",
-    fn: Listener,
-  ) {
+  on(event: "open" | "message" | "close" | "error" | "reconnect" | "flush", fn: Listener) {
     if (!this.listeners.has(event)) this.listeners.set(event, new Set());
     this.listeners.get(event)!.add(fn);
   }
@@ -115,8 +111,7 @@ export class BaseWebSocketClient {
   private _connectInternal() {
     if (
       this.ws &&
-      (this.ws.readyState === WebSocket.OPEN ||
-        this.ws.readyState === WebSocket.CONNECTING)
+      (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)
     ) {
       return;
     }
@@ -181,10 +176,7 @@ export class BaseWebSocketClient {
     }
 
     // If heartbeat expects a pong, check it and clear timeout
-    if (
-      this.opts.heartbeat.enabled &&
-      this.opts.heartbeat.expectPongPredicate
-    ) {
+    if (this.opts.heartbeat.enabled && this.opts.heartbeat.expectPongPredicate) {
       try {
         const isPong = this.opts.heartbeat.expectPongPredicate(parsed);
         if (isPong) {
@@ -226,8 +218,7 @@ export class BaseWebSocketClient {
       this.opts.maxReconnectAttempts !== null &&
       this.reconnectAttempts >= this.opts.maxReconnectAttempts
     ) {
-      if (this.opts.debug)
-        console.warn("[BaseWS] max reconnect attempts reached");
+      if (this.opts.debug) console.warn("[BaseWS] max reconnect attempts reached");
       return;
     }
     this.reconnectAttempts++;
@@ -239,9 +230,7 @@ export class BaseWebSocketClient {
     const delay = Math.max(0, Math.round(capped + jitter));
 
     if (this.opts.debug)
-      console.info(
-        `[BaseWS] scheduling reconnect #${this.reconnectAttempts} in ${delay}ms`,
-      );
+      console.info(`[BaseWS] scheduling reconnect #${this.reconnectAttempts} in ${delay}ms`);
 
     this.reconnectTimer = window.setTimeout(() => {
       this.emit("reconnect", { attempt: this.reconnectAttempts });
@@ -263,11 +252,9 @@ export class BaseWebSocketClient {
       if (
         this.opts.heartbeat.intervalMs &&
         this.opts.heartbeat.timeoutMs &&
-        now - this.lastMessageAt >
-          this.opts.heartbeat.intervalMs + this.opts.heartbeat.timeoutMs
+        now - this.lastMessageAt > this.opts.heartbeat.intervalMs + this.opts.heartbeat.timeoutMs
       ) {
-        if (this.opts.debug)
-          console.warn("[BaseWS] connection stale - forcing reconnect");
+        if (this.opts.debug) console.warn("[BaseWS] connection stale - forcing reconnect");
         this.forceReconnect();
         return;
       }
@@ -282,11 +269,9 @@ export class BaseWebSocketClient {
       }
 
       // set timeout waiting for pong
-      if (this.heartbeatTimeoutTimer)
-        window.clearTimeout(this.heartbeatTimeoutTimer);
+      if (this.heartbeatTimeoutTimer) window.clearTimeout(this.heartbeatTimeoutTimer);
       this.heartbeatTimeoutTimer = window.setTimeout(() => {
-        if (this.opts.debug)
-          console.warn("[BaseWS] heartbeat timed out - reconnecting");
+        if (this.opts.debug) console.warn("[BaseWS] heartbeat timed out - reconnecting");
         this.forceReconnect();
       }, this.opts.heartbeat.timeoutMs);
     }, this.opts.heartbeat.intervalMs);
@@ -346,8 +331,7 @@ export class BaseWebSocketClient {
     const maxQueue = 1000;
     if (this.sendQueue.length > maxQueue) {
       this.sendQueue.splice(0, this.sendQueue.length - maxQueue); // drop oldest
-      if (this.opts.debug)
-        console.warn("[BaseWS] sendQueue capped, dropping oldest messages");
+      if (this.opts.debug) console.warn("[BaseWS] sendQueue capped, dropping oldest messages");
     }
   }
 
@@ -358,12 +342,7 @@ export class BaseWebSocketClient {
     while (this.sendQueue.length) {
       const p = this.sendQueue.shift();
       try {
-        if (
-          typeof p === "string" ||
-          p instanceof ArrayBuffer ||
-          p instanceof Blob
-        )
-          this.ws.send(p);
+        if (typeof p === "string" || p instanceof ArrayBuffer || p instanceof Blob) this.ws.send(p);
         else this.ws.send(JSON.stringify(p));
       } catch {
         // if websocket throws, re-enqueue and exit

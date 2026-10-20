@@ -5,17 +5,17 @@ import type { GenericMarketData } from "../types/marketData";
 interface DeltaTradeMessage {
   type: "trades";
   sy: string; // symbol, e.g. "BTCUSD"
-  p: string;  // price, e.g. "64612.0"
-  s: number;  // size
+  p: string; // price, e.g. "64612.0"
+  s: number; // size
   ts: number; // timestamp in microseconds
 }
 
 interface DeltaFundingRateMessage {
   type: "funding_rate";
-  sy: string;      // symbol, e.g. "BTCUSD"
-  fr: number;      // funding rate (already a number, e.g. 0.01)
-  nfr: number;     // next funding time in microseconds
-  fi: number;      // funding interval in seconds (e.g. 28800 for 8h)
+  sy: string; // symbol, e.g. "BTCUSD"
+  fr: number; // funding rate (already a number, e.g. 0.01)
+  nfr: number; // next funding time in microseconds
+  fi: number; // funding interval in seconds (e.g. 28800 for 8h)
 }
 
 interface DeltaProduct {

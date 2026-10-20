@@ -3,15 +3,24 @@
  * Optimized for O(1) lookups and minimal memory allocation
  */
 export class FastMarketDataLookup {
-  private data = new Map<string, {
-    exchange: "BINANCE" | "OKX";
-    symbol: string;
-    type: "SPOT" | "FUT";
-    currentPrice: number;
-    timeStamp: number;
-  }>();
+  private data = new Map<
+    string,
+    {
+      exchange: "BINANCE" | "OKX";
+      symbol: string;
+      type: "SPOT" | "FUT";
+      currentPrice: number;
+      timeStamp: number;
+    }
+  >();
 
-  update(exchange: "BINANCE" | "OKX", symbol: string, type: "SPOT" | "FUT", currentPrice: number, timeStamp: number) {
+  update(
+    exchange: "BINANCE" | "OKX",
+    symbol: string,
+    type: "SPOT" | "FUT",
+    currentPrice: number,
+    timeStamp: number,
+  ) {
     // Use symbol as-is for key
     const key = `${exchange}:${symbol}:${type}`;
     this.data.set(key, { exchange, symbol, type, currentPrice, timeStamp });

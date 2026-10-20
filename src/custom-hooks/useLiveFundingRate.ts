@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import { LiveMarketDataService } from "../services/LiveMarketDataService";
 
-export function useLiveFundingRate(
-  exchange: string,
-  symbol: string
-) {
+export function useLiveFundingRate(exchange: string, symbol: string) {
   const [, forceUpdate] = useState(0);
   const service = LiveMarketDataService.getInstance();
 

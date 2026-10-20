@@ -10,8 +10,8 @@ interface BinanceMessage {
   p: string;
   T: number;
   // Fields for markPriceUpdate
-  P?: string;  // estimated settle price
-  r?: string;  // funding rate
+  P?: string; // estimated settle price
+  r?: string; // funding rate
 }
 
 export class BinanceAdapter extends EventEmitter {
@@ -92,10 +92,7 @@ export class BinanceAdapter extends EventEmitter {
   }
 
   async connectAll() {
-    await Promise.all([
-      this.clients.spot.connect(),
-      this.clients.futures.connect(),
-    ]);
+    await Promise.all([this.clients.spot.connect(), this.clients.futures.connect()]);
   }
 
   subscribe(
@@ -131,8 +128,8 @@ export class BinanceAdapter extends EventEmitter {
   /** Subscribe to funding rate (markPrice) stream on futures only */
   subscribeFundingRate(symbols: string[] | string) {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
-    const params: string[] = arr.map((s) =>
-      s.replace("-USDT", "USDT").toLowerCase() + "@markPrice"
+    const params: string[] = arr.map(
+      (s) => s.replace("-USDT", "USDT").toLowerCase() + "@markPrice",
     );
     const payload = {
       method: "SUBSCRIBE",

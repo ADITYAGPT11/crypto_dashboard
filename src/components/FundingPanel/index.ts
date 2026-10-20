@@ -1,1 +1,1 @@
-export { default } from './FundingPanel'
+export { default } from "./FundingPanel";

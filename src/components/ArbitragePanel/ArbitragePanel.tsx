@@ -1,6 +1,6 @@
-import React from 'react';
-import styles from './ArbitragePanel.module.scss';
-import type { ArbitrageOpportunity } from '../../types/marketData';
+import React from "react";
+import styles from "./ArbitragePanel.module.scss";
+import type { ArbitrageOpportunity } from "../../types/marketData";
 
 interface ArbitragePanelProps {
   opportunities: ArbitrageOpportunity[];
@@ -26,7 +26,9 @@ const ArbitragePanel: React.FC<ArbitragePanelProps> = ({ opportunities }) => {
             {opportunities.map((opp, index) => (
               <tr key={`${opp.symbol}-${index}`}>
                 <td className={styles.symbol}>{opp.symbol}</td>
-                <td className={`${styles.spreadPercent} ${opp.spreadPercent > 0 ? styles.positive : styles.negative}`}>
+                <td
+                  className={`${styles.spreadPercent} ${opp.spreadPercent > 0 ? styles.positive : styles.negative}`}
+                >
                   {opp.spreadPercent.toFixed(3)}%
                 </td>
                 <td className={styles.exchangeInfo}>

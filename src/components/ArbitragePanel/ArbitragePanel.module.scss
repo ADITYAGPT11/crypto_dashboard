@@ -28,7 +28,8 @@
     color: var(--text-primary);
     font-size: 15px;
 
-    th, td {
+    th,
+    td {
       padding: 16px 20px;
       text-align: left;
       border-bottom: 1px solid var(--border-primary);
@@ -61,7 +62,7 @@
 
     .spreadPercent {
       font-weight: 700;
-      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-family: "JetBrains Mono", "Fira Code", monospace;
     }
 
     .positive {
@@ -80,7 +81,7 @@
       }
       .price {
         font-weight: 600;
-        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-family: "JetBrains Mono", "Fira Code", monospace;
       }
     }
   }

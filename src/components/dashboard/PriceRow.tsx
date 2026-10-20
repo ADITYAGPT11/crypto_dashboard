@@ -8,12 +8,7 @@ interface Props {
   removeSymbol: (symbol: string) => void;
 }
 
-const PriceRow: React.FC<Props> = ({
-  symbol,
-  type,
-  exchanges,
-  removeSymbol,
-}) => {
+const PriceRow: React.FC<Props> = ({ symbol, type, exchanges, removeSymbol }) => {
   return (
     <tr>
       <td>
@@ -21,10 +16,7 @@ const PriceRow: React.FC<Props> = ({
           <span>
             {symbol}-{type}
           </span>
-          <button
-            className="remove-button"
-            onClick={() => removeSymbol(symbol)}
-          >
+          <button className="remove-button" onClick={() => removeSymbol(symbol)}>
             ✕
           </button>
         </div>

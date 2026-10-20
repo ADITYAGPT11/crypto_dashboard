@@ -1,1 +1,1 @@
-export { default } from './ArbitragePanel'
+export { default } from "./ArbitragePanel";

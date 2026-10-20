@@ -1,5 +1,5 @@
-import React from 'react';
-import './Metrics.scss';
+import React from "react";
+import "./Metrics.scss";
 
 interface MetricsProps {
   totalSymbols: number;

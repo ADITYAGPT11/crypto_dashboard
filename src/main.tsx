@@ -11,5 +11,5 @@ if (!container) {
 ReactDOM.createRoot(container).render(
   <BrowserRouter>
     <App />
-  </BrowserRouter>
+  </BrowserRouter>,
 );

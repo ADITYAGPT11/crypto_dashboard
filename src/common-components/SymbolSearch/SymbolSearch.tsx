@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { SymbolService } from '../../services/SymbolService';
-import './SymbolSearch.scss';
+import { useState, useEffect, useRef } from "react";
+import { SymbolService } from "../../services/SymbolService";
+import "./SymbolSearch.scss";
 
 interface SymbolSearchProps {
   onAddSymbol: (symbol: string) => void;
@@ -8,7 +8,7 @@ interface SymbolSearchProps {
 }
 
 const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +29,7 @@ const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps) => {
         const symbols = await symbolService.current.fetchAllSymbols();
         setAllSymbols(symbols);
       } catch (error) {
-        console.error('Error loading symbols:', error);
+        console.error("Error loading symbols:", error);
       } finally {
         setIsLoading(false);
       }
@@ -44,11 +44,12 @@ const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps) => {
     if (searchTerm.length === 0) {
       // Show popular symbols when no search term
       const popularSymbols = symbolService.current.getPopularSymbols();
-      setSuggestions(popularSymbols.filter(symbol => !currentSymbols.includes(symbol)));
+      setSuggestions(popularSymbols.filter((symbol) => !currentSymbols.includes(symbol)));
     } else {
       // Search in all available symbols
-      const filtered = symbolService.current.searchSymbols(searchTerm)
-        .filter(symbol => !currentSymbols.includes(symbol));
+      const filtered = symbolService.current
+        .searchSymbols(searchTerm)
+        .filter((symbol) => !currentSymbols.includes(symbol));
       setSuggestions(filtered);
     }
   }, [searchTerm, currentSymbols, allSymbols]);
@@ -61,13 +62,13 @@ const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps) => {
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleSymbolSelect = (symbol: string) => {
     onAddSymbol(symbol);
-    setSearchTerm('');
+    setSearchTerm("");
     setIsOpen(false);
   };
 
@@ -104,7 +105,7 @@ const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps) => {
           ) : suggestions.length > 0 ? (
             <>
               <div className="suggestions-header">
-                {searchTerm.length === 0 ? 'Popular Symbols' : 'Search Results'}
+                {searchTerm.length === 0 ? "Popular Symbols" : "Search Results"}
               </div>
               {suggestions.map((symbol) => (
                 <div
@@ -112,28 +113,21 @@ const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps) => {
                   className="suggestion-item"
                   onClick={() => handleSymbolSelect(symbol)}
                 >
-                  <div className="symbol-icon">
-                    {symbol.charAt(0).toUpperCase()}
-                  </div>
+                  <div className="symbol-icon">{symbol.charAt(0).toUpperCase()}</div>
                   <span>{symbol}</span>
                   <div className="add-button">+</div>
                 </div>
               ))}
             </>
           ) : searchTerm.length > 0 ? (
-            <div className="no-results">
-              No symbols found for "{searchTerm}"
-            </div>
+            <div className="no-results">No symbols found for "{searchTerm}"</div>
           ) : (
-            <div className="no-results">
-              No popular symbols available
-            </div>
+            <div className="no-results">No popular symbols available</div>
           )}
         </div>
       )}
     </div>
   );
 };
-
 
 export default SymbolSearch;

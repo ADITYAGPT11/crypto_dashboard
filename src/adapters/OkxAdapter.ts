@@ -89,9 +89,7 @@ export class OkxAdapter extends EventEmitter {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
 
     arr.forEach((s) => {
-      if (
-        !this.subscribed.find((sub) => sub.symbol === s && sub.type === type)
-      ) {
+      if (!this.subscribed.find((sub) => sub.symbol === s && sub.type === type)) {
         this.subscribed.push({ symbol: s, type });
       }
     });

@@ -48,9 +48,7 @@ const PriceTable: React.FC<PriceTableProps> = ({
                   <tr key={`${symbol}-${type}`}>
                     <td>
                       <div className="symbol">
-                        <div className="symbol-icon">
-                          {symbol.charAt(0).toUpperCase()}
-                        </div>
+                        <div className="symbol-icon">{symbol.charAt(0).toUpperCase()}</div>
                         {symbol}
                       </div>
                     </td>

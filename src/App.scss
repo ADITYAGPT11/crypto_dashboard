@@ -9,7 +9,7 @@
   --accent-neutral: #bdc3c7;
   --border-primary: #dee2e6;
   --border-radius: 8px;
-  --font-family: 'Poppins', sans-serif;
+  --font-family: "Poppins", sans-serif;
 
   &.dark {
     --background-primary: #121212;
@@ -25,7 +25,10 @@
   padding: 0;
   box-sizing: border-box;
   font-family: var(--font-family);
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 body {

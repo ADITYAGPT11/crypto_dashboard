@@ -12,7 +12,8 @@
   font-size: 15px;
   table-layout: fixed;
 
-  th, td {
+  th,
+  td {
     padding: 10px;
     text-align: left;
     border-bottom: 1px solid var(--border-primary);
@@ -20,7 +21,7 @@
 
   thead {
     background-color: var(--background-primary);
-    
+
     th {
       font-size: 13px;
       font-weight: 600;
@@ -71,7 +72,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   opacity: 0;
-  
+
   &:hover {
     background: #d32f2f;
     transform: scale(1.1);
@@ -116,13 +117,13 @@
   font-weight: 600;
   font-size: 15px;
   color: var(--text-primary);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
   transition: all 0.3s ease;
-  
+
   &.price-up {
     color: var(--accent-positive);
   }
-  
+
   &.price-down {
     color: var(--accent-negative);
   }
@@ -130,7 +131,7 @@
 
 .funding-info {
   font-size: 11px;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
   opacity: 0.85;
   letter-spacing: 0.3px;
   transition: color 0.3s ease;
@@ -175,9 +176,9 @@
 .spread {
   font-weight: 600;
   font-size: 16px;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
   text-align: right;
-  
+
   &.positive {
     color: var(--accent-positive);
   }
@@ -195,14 +196,14 @@
   text-align: center;
   color: var(--text-secondary);
   font-style: italic;
-  padding: 10px
+  padding: 10px;
 }
 
 @media (max-width: 768px) {
   .table-container {
     overflow-x: auto;
   }
-  
+
   .table {
     min-width: 700px;
   }
@@ -211,8 +212,9 @@
 @media (max-width: 480px) {
   .table {
     font-size: 13px;
-    
-    th, td {
+
+    th,
+    td {
       padding: 14px 18px;
     }
   }

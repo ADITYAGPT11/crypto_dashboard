@@ -1,1 +1,1 @@
-export { default } from './RealTimeClock';
+export { default } from "./RealTimeClock";

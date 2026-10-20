@@ -34,10 +34,7 @@ export class MarketDataService extends EventEmitter {
     }
 
     try {
-      await Promise.all([this.binance.connectAll(),
-         this.okx.connect(),
-        this.delta.connect()
-      ]);
+      await Promise.all([this.binance.connectAll(), this.okx.connect(), this.delta.connect()]);
 
       this.binance.subscribe(symbol, ["aggTrade", "depth"]);
       this.binance.subscribeFundingRate(symbol);
@@ -46,17 +43,11 @@ export class MarketDataService extends EventEmitter {
       this.okx.subscribeFundingRate(symbol);
       this.delta.subscribe(symbol);
 
-
       const liveService = LiveMarketDataService.getInstance();
 
       // BINANCE
       this.binance.on("marketData", (msg) => {
-        liveService.update(
-          msg.exchange,
-          msg.symbol,
-          msg.type,
-          msg.currentPrice,
-        );
+        liveService.update(msg.exchange, msg.symbol, msg.type, msg.currentPrice);
         this.emit("marketData", msg);
       });
       this.binance.on("fundingRate", (fr) => {
@@ -71,12 +62,7 @@ export class MarketDataService extends EventEmitter {
 
       // OKX
       this.okx.on("marketData", (msg) => {
-        liveService.update(
-          msg.exchange,
-          msg.symbol,
-          msg.type,
-          msg.currentPrice,
-        );
+        liveService.update(msg.exchange, msg.symbol, msg.type, msg.currentPrice);
         this.emit("marketData", msg);
       });
       this.okx.on("fundingRate", (fr) => {
@@ -91,12 +77,7 @@ export class MarketDataService extends EventEmitter {
 
       // DELTA EXCHANGE
       this.delta.on("marketData", (msg) => {
-        liveService.update(
-          msg.exchange,
-          msg.symbol,
-          msg.type,
-          msg.currentPrice,
-        );
+        liveService.update(msg.exchange, msg.symbol, msg.type, msg.currentPrice);
         this.emit("marketData", msg);
       });
       this.delta.on("fundingRate", (fr) => {

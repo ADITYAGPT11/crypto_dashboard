@@ -14,14 +14,9 @@ const TYPES = ["SPOT", "FUT"];
 const MainContainer: React.FC = () => {
   const marketDataService = useRef<MarketDataService | null>(null);
 
-  const [symbolList, setSymbolList] = useState<string[]>([
-    "BTC-USDT",
-    "ETH-USDT",
-  ]);
+  const [symbolList, setSymbolList] = useState<string[]>(["BTC-USDT", "ETH-USDT"]);
 
-  const [arbitrageOpportunities, setArbitrageOpportunities] = useState<
-    ArbitrageOpportunity[]
-  >([]);
+  const [arbitrageOpportunities, setArbitrageOpportunities] = useState<ArbitrageOpportunity[]>([]);
 
   // const ARBITRAGE_THRESHOLD_PERCENT = 0.1;
 
