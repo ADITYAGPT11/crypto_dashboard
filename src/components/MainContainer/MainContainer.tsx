@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef, useCallback, memo } from "react";
 import { MarketDataService } from "../../services/MarketDataService";
 import type { ArbitrageOpportunity } from "../../types/marketData";
+import type { ConnectionState } from "../../types/connection";
 
 import ArbitragePanel from "../ArbitragePanel/ArbitragePanel";
 import Metrics from "../dashboard/Metrics";
 import PriceTable from "../dashboard/PriceTable";
+import ConnectionStatus from "../dashboard/ConnectionStatus";
 import styles from "./MainContainer.module.scss";
 import SymbolSearch from "../../common-components/SymbolSearch";
 
@@ -17,6 +19,10 @@ const MainContainer: React.FC = () => {
   const [symbolList, setSymbolList] = useState<string[]>(["BTC-USDT", "ETH-USDT"]);
 
   const [arbitrageOpportunities, setArbitrageOpportunities] = useState<ArbitrageOpportunity[]>([]);
+
+  const [connectionStatuses, setConnectionStatuses] = useState<
+    Record<string, ConnectionState>
+  >({ BINANCE: "connecting", DELTA: "connecting", OKX: "connecting" });
 
   // const ARBITRAGE_THRESHOLD_PERCENT = 0.1;
 
@@ -49,8 +55,16 @@ const MainContainer: React.FC = () => {
 
     service.on("arbitrage", arbHandler);
 
+    const statusHandler = (s: { exchange: string; state: ConnectionState }) => {
+      setConnectionStatuses((prev) =>
+        prev[s.exchange] === s.state ? prev : { ...prev, [s.exchange]: s.state },
+      );
+    };
+    service.on("connectionStatus", statusHandler);
+
     return () => {
       service.off("arbitrage", arbHandler);
+      service.off("connectionStatus", statusHandler);
     };
   }, []);
 
@@ -72,6 +86,8 @@ const MainContainer: React.FC = () => {
           totalExchanges={EXCHANGES.length}
           totalDataPoints={symbolList.length * EXCHANGES.length * TYPES.length}
         />
+
+        <ConnectionStatus statuses={connectionStatuses} />
 
         <PriceTable
           symbols={symbolList}

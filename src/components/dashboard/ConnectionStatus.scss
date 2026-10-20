@@ -1,0 +1,46 @@
+.connection-status {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .conn-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border-primary);
+    background-color: var(--background-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+
+    .conn-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-neutral);
+    }
+
+    &.conn-live .conn-dot {
+      background-color: var(--accent-positive);
+    }
+    &.conn-connecting .conn-dot {
+      background-color: #f39c12;
+      animation: conn-pulse 1.2s ease-in-out infinite;
+    }
+    &.conn-down .conn-dot {
+      background-color: var(--accent-negative);
+    }
+  }
+}
+
+@keyframes conn-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}

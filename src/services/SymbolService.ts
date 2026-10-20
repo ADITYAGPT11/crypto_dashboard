@@ -13,6 +13,8 @@ interface OkxInstrument {
   baseCcy: string;
 }
 
+const FETCH_TIMEOUT_MS = 10_000;
+
 export class SymbolService {
   private static instance: SymbolService | null = null;
   private binanceSymbols: string[] = [];
@@ -30,7 +32,12 @@ export class SymbolService {
 
   async fetchBinanceSymbols(): Promise<string[]> {
     try {
-      const response = await fetch("https://api.binance.com/api/v3/exchangeInfo");
+      const response = await fetch("https://api.binance.com/api/v3/exchangeInfo", {
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        throw new Error(`Binance exchangeInfo HTTP ${response.status}`);
+      }
       const data = await response.json();
 
       this.binanceSymbols = data.symbols
@@ -59,7 +66,12 @@ export class SymbolService {
 
   async fetchOKXSymbols(): Promise<string[]> {
     try {
-      const response = await fetch("https://www.okx.com/api/v5/public/instruments?instType=SPOT");
+      const response = await fetch("https://www.okx.com/api/v5/public/instruments?instType=SPOT", {
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        throw new Error(`OKX instruments HTTP ${response.status}`);
+      }
       const data = await response.json();
 
       this.okxSymbols = data.data

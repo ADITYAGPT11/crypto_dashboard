@@ -1,6 +1,7 @@
 import EventEmitter from "eventemitter3";
 import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
 import type { GenericMarketData } from "../types/marketData";
+import type { ConnectionStatusPayload } from "../types/connection";
 
 type MarketType = "spot" | "futures";
 
@@ -16,7 +17,11 @@ interface BinanceMessage {
 
 export class BinanceAdapter extends EventEmitter {
   private clients: Record<MarketType, BaseWebSocketClient>;
-  private subscribedSymbols: Set<string> = new Set();
+  // Stream params per market (e.g. "btcusdt@aggTrade") — used to (re)subscribe on every open.
+  private subscribedStreams: Record<MarketType, Set<string>> = {
+    spot: new Set(),
+    futures: new Set(),
+  };
   private prevFundingTime: Record<string, number> = {}; // symbol → previous T
 
   constructor() {
@@ -83,7 +88,23 @@ export class BinanceAdapter extends EventEmitter {
     });
 
     ws.on("open", () => {
-      // new subscription logic here
+      // Re-send all tracked subscriptions after the initial connect and after
+      // every reconnect, so a dropped socket heals itself automatically.
+      this.sendSubscribe(marketType);
+      this.emit("connectionStatus", {
+        exchange: "BINANCE",
+        market: marketType,
+        state: "live",
+      } satisfies ConnectionStatusPayload);
+    });
+
+    ws.on("close", () => {
+      // autoReconnect will retry; report as reconnecting
+      this.emit("connectionStatus", {
+        exchange: "BINANCE",
+        market: marketType,
+        state: "connecting",
+      } satisfies ConnectionStatusPayload);
     });
 
     ws.on("error", (error) => {
@@ -95,50 +116,57 @@ export class BinanceAdapter extends EventEmitter {
     await Promise.all([this.clients.spot.connect(), this.clients.futures.connect()]);
   }
 
+  /**
+   * Send SUBSCRIBE for every stream tracked for this market. Safe to call
+   * before the socket opens: BaseWebSocketClient queues the payload until open.
+   */
+  private sendSubscribe(marketType: MarketType) {
+    const params = Array.from(this.subscribedStreams[marketType]);
+    if (params.length === 0) return;
+    this.clients[marketType].send({
+      method: "SUBSCRIBE",
+      params,
+      id: Date.now(),
+    });
+  }
+
+  private static toBinanceStream(s: string, stream: string): string {
+    return `${s.replace("-USDT", "USDT").toLowerCase()}@${stream}`;
+  }
+
   subscribe(
     symbols: string[] | string,
     streams: ("bookTicker" | "aggTrade" | "depth")[] = ["bookTicker"],
   ) {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
-    arr.forEach((s) => this.subscribedSymbols.add(s.toUpperCase()));
+    const params = arr.flatMap((s) =>
+      streams.map((stream) => BinanceAdapter.toBinanceStream(s, stream)),
+    );
 
-    // Convert BTC-USDT to BTCUSDT for Binance API
-    const params: string[] = [];
-    arr.forEach((s) => {
-      const binanceSymbol = s.replace("-USDT", "USDT").toLowerCase();
-      streams.forEach((stream) => {
-        params.push(`${binanceSymbol}@${stream}`);
-      });
-    });
+    // spot gets the market-data streams of every subscribed symbol
+    this.subscribedStreams.spot = new Set([
+      ...this.subscribedStreams.spot,
+      ...params,
+    ]);
+    // futures mirrors the same streams (plus mark price via subscribeFundingRate)
+    this.subscribedStreams.futures = new Set([
+      ...this.subscribedStreams.futures,
+      ...params,
+    ]);
 
-    const payload = {
-      method: "SUBSCRIBE",
-      params,
-      id: Date.now(),
-    };
-
-    // Send to spot and futures if connected
-    Object.values(this.clients).forEach((ws) => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(payload));
-      }
-    });
+    this.sendSubscribe("spot");
+    this.sendSubscribe("futures");
   }
 
   /** Subscribe to funding rate (markPrice) stream on futures only */
   subscribeFundingRate(symbols: string[] | string) {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
-    const params: string[] = arr.map(
-      (s) => s.replace("-USDT", "USDT").toLowerCase() + "@markPrice",
-    );
-    const payload = {
-      method: "SUBSCRIBE",
-      params,
-      id: Date.now(),
-    };
-    const ws = this.clients.futures;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(payload));
-    }
+    const params = arr.map((s) => BinanceAdapter.toBinanceStream(s, "markPrice"));
+
+    this.subscribedStreams.futures = new Set([
+      ...this.subscribedStreams.futures,
+      ...params,
+    ]);
+    this.sendSubscribe("futures");
   }
 }

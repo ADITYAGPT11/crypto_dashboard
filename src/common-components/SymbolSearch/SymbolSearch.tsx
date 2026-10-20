@@ -35,7 +35,7 @@ const SymbolSearch = ({ onAddSymbol, currentSymbols }: SymbolSearchProps) => {
       }
     };
 
-    loadSymbols();
+    void loadSymbols();
   }, []);
 
   // Filter suggestions based on search term

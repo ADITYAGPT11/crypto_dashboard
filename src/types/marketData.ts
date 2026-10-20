@@ -18,12 +18,3 @@ export interface ArbitrageOpportunity {
   bestAsk: { exchange: string; price: number };
   bestBid: { exchange: string; price: number };
 }
-
-export interface FundingOpportunity {
-  symbol: string;
-  exchange: string;
-  fundingRate: number;
-  fundingInterval: number;
-  currentPrice?: number | null;
-  nextFundingTime?: number | null;
-}

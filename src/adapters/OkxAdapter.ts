@@ -2,8 +2,7 @@ import EventEmitter from "eventemitter3";
 import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
 import type { GenericMarketData } from "../types/marketData";
 import { parseOkxSymbol, formatCanonicalSymbol } from "../utils/symbolUtils";
-
-type Subscription = { symbol: string; type: "SPOT" | "SWAP" };
+import type { ConnectionStatusPayload } from "../types/connection";
 
 interface OkxMessage {
   arg: {
@@ -23,7 +22,8 @@ interface OkxMessage {
 
 export class OkxAdapter extends EventEmitter {
   private ws: BaseWebSocketClient;
-  private subscribed: Subscription[] = [];
+  // Tracked subscription args (JSON of {channel, instId}) — re-sent on every open
+  private trackedArgs = new Set<string>();
 
   constructor() {
     super();
@@ -74,7 +74,25 @@ export class OkxAdapter extends EventEmitter {
       }
     });
 
-    this.ws.on("open", () => {});
+    this.ws.on("open", () => {
+      // Re-send every tracked subscription after the initial connect and after
+      // every reconnect, so a dropped socket heals itself automatically.
+      this.sendAllSubscriptions();
+      this.emit("connectionStatus", {
+        exchange: "OKX",
+        market: "public",
+        state: "live",
+      } satisfies ConnectionStatusPayload);
+    });
+
+    this.ws.on("close", () => {
+      // autoReconnect will retry; report as reconnecting
+      this.emit("connectionStatus", {
+        exchange: "OKX",
+        market: "public",
+        state: "connecting",
+      } satisfies ConnectionStatusPayload);
+    });
 
     this.ws.on("error", (error) => {
       console.error("OKX WebSocket error:", error);
@@ -85,21 +103,37 @@ export class OkxAdapter extends EventEmitter {
     await this.ws.connect();
   }
 
+  /**
+   * Add args to the tracked set and subscribe any that are new. Safe to call
+   * before the socket opens: BaseWebSocketClient queues the payload until open.
+   */
+  private trackAndSubscribe(args: Array<{ channel: string; instId: string }>) {
+    const fresh = args.filter((a) => {
+      const key = JSON.stringify(a);
+      if (this.trackedArgs.has(key)) return false;
+      this.trackedArgs.add(key);
+      return true;
+    });
+    if (fresh.length === 0) return;
+    this.ws.send({ op: "subscribe", args: fresh });
+  }
+
+  private sendAllSubscriptions() {
+    const args = Array.from(this.trackedArgs).map((key) => JSON.parse(key) as {
+      channel: string;
+      instId: string;
+    });
+    if (args.length === 0) return;
+    this.ws.send({ op: "subscribe", args });
+  }
+
   subscribe(symbols: string | string[], type: "SPOT" | "SWAP") {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
-
-    arr.forEach((s) => {
-      if (!this.subscribed.find((sub) => sub.symbol === s && sub.type === type)) {
-        this.subscribed.push({ symbol: s, type });
-      }
-    });
-
     const args = arr.map((s) => ({
       channel: "tickers",
       instId: type === "SPOT" ? s : `${s}-SWAP`,
     }));
-
-    this.ws.send({ op: "subscribe", args });
+    this.trackAndSubscribe(args);
   }
 
   /** Subscribe to funding rate updates for SWAP instruments */
@@ -109,6 +143,6 @@ export class OkxAdapter extends EventEmitter {
       channel: "funding-rate",
       instId: `${s}-SWAP`,
     }));
-    this.ws.send({ op: "subscribe", args });
+    this.trackAndSubscribe(args);
   }
 }
