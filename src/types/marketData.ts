@@ -24,4 +24,6 @@ export interface FundingOpportunity {
   exchange: string;
   fundingRate: number;
   fundingInterval: number;
+  currentPrice?: number | null;
+  nextFundingTime?: number | null;
 }

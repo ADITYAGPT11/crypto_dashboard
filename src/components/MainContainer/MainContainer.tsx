@@ -8,7 +8,7 @@ import PriceTable from "../dashboard/PriceTable";
 import styles from "./MainContainer.module.scss";
 import SymbolSearch from "../../common-components/SymbolSearch";
 
-const EXCHANGES = ["BINANCE", "OKX", "DELTA"];
+const EXCHANGES = ["BINANCE", "DELTA", "OKX"];
 const TYPES = ["SPOT", "FUT"];
 
 const MainContainer: React.FC = () => {

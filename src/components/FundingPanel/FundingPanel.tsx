@@ -6,7 +6,7 @@ interface FundingPanelProps {
     opportunities: FundingOpportunity[];
 }
 
-function formatTime(ts: number | null): string {
+function formatTime(ts: number | null | undefined): string {
   if (!ts) return "-";
   const remaining = ts - Date.now();
   if (remaining <= 0) return "Now";
@@ -34,7 +34,7 @@ const FundingPanel: React.FC<FundingPanelProps> = ({ opportunities }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {opportunities.map((opp, index) => (
+                        {opportunities.map((opp) => (
                             <tr key={`${opp.symbol}-${opp.exchange}`}>
                                 <td className={styles.symbol}>{opp.symbol}</td>
                                 <td className={styles.exchange}>{opp.exchange}</td>

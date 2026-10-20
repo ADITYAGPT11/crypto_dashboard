@@ -74,7 +74,7 @@ export class BinanceAdapter extends EventEmitter {
           this.emit("fundingRate", {
             exchange: "BINANCE",
             symbol: symbolKey,
-            fundingRate: parseFloat(msg.r),
+            fundingRate: parseFloat(msg.r) * 100,
             nextFundingTime: msg.T,
             fundingInterval: interval,
           });

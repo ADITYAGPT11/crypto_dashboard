@@ -39,7 +39,7 @@ const PriceCell: React.FC<Props> = ({ exchange, symbol, type }) => {
       </span>
       {isFut && fr && (
         <span className={`funding-info ${fr.rate >= 0 ? "positive" : "negative"}`}>
-          <span className="fr-rate">{(fr.rate * 100).toFixed(4)}%</span>
+          <span className="fr-rate">{(fr.rate).toFixed(6)}%</span>
           {fr.fundingInterval != null && <><span className="fr-sep">|</span><span className="fr-interval">{formatInterval(fr.fundingInterval)}</span></>}
           <span className="fr-sep">|</span>
           <span className="fr-next">{formatFundingTime(fr.nextFundingTime)}</span>

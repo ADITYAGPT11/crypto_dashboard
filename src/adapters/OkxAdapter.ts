@@ -66,7 +66,7 @@ export class OkxAdapter extends EventEmitter {
         this.emit("fundingRate", {
           exchange: "OKX",
           symbol,
-          fundingRate: parseFloat(d.fundingRate || "0"),
+          fundingRate: parseFloat(d.fundingRate || "0") * 100,
           nextFundingTime,
           fundingInterval: interval,
           nextFundingRate: isNaN(nextFr as number) ? undefined : nextFr,
