@@ -1,6 +1,14 @@
 # Crypto Dashboard
 
-A React-based cryptocurrency dashboard with real-time data visualization and trading API integration.
+A React-based cryptocurrency dashboard with real-time data visualization from exchange public WebSocket APIs.
+
+## Attribution
+
+- Candlestick charts are built with [Lightweight Charts™](https://www.tradingview.com/lightweight-charts/) (Apache-2.0), Copyright (c) TradingView, Inc. In line with the Lightweight Charts license, the TradingView attribution logo is displayed on every chart.
+- Agent/roadmap docs: see [`agent-docs/`](./agent-docs/).
+- Exchange data: Binance/OKX/Delta India public APIs.
+
+---
 
 ## Setup
 

@@ -129,6 +129,36 @@
   }
 }
 
+// Fresh/stale dot rendered right after the price
+.freshness-badge {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.badge-fresh {
+  background: var(--accent-positive, #16a34a);
+}
+
+.badge-stale {
+  background: var(--text-secondary, #888);
+  opacity: 0.65;
+  animation: stale-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes stale-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
 .funding-info {
   font-size: 11px;
   font-family: "JetBrains Mono", "Fira Code", monospace;
@@ -146,6 +176,41 @@
 
   &.negative {
     color: var(--accent-negative);
+  }
+}
+
+// 24h change% + base volume row (REST-polled rollups, refreshes every 60s)
+.ticker-stats {
+  font-size: 11px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0.3px;
+
+  .chg {
+    font-weight: 600;
+
+    &.positive {
+      color: var(--accent-positive);
+    }
+
+    &.negative {
+      color: var(--accent-negative);
+    }
+
+    &.neutral {
+      color: var(--text-secondary);
+    }
+  }
+
+  .vol {
+    color: var(--text-secondary);
+  }
+
+  .stat-sep {
+    opacity: 0.3;
+    margin: 0 5px;
+    user-select: none;
   }
 }
 

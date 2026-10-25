@@ -18,8 +18,8 @@ const ArbitragePanel: React.FC<ArbitragePanelProps> = ({ opportunities }) => {
             <tr>
               <th>Symbol</th>
               <th>Spread (%)</th>
-              <th>Best Ask (Buy At)</th>
-              <th>Best Bid (Sell At)</th>
+              <th>Lowest Price (Reference)</th>
+              <th>Highest Price (Reference)</th>
             </tr>
           </thead>
           <tbody>
@@ -32,18 +32,22 @@ const ArbitragePanel: React.FC<ArbitragePanelProps> = ({ opportunities }) => {
                   {opp.spreadPercent.toFixed(3)}%
                 </td>
                 <td className={styles.exchangeInfo}>
-                  <span className={styles.exchangeName}>{opp.bestAsk.exchange}: </span>
-                  <span className={styles.price}>${opp.bestAsk.price.toFixed(2)}</span>
+                  <span className={styles.exchangeName}>{opp.lowest.exchange}: </span>
+                  <span className={styles.price}>${opp.lowest.price.toFixed(2)}</span>
                 </td>
                 <td className={styles.exchangeInfo}>
-                  <span className={styles.exchangeName}>{opp.bestBid.exchange}: </span>
-                  <span className={styles.price}>${opp.bestBid.price.toFixed(2)}</span>
+                  <span className={styles.exchangeName}>{opp.highest.exchange}: </span>
+                  <span className={styles.price}>${opp.highest.price.toFixed(2)}</span>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
+      <p className={styles.disclaimer}>
+        Spreads are indicative only — computed from last traded prices across exchanges, not
+        executable bid/ask quotes.
+      </p>
     </div>
   );
 };

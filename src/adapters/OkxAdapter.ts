@@ -1,6 +1,7 @@
 import EventEmitter from "eventemitter3";
 import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
-import type { GenericMarketData } from "../types/marketData";
+import type { CandleData, CandleInterval, GenericMarketData } from "../types/marketData";
+import { normalizeHistory, toCanonicalInterval, toCandle } from "../utils/candleUtils";
 import { parseOkxSymbol, formatCanonicalSymbol } from "../utils/symbolUtils";
 import type { ConnectionStatusPayload } from "../types/connection";
 
@@ -9,15 +10,22 @@ interface OkxMessage {
     channel: string;
     instId: string;
   };
-  data: Array<{
-    instId: string;
-    last: string;
-    ts: string;
-    fundingRate?: string;
-    fundingTime?: string; // next settlement time
-    prevFundingTime?: string; // previous settlement time
-    nextFundingRate?: string; // predicted rate for next period
-  }>;
+  data: Array<OkxTickerRow | string[]>;
+}
+
+interface OkxTickerRow {
+  instId: string;
+  last: string;
+  ts: string;
+  fundingRate?: string;
+  fundingTime?: string; // next settlement time
+  prevFundingTime?: string; // previous settlement time
+  nextFundingRate?: string; // predicted rate for next period
+}
+
+/** Our interval → OKX bar suffix (OKX spells hours/days in upper case). */
+function toOkxBar(interval: CandleInterval): string {
+  return interval.replace("1h", "1H").replace("4h", "4H").replace("1d", "1D");
 }
 
 export class OkxAdapter extends EventEmitter {
@@ -37,7 +45,7 @@ export class OkxAdapter extends EventEmitter {
     this.ws.on("message", (rawMsg) => {
       const msg = rawMsg as OkxMessage;
       if (msg.arg?.channel === "tickers" && msg.data?.length) {
-        const d = msg.data[0];
+        const d = msg.data[0] as OkxTickerRow;
         // d.instId is already in BTC-USDT or BTC-USDT-SWAP format
         const transformedData: GenericMarketData = {
           exchange: "OKX",
@@ -51,7 +59,7 @@ export class OkxAdapter extends EventEmitter {
 
       // Handle funding-rate channel
       if (msg.arg?.channel === "funding-rate" && msg.data?.length) {
-        const d = msg.data[0];
+        const d = msg.data[0] as OkxTickerRow;
         const symbol = formatCanonicalSymbol(parseOkxSymbol(d.instId));
         // OKX sends next settlement time in 'fundingTime' (not 'nextFundingTime')
         // 'nextFundingTime' is the one AFTER next (16h from now)
@@ -71,6 +79,36 @@ export class OkxAdapter extends EventEmitter {
           fundingInterval: interval,
           nextFundingRate: isNaN(nextFr as number) ? undefined : nextFr,
         });
+      }
+
+      // Candle channels: channel names look like "candle1m"/"candle1H"/"candle4H"...
+      if (msg.arg?.channel?.startsWith("candle") && msg.data?.length) {
+        const interval = toCanonicalInterval(msg.arg.channel.slice("candle".length));
+        if (interval && typeof msg.data[0] !== "undefined") {
+          const row = msg.data[0] as string[];
+          // [ts, o, h, l, c, vol(base), volCcy, volCcyQuote, confirm("1" = closed)]
+          const candle = toCandle({
+            openTime: parseInt(row[0]),
+            open: parseFloat(row[1]),
+            high: parseFloat(row[2]),
+            low: parseFloat(row[3]),
+            close: parseFloat(row[4]),
+            volume: parseFloat(row[5]),
+            closed: row[8] === "1",
+          });
+          if (candle) {
+            // SWAP instruments are BTC-USDT-SWAP natively; canonical drops the suffix
+            const canonicalId = msg.arg.instId.replace(/-SWAP$/, "");
+            const symbol = formatCanonicalSymbol(parseOkxSymbol(canonicalId));
+            this.emit("candle", {
+              exchange: "OKX",
+              type: msg.arg.instId.includes("SWAP") ? "FUT" : "SPOT",
+              symbol,
+              interval,
+              candle,
+            } satisfies CandleData);
+          }
+        }
       }
     });
 
@@ -119,10 +157,13 @@ export class OkxAdapter extends EventEmitter {
   }
 
   private sendAllSubscriptions() {
-    const args = Array.from(this.trackedArgs).map((key) => JSON.parse(key) as {
-      channel: string;
-      instId: string;
-    });
+    const args = Array.from(this.trackedArgs).map(
+      (key) =>
+        JSON.parse(key) as {
+          channel: string;
+          instId: string;
+        },
+    );
     if (args.length === 0) return;
     this.ws.send({ op: "subscribe", args });
   }
@@ -144,5 +185,79 @@ export class OkxAdapter extends EventEmitter {
       instId: `${s}-SWAP`,
     }));
     this.trackAndSubscribe(args);
+  }
+
+  // ------------------------------------------------------------------
+  // Candles (Module 4) — WS candle channels + REST history
+  // ------------------------------------------------------------------
+
+  subscribeCandles(symbols: string | string[], type: "SPOT" | "SWAP", interval: CandleInterval) {
+    const arr = Array.isArray(symbols) ? symbols : [symbols];
+    const args = arr.map((s) => ({
+      channel: `candle${toOkxBar(interval)}`,
+      instId: type === "SPOT" ? s : `${s}-SWAP`,
+    }));
+    this.trackAndSubscribe(args);
+  }
+
+  unsubscribeCandles(symbols: string | string[], type: "SPOT" | "SWAP", interval: CandleInterval) {
+    const arr = Array.isArray(symbols) ? symbols : [symbols];
+    const args = arr.map((s) => ({
+      channel: `candle${toOkxBar(interval)}`,
+      instId: type === "SPOT" ? s : `${s}-SWAP`,
+    }));
+    const stillTracked: typeof args = [];
+    for (const a of args) {
+      const key = JSON.stringify(a);
+      if (this.trackedArgs.has(key)) {
+        this.trackedArgs.delete(key);
+        stillTracked.push(a);
+      }
+    }
+    if (stillTracked.length > 0) {
+      this.ws.send({ op: "unsubscribe", args: stillTracked });
+    }
+  }
+
+  /**
+   * REST history backfill (returned ascending; OKX sends latest-first and we
+   * normalize). No key, no signing.
+   */
+  async fetchCandleHistory(
+    symbol: string,
+    interval: CandleInterval,
+    type: "SPOT" | "SWAP",
+    limit = 200,
+  ): Promise<CandleData[]> {
+    const instId = type === "SPOT" ? symbol : `${symbol}-SWAP`;
+    const response = await fetch(
+      `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${toOkxBar(interval)}&limit=${limit}`,
+      { signal: AbortSignal.timeout(10_000) },
+    );
+    if (!response.ok) {
+      throw new Error(`OKX candles HTTP ${response.status}`);
+    }
+    const payload = (await response.json()) as { code: string; data: string[][] };
+    if (payload.code !== "0") {
+      throw new Error(`OKX candles API error ${payload.code}`);
+    }
+    const candles = normalizeHistory(
+      (payload.data ?? []).map((row) => ({
+        openTime: parseInt(row[0]),
+        open: parseFloat(row[1]),
+        high: parseFloat(row[2]),
+        low: parseFloat(row[3]),
+        close: parseFloat(row[4]),
+        volume: parseFloat(row[5]),
+        closed: row[8] === "1",
+      })),
+    );
+    return candles.map((candle) => ({
+      exchange: "OKX" as const,
+      type: type === "SPOT" ? ("SPOT" as const) : ("FUT" as const),
+      symbol,
+      interval,
+      candle,
+    }));
   }
 }

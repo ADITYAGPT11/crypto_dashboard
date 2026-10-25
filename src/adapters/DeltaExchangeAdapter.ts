@@ -132,9 +132,7 @@ export class DeltaExchangeAdapter extends EventEmitter {
    * the payload until open.
    */
   subscribe(symbolOrSymbols: string | string[]): void {
-    const symbols = Array.isArray(symbolOrSymbols)
-      ? symbolOrSymbols
-      : [symbolOrSymbols];
+    const symbols = Array.isArray(symbolOrSymbols) ? symbolOrSymbols : [symbolOrSymbols];
 
     symbols.forEach((s) => this.subscribedSymbols.add(s.replace("-USDT", "USD")));
     this.sendSubscribe();

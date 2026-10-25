@@ -17,3 +17,77 @@
   display: flex;
   justify-content: center;
 }
+
+// Module 3 widget layout customization bar
+.customizeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.customizeToggle {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-primary);
+  background: var(--background-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+  }
+}
+
+.customizeBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.customizeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px dashed var(--border-primary);
+  background: var(--background-secondary);
+}
+
+.chipLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-right: 2px;
+}
+
+.chipBtn {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  line-height: 1;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid var(--border-primary);
+  background: var(--background-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: var(--text-primary);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
+.chipHidden {
+  opacity: 0.55;
+}

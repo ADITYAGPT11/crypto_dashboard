@@ -8,8 +8,13 @@ export interface FundingRateSnapshot {
   nextFundingRate?: number; // predicted rate for next period
 }
 
+/**
+ * In-memory latest-value store for live prices, funding rates and their
+ * freshness, with per-key subscriptions. Single instance shared by all hooks.
+ */
 export class LiveMarketDataService {
   private prices = new Map<PriceKey, number>();
+  private lastUpdatedAt = new Map<PriceKey, number>();
   private fundingRates = new Map<PriceKey, FundingRateSnapshot>();
   private listeners = new Map<PriceKey, Set<Listener>>();
   private frListeners = new Map<PriceKey, Set<Listener>>();
@@ -23,13 +28,18 @@ export class LiveMarketDataService {
     return this.instance;
   }
 
+  static resetInstance() {
+    LiveMarketDataService.instance = null as unknown as LiveMarketDataService;
+  }
+
   private makeKey(exchange: string, symbol: string, type: string): PriceKey {
     return `${exchange}|${symbol}|${type}`;
   }
 
-  update(exchange: string, symbol: string, type: string, price: number) {
+  update(exchange: string, symbol: string, type: string, price: number, timeStamp?: number) {
     const key = this.makeKey(exchange, symbol, type);
     this.prices.set(key, price);
+    this.lastUpdatedAt.set(key, timeStamp ?? Date.now());
 
     const subs = this.listeners.get(key);
     if (subs) {
@@ -39,6 +49,14 @@ export class LiveMarketDataService {
 
   getPrice(exchange: string, symbol: string, type: string) {
     return this.prices.get(this.makeKey(exchange, symbol, type)) ?? null;
+  }
+
+  /**
+   * Epoch ms of the most recent tick received for this key, or null.
+   * Stale-data UI checks compare this against Date.now().
+   */
+  getLastUpdatedAt(exchange: string, symbol: string, type: string): number | null {
+    return this.lastUpdatedAt.get(this.makeKey(exchange, symbol, type)) ?? null;
   }
 
   subscribe(exchange: string, symbol: string, type: string, cb: Listener) {
@@ -57,9 +75,10 @@ export class LiveMarketDataService {
 
   // --- Funding Rate ---
 
-  updateFundingRate(exchange: string, symbol: string, fr: FundingRateSnapshot) {
+  updateFundingRate(exchange: string, symbol: string, fr: FundingRateSnapshot, timeStamp?: number) {
     const key = this.makeKey(exchange, symbol, "FUT");
     this.fundingRates.set(key, fr);
+    this.lastUpdatedAt.set(key, timeStamp ?? Date.now());
 
     const subs = this.frListeners.get(key);
     if (subs) {

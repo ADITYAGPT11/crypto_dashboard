@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 
 const RealTimeClock = () => {
   // Lazy initializer runs only on mount (and once per mount), keeping render pure
-  const [time, setTime] = useState<Date | null>(() => (typeof window === "undefined" ? null : new Date()));
+  const [time, setTime] = useState<Date | null>(() =>
+    typeof window === "undefined" ? null : new Date(),
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {

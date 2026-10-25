@@ -1,0 +1,189 @@
+PROJECT ROADMAP — FREE REAL-TIME MARKET ANALYSIS TOOL
+====================================================
+
+PROJECT GOAL
+Build a free-first crypto market-analysis platform that gives traders useful market context through live charts, order flow, liquidity, statistics and customizable alerts. This is an analysis tool only; do not implement trade execution in the initial scope.
+
+GUIDELINES FOR THE AI CODING MODEL
+- Follow this roadmap in order. Work on ONE module at a time.
+- Before coding a module, inspect the existing project and summarize the implementation plan.
+- Prefer proven, free/open-source libraries and existing GitHub projects over building every feature from scratch. Before adopting code, verify recent activity, license, dependencies, tests/CI, security issues, and fit with this architecture.
+- Do not clone or copy a whole project blindly. Reuse focused libraries/components where practical; preserve required copyright/license notices and record what was adopted.
+- If a candidate repository looks abandoned, has very little history, or lacks a clear license, use it as a reference only—not as a production dependency.
+- Do not rewrite working modules without a clear reason. Keep changes small and modular.
+- Use free/open-source tools and public exchange market-data APIs wherever possible. Never assume an API, hosting tier or dataset is unlimited or free; verify current terms and limits.
+- Use TypeScript end-to-end where practical. Keep code strongly typed, documented and testable.
+- After each module: run lint/type checks/tests, fix errors, update this file's checklist, and report changed files plus any manual setup steps.
+- Do not add paid services, API keys for market data, or trading/execution endpoints unless explicitly approved.
+- Never describe visible orders as confirmed institutional trades. Distinguish observed data from estimates.
+
+INITIAL TECH STACK
+- Frontend/toolchain: React + TypeScript managed with Vite+ (`vp` CLI), NOT a plain Vite-only setup. Vite+ is the unified toolchain that includes Vite and related build/test/lint/format tools.
+- Vite+ official guide: https://viteplus.dev/guide
+- Charts: TradingView Lightweight Charts (follow its attribution/license requirements)
+- Backend: Node.js + TypeScript; run backend tasks through the workspace/task scripts where appropriate
+- Live data: exchange-native public WebSocket APIs; REST for snapshots/history where permitted
+- Initial persistence: SQLite for local development; keep storage behind an interface
+- Alerts: Telegram Bot API (user supplies their bot token and chat configuration)
+- Testing/checks/builds: use Vite+ commands (`vp test`, `vp check`, `vp build`) where supported by the chosen template; use `vp run <task>` for project-specific tasks
+- Version control/project tracking: Git + GitHub Issues/Projects
+
+HIGH-LEVEL ARCHITECTURE
+Exchange adapters -> normalized market-data events -> market-data service/cache -> analytics and alert engine -> API/WebSocket -> React dashboard
+                                                      |-> SQLite history
+                                                      |-> Telegram notification worker
+
+MANDATORY PRE-STEP — EXISTING PROJECT / GITHUB REUSE AUDIT
+TODO
+[x] Inspect the current workspace and identify existing code, dependencies, scripts, package manager, tests and unfinished work before changing anything. (2026-10-24: Modules 0-2 largely pre-built; status in AGENT.md.)
+[x] Search GitHub for free/open-source projects or components that already implement dashboard, chart, order-flow, heatmap, alerts or exchange connectors. (2026-10-24: all roadmap candidates re-audited via GitHub API.)
+[x] Evaluate each candidate's license, recent commits/releases, issue/PR activity, CI/tests, dependencies, security posture and compatibility with React + TypeScript + Vite+. (2026-10-24: notable finding — bennycode/trading-signals exposes license:null via the GitHub API, so it stays reference-only until a LICENSE is added.)
+[x] Create a short decision note: REUSE AS DEPENDENCY / ADAPT COMPONENT / REFERENCE ONLY / REJECT, with reasons. -> OPEN_SOURCE_REUSE.md (both live in agent-docs/ next to this file; project guide: AGENT.md)
+[x] Do not start from an existing full application unless it clearly fits the requested product and can be maintained more safely than a modular build. Avoid duplicate feature implementation when a suitable, maintained library already exists. (2026-10-24: decision — modular build, reuse lightweight-charts + possibly FlowMap heatmap renderer; see OPEN_SOURCE_REUSE.md in agent-docs/.)
+DONE WHEN: The AI has documented what will be reused and what must be built, before implementation starts.
+
+GITHUB PROJECTS / TOOLS TO EVALUATE FIRST (verify status again before use)
+- Vite+: https://github.com/voidzero-dev/vite-plus — primary frontend toolchain; use `vp`, not plain Vite-only commands. Official docs: https://viteplus.dev/guide
+- TradingView Lightweight Charts: https://github.com/tradingview/lightweight-charts — primary chart library; comply with Apache-2.0 license and TradingView attribution requirements.
+- FlowMap: https://github.com/nazmiefearmutcu/flowmap — Apache-2.0 React/TypeScript + WebGL2 order-flow heatmap, DOM ladder, time & sales, CVD, volume profile and replay. Inspect the client/renderer for possible component reuse; its Python gateway may not fit this project's Node backend. Do not adopt the whole app without an architecture review.
+- CryptoPulse: https://github.com/FIQTOR/cryptopulse — MIT market-dashboard reference for layouts, indicators and data-source fallback; currently shows a very small repository history, so reference only unless a fresh audit proves otherwise.
+- Crypto Liquidity Terminal: https://github.com/AIUngated/crypto-liquidity-terminal — MIT market-screener/heatmap/alert reference; currently shows very little repository history, so reference only unless activity, tests and code quality are independently verified.
+- Trading Signals: https://github.com/bennycode/trading-signals — evaluate for technical indicator calculations before implementing indicators manually; confirm the current release and license at adoption time.
+- Exchange connectors: prefer each exchange's official docs and native public WebSocket API. Consider https://github.com/ccxt/ccxt for REST/market metadata; verify which functionality is free and do not assume its separate WebSocket offerings are free.
+
+MODULE 0 — PROJECT FOUNDATION
+TODO
+[x] Set up Vite+ (`vp`) with a React + TypeScript template; inspect `vp help` / `vp help create` first and use the currently stable release. (vite-plus 1.3.0 in package.json; vp dev/check/test/build verified 2026-10-24.)
+[x] On Windows, if Vite+ is not installed, follow the official install instructions at https://viteplus.dev/guide; the official PowerShell installer is `irm https://vite.plus/ps1 | iex`. Open a new terminal and verify with `vp help`. (Not needed — `vp` verified on PATH.)
+[ ] Create a separate Node.js/TypeScript backend, keeping a clear boundary between frontend, backend and shared types.
+[x] Configure linting, formatting, environment settings and basic tests through Vite+ wherever the selected template supports it. (`vp check` clean; `vp test` runs built-in Vitest.)
+[x] Define folder structure, naming conventions, error handling and logging. (Documented in AGENT.md foundations/conventions section.)
+[x] Add README with setup, run, test and build instructions using the actual `vp` commands.
+DONE WHEN: A clean checkout can install dependencies and run frontend, backend, checks, tests and build using documented commands.
+
+MODULE 1 — SHARED TYPES & MARKET-DATA CONTRACTS
+TODO
+[x] Define normalized types for Exchange, Symbol, Candle, Trade, OrderBookSnapshot, OrderBookUpdate, Ticker and Funding/Open Interest data when available. (GenericMarketData, CanonicalSymbol, ConnectionStatusPayload, FundingRateSnapshot in src/types/*; Candle/Trade/OrderBook types still to be added with their modules.)
+[x] Standardize timestamps, symbol names, price/quantity precision and event metadata. (Canonical = BASE-USDT `BTC-USDT`; adapters normalize timestamps to ms. Precision/quantity metadata still to be added when order books arrive.)
+[x] Define clear stale/disconnected/error states and data-source attribution. (ConnectionState = connecting | live | down, aggregated per exchange in MarketDataService; stale-data detection added at UI level in Module 3.)
+[x] Add validation and unit tests for symbol normalization and event parsing. (src/utils/symbolUtils normalization + adapter message parsing unit tests, run by `vp test`.)
+DONE WHEN: Every adapter can emit the same typed format without exchange-specific fields leaking into UI components.
+
+MODULE 2 — EXCHANGE ADAPTER & LIVE DATA PIPELINE
+TODO
+[x] Start with ONE exchange and its public market-data WebSocket; evaluate Delta Exchange India first, subject to current API access and terms. (Delta India WSS implemented first, then Binance + OKX.)
+[ ] Support subscribe/unsubscribe for selected symbols and channels.
+[ ] Implement snapshot + incremental order-book updates correctly where the API requires them.
+[x] Add reconnect with backoff, heartbeat/ping handling, resubscription and stale-data detection. (BaseWebSocketClient: exponential backoff + jitter, infinite retries, optional app-level heartbeat w/ pong timeout + stale forced reconnect, subscription replay + buffered send queue on every reconnect. Per-symbol stale detection remains a UI concern.)
+[ ] Add a small REST history/snapshot client where permitted.
+[ ] Measure message rate, processing latency, dropped updates and reconnect count.
+[x] Keep adapters independent so Binance/OKX can be added later. (All three connect in parallel with per-adapter error isolation in MarketDataService.connectExchanges.)
+DONE WHEN: Live ticker, trades, candles and supported order-book data stay synchronized and recover after disconnects.
+
+MODULE 3 — SMART DASHBOARD & WATCHLIST
+TODO
+[x] Build a responsive dashboard with market summary, searchable symbol list and favorites. (MainContainer: Metrics summary, SymbolSearch add/remove of tracked symbols; watchlist persisted to localStorage with validation — src/utils/watchlistStorage.ts.)
+[x] Show live price, percentage change, volume and supported derivatives stats. (2026-10-25: per-cell 24h change% + base volume rows in PriceTable via TickerStatsService — REST-polled exchange 24h rollups, 60s cadence, Binance spot/fut + OKX; Delta has no wired source; funding rate via useLiveFundingRate.)
+[x] Show connection status, last-update time and stale-data warnings. (ConnectionStatus panel + per-data-cell stale marking and last-update age in PriceTable; ~6s no-update threshold.)
+[x] Allow basic widget layout/customization only after the default dashboard is stable. (2026-10-25: "Edit layout" mode in MainContainer — reorder panels with up/down chips, show/hide toggles, persisted per browser as {id, visible} entries via src/utils/layoutStorage.ts, unit-tested.)
+DONE WHEN: A trader can monitor selected markets and immediately tell whether displayed data is live.
+
+MODULE 4 — CHARTING & INDICATORS
+TODO
+[x] Add candlestick chart with symbol and timeframe selection. (2026-10-24: ChartPanel over lightweight-charts v5.2.1; symbol dropdown from watchlist, source selector Binance spot/fut + OKX spot/swap, intervals 1m-1d; candle WS streams + REST backfill via CandleService.)
+[x] Add volume, crosshair, zoom, chart resize and time-range navigation. (2026-10-24: volume histogram overlay, magnet crosshair, wheel zoom/drag pan built-in, autoSize + ResizeObserver, fitContent on load.)
+[x] Add core indicators: EMA/SMA, RSI, MACD, VWAP, Bollinger Bands and ATR. (2026-10-24: all six in src/utils/indicators.ts — pure + 14 unit tests; opverlays on price pane w/ panes for RSI/ATR/MACD; warm-up slots NaN.)
+[x] Add indicator parameters, visibility toggles and clear loading/insufficient-history states. (2026-10-24: chip toggles + period/mult params inputs; overlay states for loading, REST backfill failure, insufficient candles.)
+[ ] Add common drawing tools only if supported and maintainable within selected chart library.
+DONE WHEN: Chart and indicators update from normalized data and handle timeframe changes correctly.
+
+MODULE 5 — ORDER BOOK & ORDER-FLOW ANALYTICS
+TODO
+[ ] Display bid/ask depth ladder and aggregated depth chart.
+[ ] Compute spread, depth by distance from mid-price and order-book imbalance.
+[ ] Display large visible resting orders and unusually large trade prints using configurable thresholds.
+[ ] Track order-level liquidity changes where data permits: added, reduced, cancelled or consumed quantity.
+[ ] Clearly label limitations: public feeds cannot identify the owner of orders; large orders can be spoofed or cancelled.
+DONE WHEN: Metrics are reproducible from source events and users can see data freshness and aggregation settings.
+
+MODULE 6 — ALERT RULE BUILDER & EVALUATION ENGINE
+TODO
+[ ] Define a typed rule format that can be saved and evaluated independently of the UI.
+[ ] Support price crosses/percentage moves, volume spikes, indicator thresholds and timeframe conditions.
+[ ] Add order-book imbalance, large visible liquidity and liquidity-change rules where supported.
+[ ] Add multi-condition AND/OR rules, evaluation frequency, cooldown, deduplication and enable/disable controls.
+[ ] Confirm candle-close versus intrabar evaluation behavior in every rule.
+[ ] Log trigger time, input values and the exact reason each rule fired.
+[ ] Add unit tests and replay tests to prevent repeated or false duplicate triggers.
+DONE WHEN: The same rule produces deterministic, explainable results from live events and recorded fixtures.
+
+MODULE 7 — TELEGRAM ALERT DELIVERY
+TODO
+[ ] Add Telegram bot setup instructions and secure server-side token storage.
+[ ] Test sending a sample message to a configured chat.
+[ ] Format alerts with symbol, exchange, timeframe, trigger values, timestamp and chart/deep link when available.
+[ ] Add per-rule notification settings, quiet hours, severity and duplicate suppression.
+[ ] Handle rate limits, delivery errors, retries and delivery status without blocking live-data processing.
+DONE WHEN: A configured user receives each valid alert reliably, with no secrets exposed in frontend code or logs.
+
+MODULE 8 — HISTORICAL STORAGE, REPLAY & ALERT TESTING
+TODO
+[ ] Store selected candles, trades and sampled/order-book events with clear retention settings.
+[ ] Add database migrations, indexes, cleanup and storage limits.
+[ ] Replay recorded events at normal or accelerated speed.
+[ ] Test alert rules against historical events and report trigger counts and examples.
+[ ] Show gaps or missing data; never imply that incomplete records are full historical market depth.
+DONE WHEN: A developer can reproduce an alert from stored data and compare results between rule versions.
+
+MODULE 9 — LIQUIDITY HEATMAP
+TODO
+[ ] Design a price-versus-time heatmap using captured order-book depth snapshots/updates.
+[ ] Choose configurable price buckets, sampling interval, lookback period and intensity scaling.
+[ ] Render historical visible liquidity and mark price on the same time axis.
+[ ] Distinguish resting liquidity from executed volume and identify data gaps.
+[ ] Optimize rendering and storage before expanding to many symbols.
+DONE WHEN: The heatmap updates live, displays historical observations accurately and remains responsive for a defined scope.
+
+MODULE 10 — DERIVATIVES & MARKET-WIDE STATS
+TODO
+[ ] Add funding rate, open interest, mark/index price, basis and liquidation data only when the chosen source provides them.
+[ ] Add volume profile and cumulative volume delta (CVD) when underlying data is sufficient.
+[ ] Show each metric's calculation, units, source and update frequency.
+[ ] Add cross-exchange comparisons only after each feed is normalized and its timing limitations are visible.
+DONE WHEN: Each displayed statistic is validated and its source/availability is clear.
+
+MODULE 11 — RELIABILITY, PERFORMANCE & RELEASE
+TODO
+[ ] Add structured logs, health endpoints, connection monitoring and error boundaries.
+[ ] Test bursty feeds, reconnects, malformed messages, browser refreshes and multiple active symbols.
+[ ] Profile memory, CPU, rendering latency, database growth and websocket message throughput.
+[ ] Add configuration for subscriptions, retention and resource limits.
+[ ] Document exchange API terms, attribution, privacy, deployment limits and known limitations.
+[ ] Keep local/self-hosted use as the baseline; deploy publicly only after checking free-tier constraints and data-redistribution rules.
+DONE WHEN: The app degrades gracefully under load, recovers from common failures and has reproducible setup/release steps.
+
+PRIORITY ORDER
+P0: Modules 0–2 — foundations and reliable market data
+P1: Modules 3–4 — dashboard, charting and core indicators
+P2: Modules 5–7 — order flow, rule builder and Telegram alerts
+P3: Modules 8–9 — historical replay and liquidity heatmap
+P4: Modules 10–11 — advanced statistics, multi-exchange scaling and release hardening
+
+SCOPE GUARDRAILS
+- Start with one exchange, a small symbol list and a few timeframes.
+- Reuse proven open-source components when they fit; do not rebuild charting, indicators or rendering primitives without first evaluating available projects.
+- Before adding any dependency or copying code, verify current license compatibility, maintenance activity and security posture; document the choice in OPEN_SOURCE_REUSE.md.
+- Do not begin with machine-learning predictions, auto-trading, paid feeds, or a complex multi-user cloud system.
+- Do not claim the tool predicts price or guarantees an edge. Present measurements, conditions and uncertainty.
+- Respect exchange terms, rate limits, attribution and redistribution restrictions.
+- Keep secrets on the backend and out of source control.
+
+CURRENT STATUS
+- Mandatory pre-step DONE: reuse audit documented in OPEN_SOURCE_REUSE.md (2026-10-24). Key finding: trading-signals has no LICENSE detected — reference only; lightweight-charts Apache-2.0 verified — adopt for Module 4.
+- Modules 0-2: effectively complete. Vite+ 1.3.0, `vp check` clean, adapters (Binance spot/futures, OKX spot/swap, Delta India futures) over BaseWebSocketClient with reconnect/backoff/heartbeat/resubscribe; normalized types; symbol normalization (25 tests) + adapter parsing (34 tests) unit tests under `vp test` — 98 total tests passing across 5 test files.
+- Module 3: functional dashboard (price table with stale markers + last-update age, connection status, symbol search, metrics, cross-exchange last-price spread panel); watchlist persistence DONE (localStorage, 2026-10-24); widget customization (reorder + hide/show panels, persisted) DONE 2026-10-25; 24h change% + volume rows added 2026-10-25 (REST-polled, Binance + OKX; Delta source not wired).
+- Modules 4 (charting/indicators): DONE in 2026-10-24 session — lightweight-charts 5.2.1 added (attribution in README + on-chart logo), CandleService pipeline (REST backfill 200 candles + live kline/candle WS for Binance spot/futures and OKX spot/swap; Delta unsupported yet), indicators EMA/SMA/RSI/MACD/VWAP/Bollinger/ATR client-side, ChartPanel widget on dashboard. Known gaps: no replay/store-history yet, drawing tools skipped, OKX REST unreachable from the dev host (error banner shown).
+- Module 5 started 2026-10-25: Binance partial-book depth ladder + BBO in OrderBookPanel (first tracked symbol, Binance spot) via OrderBookService; depth uses the @depth20@100ms partial-book WS stream (no REST snapshot sync possible from this host — REST depth/OKX/Delta REST hosts unreachable); BinanceAdapter rebuilt with combined-stream envelopes, candle WS/REST, funding and connection status. Ladder/imbalance metric utils in orderBookUtils (34 tests). Deeper order-flow analytics (flow tracking, large prints) and the top-metrics UI still open.
+- Tests 2026-10-25: 161 passing across 8 files (added layoutStorage 8, tickerStats/formatters 10).
+- Modules 6-11: not started. Next up per priority order: finish Module 5 (order-flow analytics: large prints, liquidity churn, aggregated depth chart) and Module 6 (alert rule builder).
+- Project guide for AI agents: agent-docs/AGENT.md (architecture, commands, conventions, status). All agent docs are consolidated in the agent-docs/ folder.

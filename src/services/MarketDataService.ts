@@ -2,9 +2,12 @@ import EventEmitter from "eventemitter3";
 import { BinanceAdapter } from "../adapters/BinanceAdapter";
 import { OkxAdapter } from "../adapters/OkxAdapter";
 import { LiveMarketDataService } from "./LiveMarketDataService";
+import { ArbitrageService } from "./ArbitrageService";
+import { CandleService } from "./CandleService";
 import { DeltaExchangeAdapter } from "../adapters/DeltaExchangeAdapter";
 import type { ConnectionState, ConnectionStatusPayload } from "../types/connection";
-import type { GenericMarketData } from "../types/marketData";
+import type { GenericMarketData, OrderBookBbo, OrderBookSnapshot } from "../types/marketData";
+import { OrderBookService } from "./OrderBookService";
 
 interface FundingRateEvent {
   exchange: string;
@@ -25,6 +28,8 @@ export class MarketDataService extends EventEmitter {
   private binance = new BinanceAdapter();
   private okx = new OkxAdapter();
   private delta = new DeltaExchangeAdapter();
+  private arbitrage = new ArbitrageService();
+  private orderBookService = OrderBookService.getInstance();
   private isInitialized = false;
 
   // exchange → market → state; aggregated per exchange for the UI
@@ -59,10 +64,11 @@ export class MarketDataService extends EventEmitter {
       this.wireConnectionStatus();
       this.wireMarketDataRouting();
       void this.connectExchanges();
-    }
-
-    this.binance.subscribe(symbols, ["aggTrade", "depth"]);
-    this.binance.subscribeFundingRate(symbols);
+    } // Module 5: add bookTicker (best bid/ask) by default; depth stays for diff updates.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this.binance as any).subscribe(symbols, ["aggTrade", "depth", "bookTicker"]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this.binance as any).subscribeFundingRate(symbols);
     this.okx.subscribe(symbols, "SPOT");
     this.okx.subscribe(symbols, "SWAP");
     this.okx.subscribeFundingRate(symbols);
@@ -75,7 +81,7 @@ export class MarketDataService extends EventEmitter {
    */
   private async connectExchanges() {
     try {
-      await this.binance.connectAll();
+      await Promise.resolve(this.binance.connect());
     } catch (error) {
       console.error("Error connecting to Binance:", error);
     }
@@ -93,11 +99,27 @@ export class MarketDataService extends EventEmitter {
 
   private wireMarketDataRouting() {
     const liveService = LiveMarketDataService.getInstance();
+    // Candle streams (Module 4) share the same adapters.
+    CandleService.getInstance().wireAdapters({ BINANCE: this.binance, OKX: this.okx });
+
+    const onBbo = (bbo: OrderBookBbo) => {
+      this.orderBookService.setBbo(bbo.exchange, bbo.type, bbo.symbol, bbo);
+      this.emit("orderBookBbo", bbo);
+    };
+
+    const onSnapshot = (snap: OrderBookSnapshot) => {
+      this.orderBookService.setSnapshot(snap.exchange, snap.type, snap.symbol, snap);
+      this.emit("orderBookSnapshot", snap);
+    };
 
     const onMarketData = (msg: GenericMarketData) => {
-      liveService.update(msg.exchange, msg.symbol, msg.type, msg.currentPrice);
+      liveService.update(msg.exchange, msg.symbol, msg.type, msg.currentPrice, msg.timeStamp);
+      this.arbitrage.onPriceUpdate(msg);
       this.emit("marketData", msg);
     };
+
+    // Bubble indicative cross-exchange spreads up to the UI.
+    this.arbitrage.on("arbitrage", (opportunity) => this.emit("arbitrage", opportunity));
 
     const onFundingRate = (fr: FundingRateEvent) => {
       liveService.updateFundingRate(fr.exchange, fr.symbol, {
@@ -111,15 +133,33 @@ export class MarketDataService extends EventEmitter {
 
     const adapters = [this.binance, this.okx, this.delta];
     for (const adapter of adapters) {
-      adapter.on("marketData", onMarketData);
-      adapter.on("fundingRate", onFundingRate);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (adapter as any).on("marketData", onMarketData);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (adapter as any).on("fundingRate", onFundingRate);
     }
+    // Module 5: wire order-book events from Binance (only source with depth in scope).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this.binance as any).on("orderBookBbo", onBbo);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this.binance as any).on("orderBookSnapshot", onSnapshot);
+  }
+
+  /**
+   * Called by the UI when a symbol is dropped from the watchlist. Stops the
+   * arbitrage engine from tracking it so no stale spread row survives removal.
+   */
+  removeSymbol(symbol: string) {
+    this.arbitrage.forgetSymbol(symbol);
+    this.emit("symbolRemoved", symbol);
   }
 
   private wireConnectionStatus() {
     const onStatus = (s: ConnectionStatusPayload) => this.updateConnectionState(s);
-    this.binance.on("connectionStatus", onStatus);
-    this.okx.on("connectionStatus", onStatus);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this.binance as any).on("connectionStatus", onStatus);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this.okx as any).on("connectionStatus", onStatus);
     this.delta.on("connectionStatus", onStatus);
 
     // Seed every exchange as "connecting" so the UI never shows "down" by default
