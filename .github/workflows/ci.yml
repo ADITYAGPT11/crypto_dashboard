@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format, lint and type-check
+        run: npm run check
+      - name: Unit tests
+        run: npm test
+      - name: Build (app + backend type-check)
+        run: npm run build
+      - name: Backend bundles
+        run: npx vp build --ssr src/backend/index.ts --outDir dist-backend

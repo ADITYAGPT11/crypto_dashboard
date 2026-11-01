@@ -148,7 +148,7 @@ class TelegramService {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return response.json();
+    return (await response.json()) as TelegramApiResponse & T;
   }
 
   private sleep(ms: number): Promise<void> {

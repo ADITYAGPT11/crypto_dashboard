@@ -1,5 +1,6 @@
 import EventEmitter from "eventemitter3";
-import type { AlertRule, AlertTrigger } from "../types/alertRules";
+import type { AlertEngineState, AlertRule, AlertTrigger } from "../types/alertRules";
+import type { ExchangeName, MarketType, OrderBookSnapshot } from "../types/marketData";
 import { evaluateAlertRules } from "./AlertEngine";
 import { alertRulesStorage } from "../utils/alertRulesStorage";
 import { LiveMarketDataService } from "./LiveMarketDataService";
@@ -18,7 +19,7 @@ export class AlertService extends EventEmitter<AlertEventType> {
   private triggerLog: AlertTrigger[] = [];
   private evaluationTimer: ReturnType<typeof setInterval> | null = null;
   private symbols: string[] = [];
-  private engineState: Record<string, number> = {};
+  private engineState: AlertEngineState = { lastFiredAt: {} };
 
   private constructor() {
     super();
@@ -46,7 +47,7 @@ export class AlertService extends EventEmitter<AlertEventType> {
     this.rules = [];
     this.triggerLog = [];
     this.symbols = [];
-    this.engineState = {};
+    this.engineState = { lastFiredAt: {} };
     this.removeAllListeners();
   }
 
@@ -200,13 +201,13 @@ export class AlertService extends EventEmitter<AlertEventType> {
       books: books as Map<string, import("../types/marketData").OrderBookSnapshot>,
     };
 
-    const { triggers } = evaluateAlertRules(
+    // Keep the returned state: it carries lastFiredAt, which enforces cooldown/dedupe.
+    const { triggers, state } = evaluateAlertRules(
       this.rules.filter((r) => r.enabled),
       ctx,
       this.engineState,
     );
-
-    this.engineState = { ...this.engineState };
+    this.engineState = state;
 
     for (const trigger of triggers) {
       this.appendTrigger(trigger);

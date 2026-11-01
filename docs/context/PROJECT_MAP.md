@@ -34,7 +34,6 @@ flowchart LR
 
   LIVE --> H1["useLivePrice · useLiveFundingRate<br/>useDataFreshness"] --> PT["PriceTable"]
   TS --> H2["useTickerStats"] --> PT
-  CS --> CH["ChartPanel"]
   OB --> H3["useOrderBook"] --> OBP["OrderBookPanel"]
   TR --> H4["useTrades"] --> OBP
   ARB --> AP["ArbitragePanel"]
@@ -48,11 +47,15 @@ price table, spread (arbitrage), order book, alerts.
 ## Files
 
 **Entry / shell**
-- `index.html` → `src/main.tsx` → `src/App.tsx` (Header + routes `/`, `/about`)
+
+- `index.html` → `src/main.tsx` → `src/App.tsx`: `TopNav` + routes `/` (Dashboard),
+  `/chart/:symbol` (Chart, lazy-loaded), `/markets` (older dashboard), `/about`
+- `src/styles/tokens.css` (`--t-*` design tokens, dark), `src/styles/_page.scss` (page mixins)
 - `src/components/MainContainer/`: dashboard; watchlist + panel layout state (persisted),
   starts streaming, renders panels in "Edit layout" order
 
 **Exchange connectivity**
+
 - `src/websocket/BaseWebSocketClient.ts`: reconnect/backoff/jitter, send queue, optional heartbeat
 - `src/adapters/BinanceAdapter.ts`: combined streams; aggTrade (price + trade prints), bookTicker,
   depth20@100ms, klines + REST candle history, markPrice (funding)
@@ -60,6 +63,7 @@ price table, spread (arbitrage), order book, alerts.
 - `src/adapters/DeltaExchangeAdapter.ts`: trades, funding_rate (USD instruments mapped to `-USDT`)
 
 **Services (singletons, `getInstance()` / `resetInstance()`)**
+
 - `MarketDataService`: wires adapters → stores; `startMarketData`, `removeSymbol`
 - `LiveMarketDataService`: latest price/funding keyed `EXCHANGE|SYMBOL|TYPE`, per-key pub/sub
 - `CandleService`: refcounted candle subscriptions, backfill, `loadMoreHistory` (scroll-back)
@@ -71,7 +75,13 @@ price table, spread (arbitrage), order book, alerts.
 - `SymbolService`: REST symbol lists, search, popular list
 
 **Hooks**: `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
-`useOrderBook`, `useTrades` (`useCandles` is unused)
+`useOrderBook`, `useTrades`, `useHistory`, `useScan` (multi-coin analysis), `useConnectionSummary`
+
+**Analysis engine (pure, unit-tested in `src/utils/__tests__/setupAnalysis.test.ts`)**:
+`volumeProfile` (POC, value area, HVN/LVN), `zones` (demand/supply, tests/held/break), `patterns`
+(double bottom, bullish engulfing, hammer; no lookahead), `setupAnalysis` (location, outcome,
+stats, `buildScan`), `stats` (Wilson interval), `format`. Types in `src/types/analysis.ts`.
+`src/services/HistoryService.ts`: deep closed-candle history from Binance REST + `RESEARCH_UNIVERSE`.
 
 **Pure utils (unit-tested in `src/utils/__tests__/`)**: `indicators`, `candleUtils`,
 `orderBookUtils`, `symbolUtils`, `tickerStats`, `priceUtils`, `watchlistStorage`,
@@ -80,31 +90,31 @@ price table, spread (arbitrage), order book, alerts.
 **Types**: `src/types/marketData.ts` (market data, candles, trades, order book, exchange/market
 names), `connection.ts`, `alertRules.ts`
 
-**UI components**: `ChartPanel/`, `dashboard/` (`PriceTable` → `PriceRow` → `PriceCell`,
-`OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`, `Header/`,
-`ThemeToggle/`, `AboutUs/`, `common-components/` (`SymbolSearch`, `RealTimeClock`)
+**UI components**: `TopNav/`, `DashboardPage/`, `ChartPage/` (`PriceChart`: Lightweight Charts +
+overlay canvas; `SetupCard`), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
+`PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
+`AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
+`RealTimeClock`)
 
-**Backend prototype** (`src/backend/`, run with `npm run backend`, port 3001; doesn't start yet)
+**Backend prototype** (`src/backend/`, `npm run backend` bundles it to `dist-backend/` and starts it on port 3001; type-checked via `tsconfig.backend.json`)
+
 - `index.ts`: Express: `/health`, Telegram config, alert send, history storage + replay endpoints
 - `telegramService.ts`: rate-limited Telegram Bot API client
 - `storage/database.ts` (`node:sqlite`, retention limits), `storage/replay.ts` (replay + rule tests)
 
-**Dead (see STATUS)**: `src/components/OrderBookPanel.tsx` (+ scss), `src/utils/ators.ts`,
-`src/custom-hooks/useCandles.ts`
-
 ## Events
 
-| Event | Emitted by | Payload (see `src/types/`) |
-| --- | --- | --- |
-| `marketData` | adapters → `MarketDataService` | `GenericMarketData` (price in canonical symbol) |
-| `fundingRate` | adapters → `MarketDataService` | rate (%), next time (ms), interval (s) |
-| `connectionStatus` | adapters; `MarketDataService` (aggregated) | `{ exchange, market?, state }` |
-| `candle` | adapters → `CandleService` | `Candle` |
-| `trade` | `BinanceAdapter` → `TradeService` | `TradeEvent` |
-| `orderBookSnapshot`, `orderBookBbo` | `BinanceAdapter` → `OrderBookService` | book levels / best bid-ask |
-| `arbitrage` | `ArbitrageService` | spread per symbol |
-| `trigger`, `rulesChanged`, `logChanged` | `AlertService` | alert firing / rule & log updates |
-| `symbolRemoved` | `MarketDataService` | symbol |
+| Event                                   | Emitted by                                 | Payload (see `src/types/`)                      |
+| --------------------------------------- | ------------------------------------------ | ----------------------------------------------- |
+| `marketData`                            | adapters → `MarketDataService`             | `GenericMarketData` (price in canonical symbol) |
+| `fundingRate`                           | adapters → `MarketDataService`             | rate (%), next time (ms), interval (s)          |
+| `connectionStatus`                      | adapters; `MarketDataService` (aggregated) | `{ exchange, market?, state }`                  |
+| `candle`                                | adapters → `CandleService`                 | `Candle`                                        |
+| `trade`                                 | `BinanceAdapter` → `TradeService`          | `TradeEvent`                                    |
+| `orderBookSnapshot`, `orderBookBbo`     | `BinanceAdapter` → `OrderBookService`      | book levels / best bid-ask                      |
+| `arbitrage`                             | `ArbitrageService`                         | spread per symbol                               |
+| `trigger`, `rulesChanged`, `logChanged` | `AlertService`                             | alert firing / rule & log updates               |
+| `symbolRemoved`                         | `MarketDataService`                        | symbol                                          |
 
 ## Endpoints used
 

@@ -31,7 +31,9 @@ mindmap
         QuestDB store ⬜
         Historical backfill ⬜
     Research ⬜
-      Indicators / TA 🚧 in browser
+      Indicators / TA ✅ in browser
+      Patterns + zones + volume profile ✅
+      Setup win-rate history ✅ gross
       Alert replay 🚧 TS prototype
       Funding & basis analytics ⬜
       Statistics & probability ⬜
@@ -56,7 +58,9 @@ mindmap
       Loss limits + kill switch ⬜
     Confirmation output ⬜
       Signal + evidence + risk + news ⬜
-    UI 🚧 crashes on load
+    UI 🚧 Phase 1a
+      Dashboard scanner ✅
+      Chart workspace ✅
       Price table ✅
       Charts + indicators ✅
       Order book panel ✅
@@ -66,7 +70,7 @@ mindmap
       Layout + watchlist saved ✅
     Dev workflow ✅
       CLAUDE.md context map ✅
-      Build + typecheck ❌ 65 errors
-      Tests ✅ 191
+      Build + typecheck ✅
+      Tests ✅ 215
       CI ⬜
 ```

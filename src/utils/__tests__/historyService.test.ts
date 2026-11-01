@@ -1,0 +1,82 @@
+import { describe, expect, it } from "vite-plus/test";
+import { HistoryService, INTERVAL_MS, toBinanceSymbol } from "../../services/HistoryService";
+import { buildScan } from "../setupAnalysis";
+
+const H4 = INTERVAL_MS["4h"];
+
+function row(t: number, price: number): [number, string, string, string, string, string] {
+  return [t, String(price), String(price + 1), String(price - 1), String(price + 0.5), "10"];
+}
+
+describe("HistoryService", () => {
+  it("maps symbols to Binance format", () => {
+    expect(toBinanceSymbol("BTC-USDT")).toBe("BTCUSDT");
+  });
+
+  it("pages backwards, merges ascending, and drops the forming candle", async () => {
+    const now = 10_000 * H4 + H4 / 2; // halfway through candle 10000
+    const urls: string[] = [];
+    const fetcher = async (url: string) => {
+      urls.push(url);
+      const end = url.includes("endTime=") ? Number(url.split("endTime=")[1]) : now;
+      const lastOpen = Math.floor(end / H4) * H4;
+      return Array.from({ length: 1500 }, (_, k) => row(lastOpen - (1499 - k) * H4, 100 + k));
+    };
+    const svc = new HistoryService(fetcher, () => now);
+    const h = await svc.load("BTC-USDT", "4h", 2);
+    expect(urls).toHaveLength(2);
+    expect(urls[1]).toContain("endTime=");
+    expect(h.candles).toHaveLength(2999); // 3000 fetched minus the forming candle
+    for (let i = 1; i < h.candles.length; i++) {
+      expect(h.candles[i].openTime - h.candles[i - 1].openTime).toBe(H4);
+    }
+    expect(h.candles[h.candles.length - 1].openTime + H4).toBeLessThanOrEqual(now);
+  });
+
+  it("caches successes and retries after a failure", async () => {
+    let calls = 0;
+    const fetcher = async () => {
+      calls++;
+      if (calls === 1) throw new Error("network");
+      return [row(0, 100)];
+    };
+    const svc = new HistoryService(fetcher, () => 10 * H4);
+    await expect(svc.load("ETH-USDT", "4h", 1)).rejects.toThrow("network");
+    const a = await svc.load("ETH-USDT", "4h", 1);
+    const b = await svc.load("ETH-USDT", "4h", 1);
+    expect(a).toBe(b);
+    expect(calls).toBe(2);
+  });
+});
+
+describe("buildScan", () => {
+  it("pools occurrences across symbols and keeps per-symbol stats", () => {
+    const series = (seed: number) =>
+      Array.from({ length: 400 }, (_, i) => {
+        const p = 100 + 8 * Math.sin((i + seed) / 9) + 3 * Math.sin((i + seed) / 2.3);
+        return {
+          openTime: i * H4,
+          open: p - 0.4,
+          high: p + 1.2,
+          low: p - 1.6,
+          close: p + 0.3,
+          volume: 100 + ((i * 7) % 50),
+        };
+      });
+    const scan = buildScan([
+      { symbol: "AAA-USDT", candles: series(0) },
+      { symbol: "BBB-USDT", candles: series(17) },
+    ]);
+    expect(scan.analyses.size).toBe(2);
+    let pooledN = 0;
+    for (const s of scan.pooled.values()) pooledN += s.n + s.expired;
+    let total = 0;
+    for (const a of scan.analyses.values()) {
+      total += a.occurrences.filter((o) => o.outcome.result !== "open").length;
+    }
+    expect(pooledN).toBe(total);
+    for (const c of scan.current) {
+      expect(c.pooled.n).toBeGreaterThanOrEqual(c.own.n);
+    }
+  });
+});

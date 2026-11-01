@@ -16,7 +16,6 @@ import { candleKey, orderBookKey } from "../../types/marketData";
 import { statSync, existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 
 export interface StorageConfig {
   dbPath: string;
@@ -444,7 +443,8 @@ export class HistoricalDatabase {
   // Data Retention & Cleanup
   // -----------------------------------------------------------------------
 
-  private cleanupOldData(): void {
+  /** Delete rows older than the retention window and enforce row limits. */
+  cleanupOldData(): void {
     const retentionMs = this.config.maxRetentionDays * 24 * 60 * 60 * 1000;
     const cutoff = Date.now() - retentionMs;
 

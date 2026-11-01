@@ -264,3 +264,21 @@
     transform: none;
   }
 }
+
+.chartLink {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius);
+  background: var(--background-secondary);
+  color: var(--text-secondary);
+
+  a {
+    color: var(--accent);
+    font-weight: 600;
+  }
+}

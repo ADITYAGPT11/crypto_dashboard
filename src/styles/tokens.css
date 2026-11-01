@@ -1,0 +1,62 @@
+/* Design tokens for the TCS UI (see docs/product/ux/PHASE1_UX.md → Visual language).
+   Dark-only by design. Prefixed --t- so they never collide with the older theme variables. */
+:root {
+  --t-ground: #0b0f14;
+  --t-head: rgba(14, 19, 26, 0.78);
+  --t-surface: #121821;
+  --t-raised: #19212c;
+  --t-well: #0f151d;
+  --t-line: #263041;
+  --t-line-2: #334155;
+  --t-inner: #1e2733;
+  --t-fg: #e6edf3;
+  --t-muted: #9aa7b4;
+  --t-faint: #7d8896;
+  --t-signal: #4c9aff;
+  --t-signal-ink: #0b0f14;
+  --t-signal-soft: #2b4a75;
+  --t-amber: #f0a35e;
+  --t-up: #56d364;
+  --t-down: #f47067;
+  --t-up-bg: #12261a;
+  --t-down-bg: #2d1517;
+  --t-warn-bg: #2a1f12;
+  --t-info-bg: #132238;
+  --t-font-ui: Inter, "Segoe UI", system-ui, sans-serif;
+  --t-font-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --t-radius: 14px;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1100px 520px at 8% -8%, rgba(76, 154, 255, 0.1), transparent 60%),
+    radial-gradient(900px 480px at 100% 0%, rgba(86, 211, 100, 0.05), transparent 60%),
+    var(--t-ground);
+  background-attachment: fixed;
+  color: var(--t-fg);
+  font-family: var(--t-font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--t-signal);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

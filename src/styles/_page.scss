@@ -1,0 +1,123 @@
+// Shared building blocks for TCS pages (Dashboard, Chart). Used via @use.
+@mixin page {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 24px max(24px, env(safe-area-inset-right, 0px)) 56px
+    max(24px, env(safe-area-inset-left, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: var(--t-font-ui);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--t-fg);
+  @media (max-width: 760px) {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+}
+@mixin pagehead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  p {
+    margin: 4px 0 0;
+    color: var(--t-muted);
+  }
+}
+@mixin card {
+  background: var(--t-surface);
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-radius);
+  padding: 16px 18px;
+  min-width: 0;
+}
+@mixin feature {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--t-surface), var(--t-surface)) padding-box,
+    linear-gradient(
+        140deg,
+        rgba(76, 154, 255, 0.75),
+        rgba(86, 211, 100, 0.35) 45%,
+        var(--t-line) 75%
+      )
+      border-box;
+  box-shadow: 0 20px 50px -30px rgba(76, 154, 255, 0.55);
+}
+@mixin card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 12px;
+  h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  p {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--t-muted);
+    font-size: 13px;
+  }
+}
+@mixin lbl {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--t-muted);
+  font-weight: 600;
+}
+@mixin tbl {
+  width: 100%;
+  border-collapse: collapse;
+  th {
+    font-size: 12px;
+    color: var(--t-muted);
+    font-weight: 500;
+    text-align: left;
+    padding: 6px 8px;
+  }
+  td {
+    padding: 9px 8px;
+    border-top: 1px solid var(--t-inner);
+    vertical-align: middle;
+  }
+}
+@mixin note {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--t-line);
+  background: var(--t-well);
+  color: var(--t-muted);
+  font-size: 12.5px;
+}
+@mixin btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--t-line);
+  background: transparent;
+  color: var(--t-fg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  &:hover {
+    border-color: var(--t-line-2);
+  }
+}

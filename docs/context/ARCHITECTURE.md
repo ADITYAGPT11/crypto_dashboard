@@ -1,7 +1,7 @@
 # Architecture
 
 The **target** system: what we're building towards and the chosen stack. For what exists in code
-*today*, see `PROJECT_MAP.md`. For module behaviour, see `docs/product/modules/`.
+_today_, see `PROJECT_MAP.md`. For module behaviour, see `docs/product/modules/`.
 
 Guiding rule: **start with the fewest moving parts**; add infrastructure only when a real,
 measured need appears. The decision log for each choice is in `DECISIONS.md`.
@@ -73,6 +73,7 @@ flowchart TB
 ```
 
 ### Event contracts
+
 - Defined once as **Pydantic v2 models** in `backend/src/tcs/common/events.py`. They are the
   only shared interface between modules.
 - FastAPI publishes them in its OpenAPI schema; the frontend **generates TypeScript types** from
@@ -81,13 +82,14 @@ flowchart TB
   the boundaries where money is calculated (risk, paper fills).
 
 ### Data model (QuestDB only)
-| Table | Kind | Notes |
-| --- | --- | --- |
-| `candles`, `funding`, `open_interest` | market data | partitioned by day; dedup on key |
-| `news_events` | market data | one row per tagged symbol |
-| `signal_events` | app events | `created` / `vetoed` / `confirmed` / `expired`, append-only |
-| `trade_events` | app events | `opened` / `marked` / `closed`, append-only |
-| `strategy_versions` | registry | frozen params + code hash + report link |
+
+| Table                                 | Kind        | Notes                                                       |
+| ------------------------------------- | ----------- | ----------------------------------------------------------- |
+| `candles`, `funding`, `open_interest` | market data | partitioned by day; dedup on key                            |
+| `news_events`                         | market data | one row per tagged symbol                                   |
+| `signal_events`                       | app events  | `created` / `vetoed` / `confirmed` / `expired`, append-only |
+| `trade_events`                        | app events  | `opened` / `marked` / `closed`, append-only                 |
+| `strategy_versions`                   | registry    | frozen params + code hash + report link                     |
 
 Current state = latest event per id (`LATEST ON`). App data is append-only, which gives a full
 audit trail. **PostgreSQL is deferred**: add it only if append-only app data proves painful in
@@ -136,6 +138,7 @@ crypto_dashboard/
 ```
 
 Rules:
+
 - `research/` code that proves useful **graduates** into `backend/src/tcs/research/` with tests;
   notebooks never import from each other.
 - The **same strategy class** runs in backtest (M3), live signals (M4) and paper (M5).
@@ -147,50 +150,52 @@ Adopt each package when its phase starts (P0 = now). Versions: latest stable at 
 in the lockfile.
 
 ### Backend (Python)
-| Area | Package | Why | Phase |
-| --- | --- | --- | --- |
-| Project & deps | **uv** | Fast installs, lockfile, Python version management | P1 |
-| Lint + format | **ruff** | One fast tool for both | P1 |
-| Type check | **pyright** | Strict typing, same spirit as our TS | P1 |
-| Tests | **pytest**, pytest-asyncio, **hypothesis** | Unit + property tests (cost model, risk rules) | P1 |
-| Data models | **pydantic** v2, pydantic-settings | Event contracts, config from env | P1 |
-| API | **FastAPI**, uvicorn | REST + WebSocket, OpenAPI for TS types | P1 |
-| Exchanges | **ccxt** (includes pro WebSockets) | Unified REST/WS for 100+ exchanges; backfill | P1 |
-| HTTP / retries | httpx, tenacity | Non-ccxt sources (news), retry with backoff | P1 |
-| QuestDB | **questdb** (official ingest client), **psycopg** 3 | Fast ingest (ILP) + SQL queries | P1 |
-| Logging | structlog | JSON logs with context (exchange, symbol) | P1 |
-| CLI | typer | `tcs …` commands | P1 |
-| Dataframes | **polars**, numpy | Features and analytics | P2 |
-| Indicators | TA-Lib (or pandas-ta) | Standard TA | P2 |
-| Backtesting | **vectorbt** (screening); own event-driven engine *or* NautilusTrader (validation, decided at P2 start) | Fast idea screening, then realistic validation | P2 |
-| Statistics | scipy, statsmodels, arch | Tests, regressions, cointegration, GARCH | P2 |
-| Reports | quantstats, plotly | Strategy tear sheets | P2 |
-| Optimisation | optuna | Param search inside walk-forward | P2 |
-| Research | marimo (or Jupyter), duckdb (optional, local) | Reactive notebooks; fast local scans of Parquet | P2 |
-| News NLP | anthropic SDK or transformers (FinBERT) | Classify and score news | P5 |
-| Alerts | python-telegram-bot | Confirmation alerts | P6 |
+
+| Area           | Package                                                                                                 | Why                                                | Phase |
+| -------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----- |
+| Project & deps | **uv**                                                                                                  | Fast installs, lockfile, Python version management | P1    |
+| Lint + format  | **ruff**                                                                                                | One fast tool for both                             | P1    |
+| Type check     | **pyright**                                                                                             | Strict typing, same spirit as our TS               | P1    |
+| Tests          | **pytest**, pytest-asyncio, **hypothesis**                                                              | Unit + property tests (cost model, risk rules)     | P1    |
+| Data models    | **pydantic** v2, pydantic-settings                                                                      | Event contracts, config from env                   | P1    |
+| API            | **FastAPI**, uvicorn                                                                                    | REST + WebSocket, OpenAPI for TS types             | P1    |
+| Exchanges      | **ccxt** (includes pro WebSockets)                                                                      | Unified REST/WS for 100+ exchanges; backfill       | P1    |
+| HTTP / retries | httpx, tenacity                                                                                         | Non-ccxt sources (news), retry with backoff        | P1    |
+| QuestDB        | **questdb** (official ingest client), **psycopg** 3                                                     | Fast ingest (ILP) + SQL queries                    | P1    |
+| Logging        | structlog                                                                                               | JSON logs with context (exchange, symbol)          | P1    |
+| CLI            | typer                                                                                                   | `tcs …` commands                                   | P1    |
+| Dataframes     | **polars**, numpy                                                                                       | Features and analytics                             | P2    |
+| Indicators     | TA-Lib (or pandas-ta)                                                                                   | Standard TA                                        | P2    |
+| Backtesting    | **vectorbt** (screening); own event-driven engine _or_ NautilusTrader (validation, decided at P2 start) | Fast idea screening, then realistic validation     | P2    |
+| Statistics     | scipy, statsmodels, arch                                                                                | Tests, regressions, cointegration, GARCH           | P2    |
+| Reports        | quantstats, plotly                                                                                      | Strategy tear sheets                               | P2    |
+| Optimisation   | optuna                                                                                                  | Param search inside walk-forward                   | P2    |
+| Research       | marimo (or Jupyter), duckdb (optional, local)                                                           | Reactive notebooks; fast local scans of Parquet    | P2    |
+| News NLP       | anthropic SDK or transformers (FinBERT)                                                                 | Classify and score news                            | P5    |
+| Alerts         | python-telegram-bot                                                                                     | Confirmation alerts                                | P6    |
 
 ### Frontend (TypeScript), already: React 19, Vite+, react-router, eventemitter3, SCSS
-| Package | Why | Phase |
-| --- | --- | --- |
-| **vitest** (via Vite+) ✅ adopted (191 tests) | Tests | done |
-| openapi-typescript | Types generated from the backend schema | P1 |
-| @tanstack/react-query | Request/response data (reports, history, candles): caching, refetch, retries. *Not* for live ticks; those stay on WebSocket + `LiveMarketDataService` | P3 |
-| **lightweight-charts** (TradingView) ✅ adopted (5.2, attribution required) | Candles + indicators | done |
-| express, `@electric-sql/pglite` | Backend prototype only; pglite unused. Removed when the Python backend lands | remove |
+
+| Package                                                                     | Why                                                                                                                                                   | Phase  |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **vitest** (via Vite+) ✅ adopted (191 tests)                               | Tests                                                                                                                                                 | done   |
+| openapi-typescript                                                          | Types generated from the backend schema                                                                                                               | P1     |
+| @tanstack/react-query                                                       | Request/response data (reports, history, candles): caching, refetch, retries. _Not_ for live ticks; those stay on WebSocket + `LiveMarketDataService` | P3     |
+| **lightweight-charts** (TradingView) ✅ adopted (5.2, attribution required) | Candles + indicators                                                                                                                                  | done   |
+| express, `@electric-sql/pglite`                                             | Backend prototype only; pglite unused. Removed when the Python backend lands                                                                          | remove |
 
 ## 5 · Tools
 
-| Tool | Use | Phase |
-| --- | --- | --- |
-| Docker + Docker Compose | Run QuestDB + backend + web anywhere | P1 |
-| QuestDB web console (`:9000`) | Ad-hoc SQL and quick charts | P1 |
-| GitHub Actions | CI on every PR | P0 |
-| pre-commit | Run ruff/format/lint before each commit | P1 |
-| just (or Make) | One-word commands: `just dev`, `just test`, `just backfill` | P1 |
-| Caddy | Serves the web build, automatic HTTPS | P1 deploy |
-| Small VPS (~$5–20/mo) | 24/7 collector + engine | P1 deploy |
-| Claude Code + skills/MCP | See `TOOLING.md` | now |
+| Tool                          | Use                                                         | Phase     |
+| ----------------------------- | ----------------------------------------------------------- | --------- |
+| Docker + Docker Compose       | Run QuestDB + backend + web anywhere                        | P1        |
+| QuestDB web console (`:9000`) | Ad-hoc SQL and quick charts                                 | P1        |
+| GitHub Actions                | CI on every PR                                              | P0        |
+| pre-commit                    | Run ruff/format/lint before each commit                     | P1        |
+| just (or Make)                | One-word commands: `just dev`, `just test`, `just backfill` | P1        |
+| Caddy                         | Serves the web build, automatic HTTPS                       | P1 deploy |
+| Small VPS (~$5–20/mo)         | 24/7 collector + engine                                     | P1 deploy |
+| Claude Code + skills/MCP      | See `TOOLING.md`                                            | now       |
 
 ## 6 · Migration path from today
 
@@ -206,9 +211,9 @@ in the lockfile.
 
 ## 7 · Scaling path (only when measured)
 
-| Symptom | Step |
-| --- | --- |
-| Backend CPU-bound or one module blocks others | Split into processes; bus → NATS or Redis Streams |
-| Append-only app data gets awkward | Add PostgreSQL for app state |
-| Storing full tick/trade history (billions of rows) | ClickHouse for ticks; QuestDB stays for candles |
-| Latency proven to cost money in forward tests | Rewrite that hot path (collector/execution) in Rust |
+| Symptom                                            | Step                                                |
+| -------------------------------------------------- | --------------------------------------------------- |
+| Backend CPU-bound or one module blocks others      | Split into processes; bus → NATS or Redis Streams   |
+| Append-only app data gets awkward                  | Add PostgreSQL for app state                        |
+| Storing full tick/trade history (billions of rows) | ClickHouse for ticks; QuestDB stays for candles     |
+| Latency proven to cost money in forward tests      | Rewrite that hot path (collector/execution) in Rust |

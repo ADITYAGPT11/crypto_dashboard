@@ -1,0 +1,3180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>TCS Phase 1</title>
+    <meta name="claude:viewport-fit-sides" content="cover" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
+    <style>
+      /* Layout: first-design terminal style (top nav, centred 1360px column, solid bordered cards) with
+   modern detailing: gradient-edged feature cards, a frosted floating chart toolbar, hover lift,
+   faint ambient glow, and a parallax band on the dashboard header only. Single dark look. */
+      :root {
+        color-scheme: dark;
+        --ground: #0b0f14;
+        --surface: #121821;
+        --raised: #19212c;
+        --well: #0f151d;
+        --line: #263041;
+        --line-2: #334155;
+        --inner: #1e2733;
+        --fg: #e6edf3;
+        --muted: #9aa7b4;
+        --faint: #7d8896;
+        --signal: #4c9aff;
+        --signal-ink: #0b0f14;
+        --signal-soft: #2b4a75;
+        --amber: #f0a35e;
+        --up: #56d364;
+        --down: #f47067;
+        --up-bg: #12261a;
+        --down-bg: #2d1517;
+        --warn-bg: #2a1f12;
+        --info-bg: #132238;
+        --glass: rgba(14, 19, 26, 0.72);
+        --f-ui: Inter, "Segoe UI", system-ui, sans-serif;
+        --f-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+        --r: 8px;
+        --r-l: 14px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        background: var(--ground);
+        color: var(--fg);
+      }
+      body {
+        font-family: var(--f-ui);
+        font-size: 14px;
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+        background:
+          radial-gradient(1100px 520px at 8% -8%, rgba(76, 154, 255, 0.1), transparent 60%),
+          radial-gradient(900px 480px at 100% 0%, rgba(86, 211, 100, 0.05), transparent 60%),
+          var(--ground);
+        background-attachment: fixed;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0 0 auto;
+        height: env(safe-area-inset-top, 0px);
+        z-index: 60;
+        background: var(--ground);
+      }
+      a {
+        color: var(--signal);
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+        color: inherit;
+      }
+      :focus-visible {
+        outline: 2px solid var(--signal);
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        text-wrap: balance;
+      }
+      .num {
+        font-family: var(--f-data);
+        font-variant-numeric: tabular-nums;
+      }
+      .lbl {
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      .up {
+        color: var(--up);
+      }
+      .down {
+        color: var(--down);
+      }
+      .mute {
+        color: var(--muted);
+      }
+      .glass {
+        background: var(--glass);
+        backdrop-filter: blur(14px) saturate(120%);
+        -webkit-backdrop-filter: blur(14px) saturate(120%);
+      }
+
+      /* header */
+      .top {
+        position: sticky;
+        top: env(safe-area-inset-top, 0px);
+        z-index: 40;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px 24px;
+        padding-block: 12px;
+        padding-left: max(24px, env(safe-area-inset-left, 0px));
+        padding-right: max(24px, env(safe-area-inset-right, 0px));
+      }
+      .top-l,
+      .top-r {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 24px;
+      }
+      .top-r {
+        gap: 10px;
+      }
+      .brand {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .brand b {
+        font-size: 16px;
+      }
+      .brand small {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .nav a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 40px;
+        padding: 0 12px;
+        border-radius: 8px;
+        color: var(--muted);
+        text-decoration: none;
+        font-weight: 500;
+        transition:
+          color 0.2s,
+          background 0.2s;
+      }
+      .nav a:hover {
+        color: var(--fg);
+      }
+      .nav a[aria-current="page"] {
+        background: var(--raised);
+        color: var(--fg);
+        font-weight: 600;
+        box-shadow: inset 0 -2px 0 var(--signal);
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .badge.ok {
+        background: var(--up-bg);
+        color: var(--up);
+      }
+      .badge.ok i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--up);
+        box-shadow: 0 0 0 4px rgba(86, 211, 100, 0.15);
+      }
+      .badge.line {
+        border: 1px solid var(--line);
+        color: var(--amber);
+      }
+      .clock {
+        font-family: var(--f-data);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .main {
+        max-width: 1360px;
+        margin: 0 auto;
+        padding-block: 24px 56px;
+        padding-left: max(24px, env(safe-area-inset-left, 0px));
+        padding-right: max(24px, env(safe-area-inset-right, 0px));
+        min-width: 0;
+      }
+      .pagehead {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px 16px;
+        margin-bottom: 20px;
+      }
+      .pagehead h1 {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .pagehead p {
+        margin: 4px 0 0;
+        color: var(--muted);
+      }
+      .acts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .find {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 0 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--muted);
+        cursor: pointer;
+        min-width: min(240px, 100%);
+      }
+      .find kbd {
+        margin-left: auto;
+        font-family: var(--f-data);
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        border: 1px solid var(--line);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: transparent;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        color: var(--fg);
+        transition:
+          border-color 0.2s,
+          transform 0.2s;
+      }
+      .btn:hover {
+        border-color: var(--line-2);
+      }
+      .btn.primary {
+        background: linear-gradient(180deg, #5fa6ff, var(--signal));
+        border-color: transparent;
+        color: var(--signal-ink);
+        box-shadow: 0 6px 18px -8px rgba(76, 154, 255, 0.7);
+      }
+      .btn.primary:hover {
+        transform: translateY(-1px);
+      }
+      .btn.sm {
+        min-height: 34px;
+        padding: 0 10px;
+        font-size: 13px;
+      }
+      .q {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-grid;
+        place-items: center;
+        flex: none;
+        vertical-align: middle;
+      }
+      .q:hover {
+        color: var(--fg);
+        border-color: var(--signal);
+      }
+
+      /* cards */
+      .view {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .s12 {
+        grid-column: span 12;
+      }
+      .s9 {
+        grid-column: span 9;
+      }
+      .s8 {
+        grid-column: span 8;
+      }
+      .s7 {
+        grid-column: span 7;
+      }
+      .s6 {
+        grid-column: span 6;
+      }
+      .s5 {
+        grid-column: span 5;
+      }
+      .s4 {
+        grid-column: span 4;
+      }
+      .s3 {
+        grid-column: span 3;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r-l);
+        padding: 16px 18px;
+        min-width: 0;
+      }
+      .card.feature {
+        border: 1px solid transparent;
+        background:
+          linear-gradient(var(--surface), var(--surface)) padding-box,
+          linear-gradient(
+              140deg,
+              rgba(76, 154, 255, 0.75),
+              rgba(86, 211, 100, 0.35) 45%,
+              var(--line) 75%
+            )
+            border-box;
+        box-shadow: 0 20px 50px -30px rgba(76, 154, 255, 0.55);
+      }
+      .card-h {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        margin-bottom: 12px;
+      }
+      .card-h h2 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .card-h .sub {
+        flex-basis: 100%;
+        color: var(--muted);
+        font-size: 13px;
+        margin: 0;
+      }
+      .card-h .right {
+        margin-left: auto;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+      .chip i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .c-live {
+        background: var(--up-bg);
+        color: var(--up);
+      }
+      .c-build {
+        background: var(--info-bg);
+        color: #7db4ff;
+      }
+      .c-lock {
+        background: var(--raised);
+        color: var(--muted);
+      }
+      .c-warn {
+        background: var(--warn-bg);
+        color: var(--amber);
+      }
+      .c-no {
+        background: var(--down-bg);
+        color: var(--down);
+      }
+      .tbl {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .tbl th {
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 500;
+        text-align: left;
+        padding: 6px 8px;
+      }
+      .tbl td {
+        padding: 10px 8px;
+        border-top: 1px solid var(--inner);
+        vertical-align: middle;
+      }
+      .tbl td.r,
+      .tbl th.r {
+        text-align: right;
+      }
+      .xs {
+        overflow-x: auto;
+      }
+      .note {
+        margin: 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--well);
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      .ci {
+        position: relative;
+        height: 10px;
+        border-radius: 5px;
+        background: var(--inner);
+        min-width: 110px;
+      }
+      .ci .band {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        border-radius: 5px;
+        background: var(--signal-soft);
+      }
+      .ci .pt {
+        position: absolute;
+        top: -3px;
+        width: 3px;
+        height: 16px;
+        border-radius: 2px;
+        background: var(--signal);
+      }
+      .ci .mid {
+        position: absolute;
+        top: -4px;
+        bottom: -4px;
+        left: 50%;
+        width: 1px;
+        background: var(--faint);
+      }
+      .checklist {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+      .checklist li {
+        display: grid;
+        grid-template-columns: 20px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: start;
+      }
+      .mk {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .mk.ok {
+        background: var(--up-bg);
+        color: var(--up);
+      }
+      .mk.no {
+        background: var(--raised);
+        color: var(--muted);
+      }
+      .mk.w {
+        background: var(--warn-bg);
+        color: var(--amber);
+      }
+      .mk.x {
+        background: var(--down-bg);
+        color: var(--down);
+      }
+
+      /* dashboard */
+      .bandbox {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        border-radius: var(--r-l);
+        border: 1px solid var(--line);
+        background: var(--well);
+        padding: 22px;
+      }
+      .px {
+        position: absolute;
+        inset: -14%;
+        pointer-events: none;
+        will-change: transform;
+      }
+      .px-contour {
+        z-index: -3;
+        opacity: 0.5;
+        background: repeating-radial-gradient(
+          circle at 80% 30%,
+          transparent 0 22px,
+          rgba(76, 154, 255, 0.1) 22px 23px
+        );
+        -webkit-mask-image: radial-gradient(60% 80% at 78% 35%, #000, transparent 75%);
+        mask-image: radial-gradient(60% 80% at 78% 35%, #000, transparent 75%);
+      }
+      .px-dots {
+        z-index: -2;
+        opacity: 0.6;
+        background-image: radial-gradient(rgba(148, 170, 200, 0.22) 1px, transparent 1.2px);
+        background-size: 18px 18px;
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 55%);
+        mask-image: linear-gradient(90deg, transparent, #000 55%);
+      }
+      .px-trace {
+        z-index: -1;
+      }
+      .px-trace svg {
+        position: absolute;
+        right: 5%;
+        top: 15%;
+        width: 55%;
+        height: 72%;
+      }
+      .bandbox h2 {
+        font-size: clamp(20px, 2.4vw, 28px);
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        max-width: 26ch;
+      }
+      .bandbox p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        max-width: 60ch;
+      }
+      .kpis {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 28px;
+        margin-top: 16px;
+      }
+      .kpis div {
+        display: flex;
+        flex-direction: column;
+      }
+      .kpis .num {
+        font-size: 22px;
+        font-weight: 600;
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+      }
+      .tile {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 14px;
+        border-radius: 12px;
+        background: var(--raised);
+        border: 1px solid var(--line);
+        text-decoration: none;
+        color: inherit;
+        transition:
+          transform 0.2s ease,
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+      .tile:hover {
+        transform: translateY(-2px);
+        border-color: var(--signal-soft);
+        box-shadow: 0 14px 30px -18px rgba(76, 154, 255, 0.6);
+      }
+      .tile .t {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .tile .px2 {
+        font-family: var(--f-data);
+        font-size: 19px;
+        font-weight: 600;
+      }
+      .tile svg {
+        width: 100%;
+        height: 36px;
+        display: block;
+      }
+      .tile .m {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .pipe {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .pipe li {
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 7px 0;
+        border-top: 1px solid var(--inner);
+      }
+      .pipe li:first-child {
+        border-top: 0;
+      }
+
+      /* chart workspace */
+      .ws {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 380px;
+        gap: 16px;
+        align-items: start;
+      }
+      .chartbox {
+        position: relative;
+        border-radius: var(--r-l);
+        border: 1px solid var(--line);
+        background: var(--well);
+        overflow: hidden;
+      }
+      canvas.chart {
+        display: block;
+        width: 100%;
+        height: 520px;
+      }
+      .tbar {
+        position: absolute;
+        z-index: 2;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .tbar .sym {
+        font-weight: 700;
+        padding: 0 6px;
+      }
+      .seg {
+        display: inline-flex;
+        gap: 2px;
+        padding: 3px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--line);
+      }
+      .seg button {
+        min-height: 30px;
+        padding: 0 9px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .seg button[aria-pressed="true"] {
+        background: var(--raised);
+        color: var(--fg);
+        box-shadow: inset 0 0 0 1px var(--line-2);
+      }
+      .tog {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 30px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .tog[aria-pressed="true"] {
+        color: var(--fg);
+        border-color: var(--signal-soft);
+        background: rgba(76, 154, 255, 0.12);
+      }
+      .tog i {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+      }
+      .legend {
+        position: absolute;
+        z-index: 2;
+        left: 10px;
+        bottom: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend i {
+        width: 12px;
+        height: 8px;
+        border-radius: 2px;
+      }
+      .setup-h {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .setup-h h2 {
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .big {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin: 12px 0;
+      }
+      .big div {
+        padding: 12px;
+        border-radius: 12px;
+        background: var(--well);
+        border: 1px solid var(--line);
+      }
+      .big .num {
+        display: block;
+        font-size: 24px;
+        font-weight: 600;
+        margin-top: 2px;
+      }
+      .big small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .outcomes {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .outcomes span {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .outcomes .w {
+        background: var(--up-bg);
+        color: var(--up);
+      }
+      .outcomes .l {
+        background: var(--down-bg);
+        color: var(--down);
+      }
+      .levels {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .levels li {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        font-size: 13px;
+      }
+      .levels b {
+        font-family: var(--f-data);
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        text-align: center;
+      }
+      .pat-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .pat-list button {
+        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 2px 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--raised);
+        cursor: pointer;
+        text-align: left;
+        transition: border-color 0.2s;
+      }
+      .pat-list button[aria-pressed="true"] {
+        border-color: var(--signal);
+        box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.15);
+      }
+      .pat-list small {
+        grid-column: 1/-1;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      /* other screens */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        margin: 0;
+      }
+      .stats div {
+        padding: 8px 10px;
+        border-radius: 9px;
+        background: var(--well);
+        border: 1px solid var(--line);
+      }
+      .stats dt {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .stats dd {
+        margin: 0;
+        font-family: var(--f-data);
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .field label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .field input,
+      .field select {
+        min-height: 42px;
+        padding: 0 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line-2);
+        background: var(--well);
+        font-family: var(--f-data);
+        font-size: 15px;
+      }
+      .out {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+      }
+      .out div {
+        padding: 12px;
+        border-radius: 10px;
+        background: var(--well);
+        border: 1px solid var(--line);
+      }
+      .out .num {
+        display: block;
+        font-size: 20px;
+        font-weight: 600;
+        margin-top: 2px;
+      }
+      .out small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .sentence {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        font-size: 16px;
+      }
+      .sentence select {
+        min-height: 40px;
+        padding: 0 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line-2);
+        background: var(--raised);
+        font-weight: 600;
+        max-width: 100%;
+      }
+      .switch {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        border-radius: 11px;
+        border: 0;
+        background: rgba(255, 255, 255, 0.14);
+        cursor: pointer;
+        flex: none;
+      }
+      .switch::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform 0.2s;
+      }
+      .switch[aria-checked="true"] {
+        background: var(--signal);
+      }
+      .switch[aria-checked="true"]::after {
+        transform: translateX(18px);
+      }
+      .cov {
+        position: relative;
+        height: 10px;
+        border-radius: 5px;
+        background: var(--inner);
+        min-width: 150px;
+      }
+      .cov i {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        border-radius: 5px;
+        background: var(--signal);
+      }
+      .cov b {
+        position: absolute;
+        top: -3px;
+        width: 3px;
+        height: 16px;
+        border-radius: 2px;
+        background: var(--amber);
+      }
+      .job {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 4px 10px;
+        font-size: 13px;
+      }
+      .job .bar {
+        grid-column: 1/-1;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--inner);
+        overflow: hidden;
+      }
+      .job .bar i {
+        display: block;
+        height: 100%;
+        background: var(--signal);
+        transition: width 0.6s ease;
+      }
+
+      /* overlays */
+      .scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 70;
+        background: rgba(2, 4, 8, 0.55);
+        display: grid;
+        place-items: start center;
+        padding: max(10vh, 24px) max(16px, env(safe-area-inset-right, 0px)) 24px
+          max(16px, env(safe-area-inset-left, 0px));
+      }
+      .dialog {
+        width: min(540px, 100%);
+        border-radius: var(--r-l);
+        border: 1px solid var(--line);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .dialog input {
+        width: 100%;
+        min-height: 44px;
+        padding: 0 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--well);
+        font-size: 15px;
+      }
+      .dialog ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        max-height: 300px;
+        overflow: auto;
+      }
+      .dialog li button {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 42px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        cursor: pointer;
+        text-align: left;
+      }
+      .dialog li button:hover,
+      .dialog li button.sel {
+        background: var(--raised);
+      }
+      .drawer {
+        position: fixed;
+        z-index: 65;
+        top: calc(10px + env(safe-area-inset-top, 0px));
+        right: calc(10px + env(safe-area-inset-right, 0px));
+        bottom: 10px;
+        width: min(390px, calc(100% - 20px));
+        border-radius: var(--r-l);
+        border: 1px solid var(--line);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow: auto;
+      }
+      .drawer dl {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .drawer dt {
+        font-weight: 700;
+      }
+      .drawer dd {
+        margin: 2px 0 0;
+        color: var(--muted);
+      }
+      .toast {
+        position: fixed;
+        z-index: 80;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+        padding: 10px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        font-weight: 600;
+      }
+      .sample {
+        position: fixed;
+        z-index: 35;
+        right: calc(14px + env(safe-area-inset-right, 0px));
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+        border: 1px solid var(--line);
+      }
+
+      @media (max-width: 1180px) {
+        .ws {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .s9,
+        .s8,
+        .s7,
+        .s6,
+        .s5,
+        .s4,
+        .s3 {
+          grid-column: span 12;
+        }
+      }
+      @media (max-width: 760px) {
+        canvas.chart {
+          height: 440px;
+        }
+        .form {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .top-r .clock,
+        .top-r .line {
+          display: none;
+        }
+        .main,
+        .top {
+          padding-left: max(16px, env(safe-area-inset-left, 0px));
+          padding-right: max(16px, env(safe-area-inset-right, 0px));
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top glass">
+      <div class="top-l">
+        <div class="brand">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#4C9AFF"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 17l5-5 4 4 8-8" />
+            <path d="M14 8h6v6" />
+          </svg>
+          <b>TCS</b><small>Trade Confirmation System</small>
+        </div>
+        <nav class="nav" aria-label="Main">
+          <a href="#dash" data-nav="dash">Dashboard</a>
+          <a href="#chart" data-nav="chart">Chart</a>
+          <a href="#evidence" data-nav="evidence">Pattern stats</a>
+          <a href="#risk" data-nav="risk">Risk</a>
+          <a href="#watch" data-nav="watch">Alerts</a>
+          <a href="#data" data-nav="data">Data</a>
+        </nav>
+      </div>
+      <div class="top-r">
+        <span class="badge ok"><i></i>Live · 3 exchanges</span>
+        <span class="badge line">Human executes · no auto-trading</span>
+        <span class="clock">14:32:08 UTC</span>
+      </div>
+    </header>
+
+    <div class="main">
+      <div class="pagehead">
+        <div>
+          <h1 id="vt">Dashboard</h1>
+          <p id="vs">Setups detected now, with how they performed in the past</p>
+        </div>
+        <div class="acts">
+          <button class="find" type="button" id="open-find" aria-haspopup="dialog">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+            Symbol or pattern…<kbd>Ctrl K</kbd>
+          </button>
+          <button class="btn" type="button" data-explain="method">Method</button>
+        </div>
+      </div>
+
+      <!-- ===================== DASHBOARD ===================== -->
+      <section class="view" id="v-dash">
+        <div class="bandbox" id="band">
+          <div class="px px-contour" data-depth="0.5"></div>
+          <div class="px px-dots" data-depth="0.18"></div>
+          <div class="px px-trace" data-depth="0.8" aria-hidden="true">
+            <svg id="trace" viewBox="0 0 600 200" preserveAspectRatio="none"></svg>
+          </div>
+          <span class="lbl">Scanner · 14 patterns × 6 symbols × 3 timeframes</span>
+          <h2>3 setups right now. 1 has a measured edge.</h2>
+          <p>
+            BTC-USDT printed a double bottom inside a 4h demand zone. Across 212 past cases on 20
+            coins, this setup reached its target 61% of the time.
+          </p>
+          <div class="kpis">
+            <div><span class="lbl">Setups now</span><span class="num">3</span></div>
+            <div><span class="lbl">Edge candidates</span><span class="num up">1</span></div>
+            <div><span class="lbl">Patterns tracked (2 y)</span><span class="num">4,812</span></div>
+            <div><span class="lbl">Data complete</span><span class="num">99.97%</span></div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card feature s8">
+            <div class="card-h">
+              <h2>Setups detected now</h2>
+              <button
+                class="q"
+                type="button"
+                data-explain="winrate"
+                aria-label="How win rate is measured"
+              >
+                ?
+              </button>
+              <p class="sub">
+                Pattern + location (zone or volume level) on the latest closed candle. Win rate =
+                target hit before stop, across every past occurrence.
+              </p>
+            </div>
+            <div class="xs">
+              <table class="tbl" style="min-width: 720px">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>TF</th>
+                    <th>Setup</th>
+                    <th class="r">Past n</th>
+                    <th style="width: 24%">Win rate · 95% range</th>
+                    <th class="r">Avg move</th>
+                    <th>Verdict</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="setups"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="s4" style="display: flex; flex-direction: column; gap: 16px">
+            <div class="card">
+              <div class="card-h">
+                <h2>From pattern to confirmation</h2>
+                <button
+                  class="q"
+                  type="button"
+                  data-explain="pipeline"
+                  aria-label="How the pipeline works"
+                >
+                  ?
+                </button>
+              </div>
+              <ol class="pipe">
+                <li>
+                  <span class="mk ok">✓</span><span>Market data · 2 y stored</span
+                  ><span class="chip c-live">LIVE</span>
+                </li>
+                <li>
+                  <span class="mk ok">✓</span><span>Indicators &amp; volume levels</span
+                  ><span class="chip c-live">LIVE</span>
+                </li>
+                <li>
+                  <span class="mk ok">✓</span><span>Pattern &amp; zone detection</span
+                  ><span class="chip c-live">LIVE</span>
+                </li>
+                <li>
+                  <span class="mk ok">✓</span><span>Pattern history (gross)</span
+                  ><span class="chip c-live">LIVE</span>
+                </li>
+                <li>
+                  <span class="mk no">5</span><span>Backtest with fees, out-of-sample</span
+                  ><span class="chip c-lock">P2</span>
+                </li>
+                <li>
+                  <span class="mk no">6</span><span>Forward test (paper)</span
+                  ><span class="chip c-lock">P4</span>
+                </li>
+                <li>
+                  <span class="mk no">7</span><span>News window + risk veto</span
+                  ><span class="chip c-lock">P5–6</span>
+                </li>
+                <li>
+                  <span class="mk no">8</span><span><b>Confirmation</b></span
+                  ><span class="chip c-lock">P6</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <h2>Watchlist</h2>
+            <p class="sub">Last trade, 24 h line, funding. Open a card for the chart.</p>
+          </div>
+          <div class="tiles" id="tiles"></div>
+        </div>
+      </section>
+
+      <!-- ===================== CHART ===================== -->
+      <section class="view" id="v-chart" hidden>
+        <div class="ws">
+          <div style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+            <div class="chartbox">
+              <div class="tbar glass" role="toolbar" aria-label="Chart controls">
+                <span class="sym">BTC-USDT</span
+                ><span class="num mute" id="lastpx" style="font-size: 13px"></span>
+                <div class="seg" role="group" aria-label="Timeframe" id="tf">
+                  <button type="button" aria-pressed="false">15m</button
+                  ><button type="button" aria-pressed="false">1h</button
+                  ><button type="button" aria-pressed="true">4h</button
+                  ><button type="button" aria-pressed="false">1d</button>
+                </div>
+                <button class="tog" type="button" aria-pressed="true" data-layer="ema">
+                  <i style="background: #f0a35e"></i>EMA 50
+                </button>
+                <button class="tog" type="button" aria-pressed="false" data-layer="bb">
+                  <i style="background: #7db4ff"></i>Bollinger
+                </button>
+                <button class="tog" type="button" aria-pressed="true" data-layer="zones">
+                  <i style="background: #56d364"></i>Zones
+                </button>
+                <button class="tog" type="button" aria-pressed="true" data-layer="vp">
+                  <i style="background: #4c9aff"></i>Volume profile
+                </button>
+                <button class="tog" type="button" aria-pressed="true" data-layer="pattern">
+                  <i style="background: #e6edf3"></i>Pattern
+                </button>
+              </div>
+              <canvas
+                class="chart"
+                id="c-chart"
+                role="img"
+                aria-label="BTC-USDT 4 hour chart: price falls from 65,800 into a demand zone near 63,300, forms a double bottom and breaks the 64,280 neckline. Volume profile on the right."
+              ></canvas>
+              <div class="legend glass" aria-hidden="true">
+                <span><i style="background: rgba(86, 211, 100, 0.35)"></i>Demand zone</span>
+                <span><i style="background: rgba(244, 112, 103, 0.35)"></i>Supply zone</span>
+                <span><i style="background: rgba(76, 154, 255, 0.5)"></i>Volume by price</span>
+                <span><i style="background: #4c9aff; height: 2px"></i>POC</span>
+              </div>
+            </div>
+            <div class="grid">
+              <div class="card s6">
+                <div class="card-h">
+                  <h2>Key volume levels</h2>
+                  <button
+                    class="q"
+                    type="button"
+                    data-explain="vprofile"
+                    aria-label="What are volume levels?"
+                  >
+                    ?
+                  </button>
+                  <p class="sub">From traded volume at each price over the visible range.</p>
+                </div>
+                <ul class="levels" id="levels"></ul>
+              </div>
+              <div class="card s6">
+                <div class="card-h">
+                  <h2>Zones</h2>
+                  <button
+                    class="q"
+                    type="button"
+                    data-explain="zone"
+                    aria-label="What is a demand zone?"
+                  >
+                    ?
+                  </button>
+                  <p class="sub">
+                    Where price left fast on high volume. Tests = times price came back.
+                  </p>
+                </div>
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>Zone</th>
+                      <th class="r">Range</th>
+                      <th class="r">Tests</th>
+                      <th class="r">Held</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="chip c-live">Demand</span></td>
+                      <td class="r num">63,150–63,480</td>
+                      <td class="r num">2</td>
+                      <td class="r num up">2 / 2</td>
+                    </tr>
+                    <tr>
+                      <td><span class="chip c-no">Supply</span></td>
+                      <td class="r num">65,650–66,050</td>
+                      <td class="r num">0</td>
+                      <td class="r num mute">—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <aside style="display: flex; flex-direction: column; gap: 16px; min-width: 0">
+            <div class="card">
+              <div class="card-h"><h2>Patterns on this chart</h2></div>
+              <ul class="pat-list" id="patlist"></ul>
+            </div>
+            <div class="card feature" id="setup"></div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ===================== PATTERN STATS ===================== -->
+      <section class="view" id="v-evidence" hidden>
+        <div class="card">
+          <div class="card-h">
+            <h2>Pattern library</h2>
+            <button
+              class="q"
+              type="button"
+              data-explain="winrate"
+              aria-label="How win rate is measured"
+            >
+              ?
+            </button>
+            <p class="sub">
+              Every pattern × location measured on 2 years of stored history across 20 coins. Each
+              row is reproducible from stored data.
+            </p>
+          </div>
+          <div class="xs">
+            <table class="tbl" style="min-width: 900px">
+              <thead>
+                <tr>
+                  <th>Setup</th>
+                  <th>TF</th>
+                  <th class="r">n</th>
+                  <th class="r">Win rate</th>
+                  <th style="width: 20%">95% range</th>
+                  <th class="r">Avg win</th>
+                  <th class="r">Avg loss</th>
+                  <th class="r">Exp. (gross)</th>
+                  <th>Verdict</th>
+                </tr>
+              </thead>
+              <tbody id="library"></tbody>
+            </table>
+          </div>
+          <p class="note" style="margin-top: 12px">
+            Gross = before fees and slippage. Location matters: the same double bottom wins 61%
+            inside a demand zone but 49% in open space. Edge candidates move to a costed,
+            out-of-sample backtest in Phase 2.
+          </p>
+        </div>
+        <div class="grid">
+          <div class="card s6">
+            <div class="card-h"><h2>How a setup becomes a confirmation</h2></div>
+            <ul class="checklist">
+              <li>
+                <span class="mk ok">1</span
+                ><span
+                  ><b>Pattern history</b> (here): does it beat a coin flip, with enough cases?</span
+                ><span></span>
+              </li>
+              <li>
+                <span class="mk no">2</span
+                ><span
+                  ><b>Backtest</b>: fixed entry, stop, target and fees, on data it was never tuned
+                  on.</span
+                ><span class="num mute">P2</span>
+              </li>
+              <li>
+                <span class="mk no">3</span
+                ><span
+                  ><b>Forward test</b>: paper-trade live; results must stay inside the backtest
+                  band.</span
+                ><span class="num mute">P4</span>
+              </li>
+              <li>
+                <span class="mk no">4</span
+                ><span
+                  ><b>Confirmation</b>: news window clear, risk check passed, confidence
+                  calibrated.</span
+                ><span class="num mute">P6</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card s6">
+            <div class="card-h"><h2>Guards against fooling ourselves</h2></div>
+            <ul class="checklist">
+              <li>
+                <span class="mk ok">✓</span
+                ><span>Pattern rules fixed in code before measuring, never tuned to the result</span
+                ><span></span>
+              </li>
+              <li>
+                <span class="mk ok">✓</span
+                ><span
+                  >Win rate always shown with n and a 95% range; under 30 cases flagged "too
+                  few"</span
+                ><span></span>
+              </li>
+              <li>
+                <span class="mk ok">✓</span
+                ><span
+                  >Every combination tested is counted (31 so far) for multiple-testing
+                  correction</span
+                ><span></span>
+              </li>
+              <li>
+                <span class="mk w">!</span
+                ><span>Gross results only until Phase 2 adds fees and slippage</span><span></span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== RISK ===================== -->
+      <section class="view" id="v-risk" hidden>
+        <div class="grid">
+          <div class="card s7">
+            <div class="card-h">
+              <h2>Position size calculator</h2>
+              <button class="q" type="button" data-explain="risk" aria-label="How sizing works">
+                ?
+              </button>
+              <p class="sub">
+                Pre-filled from the selected chart setup. Size from where you are wrong; fees
+                included.
+              </p>
+            </div>
+            <form class="form" id="rform">
+              <div class="field">
+                <label for="r-eq">Account equity (USDT)</label
+                ><input id="r-eq" inputmode="decimal" value="10000" />
+              </div>
+              <div class="field">
+                <label for="r-pct">Risk per trade (%)</label
+                ><input id="r-pct" inputmode="decimal" value="0.75" />
+              </div>
+              <div class="field">
+                <label for="r-side">Direction</label
+                ><select id="r-side">
+                  <option value="long">Long</option>
+                  <option value="short">Short</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="r-fee">Taker fee per side (%)</label
+                ><input id="r-fee" inputmode="decimal" value="0.05" />
+              </div>
+              <div class="field">
+                <label for="r-entry">Entry</label
+                ><input id="r-entry" inputmode="decimal" value="64450" />
+              </div>
+              <div class="field">
+                <label for="r-stop">Stop</label
+                ><input id="r-stop" inputmode="decimal" value="63100" />
+              </div>
+              <div class="field">
+                <label for="r-tgt">Target</label
+                ><input id="r-tgt" inputmode="decimal" value="65650" />
+              </div>
+              <div class="field">
+                <label for="r-p">Win rate to assume (%)</label
+                ><input id="r-p" inputmode="decimal" value="61" />
+              </div>
+            </form>
+            <p class="note" id="rerr" style="margin-top: 12px" hidden></p>
+          </div>
+          <div class="card s5">
+            <div class="card-h"><h2>Result</h2></div>
+            <div class="out" id="rout"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== ALERTS ===================== -->
+      <section class="view" id="v-watch" hidden>
+        <div class="card">
+          <div class="card-h">
+            <h2>Alert me when a setup appears</h2>
+            <p class="sub">
+              Pick a setup. Before saving you see how it performed. Checked on the server, delivered
+              to Telegram.
+            </p>
+          </div>
+          <form class="sentence" id="wform">
+            <span>Tell me when</span>
+            <label class="sr" for="w-sym">Symbol</label
+            ><select id="w-sym">
+              <option>any watchlist coin</option>
+              <option>BTC-USDT</option>
+              <option>ETH-USDT</option>
+              <option>SOL-USDT</option>
+            </select>
+            <span>prints a</span>
+            <label class="sr" for="w-set">Setup</label
+            ><select id="w-set"></select>
+            <span>on</span>
+            <label class="sr" for="w-tf">Timeframe</label
+            ><select id="w-tf">
+              <option>4h</option>
+              <option>1h</option>
+              <option>1d</option>
+            </select>
+            <button class="btn primary" type="submit">Create alert</button>
+          </form>
+          <dl class="stats" id="wprev" style="margin-top: 12px"></dl>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Your alerts</h2></div>
+          <div class="xs">
+            <table class="tbl" style="min-width: 600px">
+              <thead>
+                <tr>
+                  <th>On</th>
+                  <th>Alert</th>
+                  <th class="r">Win rate</th>
+                  <th>Last fired</th>
+                </tr>
+              </thead>
+              <tbody id="wlist"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== DATA ===================== -->
+      <section class="view" id="v-data" hidden>
+        <div class="grid">
+          <div class="card s8">
+            <div class="card-h">
+              <h2>Research data</h2>
+              <button class="q" type="button" data-explain="coverage" aria-label="Reading coverage">
+                ?
+              </button>
+              <p class="sub">
+                Pattern history is only as good as this. Stored 1-minute history over 2 years; amber
+                marks gaps being refilled.
+              </p>
+            </div>
+            <div class="xs">
+              <table class="tbl" style="min-width: 620px">
+                <thead>
+                  <tr>
+                    <th>Series</th>
+                    <th>From</th>
+                    <th style="width: 38%">Coverage</th>
+                    <th class="r">Missing min</th>
+                    <th>State</th>
+                  </tr>
+                </thead>
+                <tbody id="cov"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="s4" style="display: flex; flex-direction: column; gap: 16px">
+            <div class="card">
+              <div class="card-h">
+                <h2>Quality checks</h2>
+                <span class="lbl right">hourly</span>
+              </div>
+              <ul class="checklist">
+                <li>
+                  <span class="mk ok">✓</span><span>No duplicate candles</span
+                  ><span class="num mute">0</span>
+                </li>
+                <li>
+                  <span class="mk ok">✓</span><span>OHLC consistent</span
+                  ><span class="num mute">0</span>
+                </li>
+                <li>
+                  <span class="mk ok">✓</span><span>Cross-exchange deviation &lt; 0.5%</span
+                  ><span class="num mute">0.08%</span>
+                </li>
+                <li>
+                  <span class="mk w">!</span><span>Delta gaps being refilled</span
+                  ><span class="num mute">3</span>
+                </li>
+              </ul>
+            </div>
+            <div class="card">
+              <div class="card-h"><h2>Backfill queue</h2></div>
+              <div id="jobs" style="display: flex; flex-direction: column; gap: 12px"></div>
+              <button class="btn" type="button" id="addjob" style="margin-top: 12px; width: 100%">
+                Backfill another series
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <span class="sample chip c-lock" style="padding: 6px 12px">Sample data</span>
+
+    <div class="scrim" id="find" hidden>
+      <div class="dialog glass" role="dialog" aria-modal="true" aria-labelledby="find-t">
+        <h2 id="find-t" style="font-size: 16px">Go to symbol or pattern</h2>
+        <label class="sr" for="find-in">Search</label>
+        <input id="find-in" placeholder="BTC, double bottom, demand…" autocomplete="off" />
+        <ul id="find-list"></ul>
+        <p style="margin: 0; color: var(--muted); font-size: 12px">
+          ↑ ↓ to move · Enter to open · Esc to close
+        </p>
+      </div>
+    </div>
+
+    <aside class="drawer glass" id="drawer" hidden aria-labelledby="dr-t">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px">
+        <h2 id="dr-t" style="font-size: 19px"></h2>
+        <button
+          class="q"
+          type="button"
+          id="dr-x"
+          aria-label="Close"
+          style="width: 32px; height: 32px"
+        >
+          ×
+        </button>
+      </div>
+      <dl id="dr-b"></dl>
+    </aside>
+    <div class="toast glass" id="toast" role="status" hidden></div>
+
+    <script>
+      (function () {
+        var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var $ = function (s) {
+          return document.querySelector(s);
+        };
+        var cs = getComputedStyle(document.documentElement),
+          T = {};
+        ["signal", "up", "down", "amber", "faint", "muted", "fg"].forEach(function (k) {
+          T[k] = cs.getPropertyValue("--" + k).trim();
+        });
+        var seed = 21;
+        function rnd() {
+          seed = (seed * 9301 + 49297) % 233280;
+          return seed / 233280;
+        }
+        function pct(v, d) {
+          return (v * 100).toFixed(d == null ? 0 : d) + "%";
+        }
+        function fmt(v) {
+          return Math.round(v).toLocaleString("en-US");
+        }
+        function wilson(k, n) {
+          var z = 1.96,
+            p = k / n,
+            den = 1 + (z * z) / n,
+            c = p + (z * z) / (2 * n),
+            a = z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n));
+          return [(c - a) / den, (c + a) / den];
+        }
+        function ciBar(p, lo, hi) {
+          return (
+            '<div class="ci" role="img" aria-label="' +
+            pct(p) +
+            ", range " +
+            pct(lo) +
+            " to " +
+            pct(hi) +
+            '"><span class="mid"></span><span class="band" style="left:' +
+            lo * 100 +
+            "%;width:" +
+            (hi - lo) * 100 +
+            '%"></span><span class="pt" style="left:calc(' +
+            p * 100 +
+            '% - 1px)"></span></div>'
+          );
+        }
+        function verdict(k, n) {
+          var w = wilson(k, n);
+          if (n < 30) return '<span class="chip c-warn">TOO FEW</span>';
+          return w[0] > 0.5
+            ? '<span class="chip c-live">EDGE CANDIDATE</span>'
+            : '<span class="chip c-no">NO EDGE</span>';
+        }
+
+        /* ---------- setups: shared by dashboard, chart, library, alerts ---------- */
+        var P = {
+          db: {
+            name: "Double bottom",
+            loc: "in demand zone",
+            tf: "4h",
+            sym: { n: 5, k: 4 },
+            pool: { n: 212, k: 129 },
+            win: 2.1,
+            loss: -1.4,
+            bars: 9,
+            entry: 64450,
+            stop: 63100,
+            target: 65650,
+            checks: [
+              ["ok", "Inside 4h demand zone (2 tests, both held)"],
+              ["ok", "Second low on lower volume than the first"],
+              ["ok", "Neckline 64,280 broken on 1.8× average volume"],
+              ["ok", "Point of control now below price"],
+              ["w", "Below EMA 50 on 1d (against the higher-timeframe trend)"],
+            ],
+            last: [
+              ["2026-09-14", "SOL-USDT", "w", "+2.6%", 7],
+              ["2026-08-02", "BTC-USDT", "w", "+1.9%", 11],
+              ["2026-06-21", "ETH-USDT", "l", "−1.4%", 4],
+              ["2026-05-09", "BTC-USDT", "w", "+2.2%", 8],
+              ["2026-03-30", "BTC-USDT", "w", "+1.7%", 13],
+            ],
+          },
+          bf: {
+            name: "Bull flag",
+            loc: "above point of control",
+            tf: "4h",
+            sym: { n: 14, k: 9 },
+            pool: { n: 158, k: 92 },
+            win: 2.4,
+            loss: -1.6,
+            bars: 10,
+            entry: 64720,
+            stop: 64180,
+            target: 65650,
+            checks: [
+              ["ok", "Pole +1.7% on rising volume"],
+              ["ok", "Flag holds above the point of control"],
+              ["w", "Flag only 5 candles (minimum is 5)"],
+              ["w", "Supply zone at 65,650 caps the measured move"],
+            ],
+            last: [
+              ["2026-10-11", "SOL-USDT", "w", "+2.9%", 9],
+              ["2026-09-03", "BTC-USDT", "w", "+2.0%", 12],
+              ["2026-08-15", "ETH-USDT", "l", "−1.6%", 5],
+              ["2026-07-07", "BTC-USDT", "w", "+2.3%", 10],
+              ["2026-06-02", "DOGE-USDT", "l", "−1.7%", 3],
+            ],
+          },
+          be: {
+            name: "Bullish engulfing",
+            loc: "at value-area low",
+            tf: "1h",
+            sym: { n: 31, k: 16 },
+            pool: { n: 640, k: 333 },
+            win: 1.2,
+            loss: -1.0,
+            bars: 6,
+            entry: 63520,
+            stop: 63180,
+            target: 64000,
+            checks: [
+              ["ok", "Candle body engulfs the prior red candle"],
+              ["ok", "At the value-area low"],
+              ["x", "No volume expansion (0.9× average)"],
+              ["w", "Inside a 4h downtrend"],
+            ],
+            last: [
+              ["2026-10-28", "ETH-USDT", "l", "−1.0%", 3],
+              ["2026-10-19", "BTC-USDT", "w", "+1.1%", 5],
+              ["2026-10-02", "SOL-USDT", "l", "−0.9%", 2],
+              ["2026-09-25", "BTC-USDT", "w", "+1.3%", 8],
+              ["2026-09-11", "XRP-USDT", "l", "−1.0%", 4],
+            ],
+          },
+        };
+        var library = [
+          ["Double bottom · in demand zone", "4h", 212, 129, 2.1, -1.4],
+          ["Bull flag · above point of control", "4h", 158, 92, 2.4, -1.6],
+          ["Double bottom · open space (no zone)", "4h", 301, 147, 2.0, -1.4],
+          ["Bullish engulfing · at value-area low", "1h", 640, 333, 1.2, -1.0],
+          ["Inverse head & shoulders · in demand zone", "1d", 47, 29, 4.8, -2.6],
+          ["Bearish engulfing · at supply zone", "4h", 233, 131, 1.9, -1.3],
+          ["Hammer · anywhere", "1h", 1290, 647, 0.9, -0.9],
+          ["Morning star · in demand zone", "1d", 22, 15, 3.6, -2.1],
+        ];
+        var sel = "db";
+
+        /* ---------- dashboard ---------- */
+        (function () {
+          var pts = [],
+            y = 130;
+          for (var i = 0; i <= 60; i++) {
+            y += (rnd() - 0.5) * 16 - (i > 40 ? 2.5 : 0);
+            y = Math.max(30, Math.min(180, y));
+            pts.push(i * 10 + "," + y.toFixed(1));
+          }
+          $("#trace").innerHTML =
+            '<polyline points="' +
+            pts.join(" ") +
+            '" fill="none" stroke="rgba(76,154,255,.55)" stroke-width="1.5" vector-effect="non-scaling-stroke"/><polygon points="0,200 ' +
+            pts.join(" ") +
+            ' 600,200" fill="rgba(76,154,255,.06)"/>';
+        })();
+        var now = [
+          ["BTC-USDT", "4h", "db"],
+          ["SOL-USDT", "4h", "bf"],
+          ["ETH-USDT", "1h", "be"],
+        ];
+        $("#setups").innerHTML = now
+          .map(function (r) {
+            var p = P[r[2]],
+              k = p.pool.k,
+              n = p.pool.n,
+              w = wilson(k, n);
+            return (
+              "<tr><td><b>" +
+              r[0] +
+              '</b></td><td class="num mute">' +
+              r[1] +
+              "</td><td>" +
+              p.name +
+              ' <span class="mute">' +
+              p.loc +
+              '</span></td><td class="r num">' +
+              n +
+              '</td><td><div style="display:flex;align-items:center;gap:10px"><span class="num" style="width:36px">' +
+              pct(k / n) +
+              "</span>" +
+              ciBar(k / n, w[0], w[1]) +
+              '</div></td><td class="r num up">+' +
+              p.win +
+              "%</td><td>" +
+              verdict(k, n) +
+              '</td><td><a class="btn sm" href="#chart" data-open="' +
+              r[2] +
+              '">Chart</a></td></tr>'
+            );
+          })
+          .join("");
+        document.addEventListener("click", function (e) {
+          var a = e.target.closest("[data-open]");
+          if (a) {
+            sel = a.dataset.open;
+            if (location.hash === "#chart") {
+              renderPatterns();
+              draw();
+            }
+          }
+        });
+        var coins = [
+          ["BTC-USDT", "64,472.10", 1.84, "+0.0312%"],
+          ["ETH-USDT", "3,412.18", 0.62, "+0.0105%"],
+          ["SOL-USDT", "182.41", -2.15, "+0.0410%"],
+          ["XRP-USDT", "0.6120", 0.21, "+0.0081%"],
+          ["JUP-USDT", "0.8231", -0.38, "−0.0052%"],
+          ["DOGE-USDT", "0.1584", 3.1, "+0.0122%"],
+        ];
+        function spark(up) {
+          var d = [],
+            v = 50;
+          for (var i = 0; i < 40; i++) {
+            v += (rnd() - 0.5) * 6 + (up ? 0.35 : -0.35);
+            d.push(v);
+          }
+          var mn = Math.min.apply(null, d),
+            mx = Math.max.apply(null, d),
+            c = up ? T.up : T.down;
+          var pts = d.map(function (x, i) {
+            return (
+              ((i / 39) * 200).toFixed(1) + "," + (32 - ((x - mn) / (mx - mn || 1)) * 28).toFixed(1)
+            );
+          });
+          return (
+            '<svg viewBox="0 0 200 36" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,36 ' +
+            pts.join(" ") +
+            ' 200,36" fill="' +
+            c +
+            '" fill-opacity=".12"/><polyline points="' +
+            pts.join(" ") +
+            '" fill="none" stroke="' +
+            c +
+            '" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>'
+          );
+        }
+        $("#tiles").innerHTML = coins
+          .map(function (c) {
+            var up = c[2] >= 0;
+            return (
+              '<a class="tile" href="#chart"><div class="t"><b>' +
+              c[0] +
+              '</b><span class="chip c-live"><i></i>LIVE</span></div><span class="px2">' +
+              c[1] +
+              "</span>" +
+              spark(up) +
+              '<div class="m"><span class="num ' +
+              (up ? "up" : "down") +
+              '">' +
+              (up ? "▲ " : "▼ ") +
+              Math.abs(c[2]).toFixed(2) +
+              '%</span><span>Funding <span class="num">' +
+              c[3] +
+              "</span></span></div></a>"
+            );
+          })
+          .join("");
+
+        /* ---------- routing ---------- */
+        var views = {
+          dash: ["Dashboard", "Setups detected now, with how they performed in the past"],
+          chart: [
+            "Chart",
+            "Indicators, patterns, zones and volume levels, with the history of every setup",
+          ],
+          evidence: ["Pattern stats", "How every pattern and location performed over 2 years"],
+          risk: ["Risk", "Size from where you are wrong"],
+          watch: ["Alerts", "Get told when a setup with a track record appears"],
+          data: ["Research data", "The history every statistic stands on"],
+        };
+        function route() {
+          var v = (location.hash || "#dash").slice(1);
+          if (!views[v]) v = "dash";
+          Object.keys(views).forEach(function (k) {
+            $("#v-" + k).hidden = k !== v;
+          });
+          document.querySelectorAll("[data-nav]").forEach(function (a) {
+            if (a.dataset.nav === v) a.setAttribute("aria-current", "page");
+            else a.removeAttribute("aria-current");
+          });
+          $("#vt").textContent = views[v][0];
+          $("#vs").textContent = views[v][1];
+          if (v === "chart") {
+            renderPatterns();
+            draw();
+          }
+          if (v === "risk") calc();
+          window.scrollTo(0, 0);
+        }
+        addEventListener("hashchange", route);
+
+        /* ---------- parallax (dashboard band only) ---------- */
+        var band = $("#band"),
+          layers = band.querySelectorAll("[data-depth]"),
+          mx = 0,
+          my = 0,
+          tk = false;
+        function paint() {
+          tk = false;
+          var y = scrollY;
+          layers.forEach(function (l) {
+            var d = +l.dataset.depth;
+            l.style.transform =
+              "translate3d(" + mx * d * 22 + "px," + (y * d * 0.35 + my * d * 16) + "px,0)";
+          });
+        }
+        function req() {
+          if (!tk) {
+            tk = true;
+            requestAnimationFrame(paint);
+          }
+        }
+        if (!reduce) {
+          addEventListener("scroll", req, { passive: true });
+          band.addEventListener("pointermove", function (e) {
+            var r = band.getBoundingClientRect();
+            mx = (e.clientX - r.left) / r.width - 0.5;
+            my = (e.clientY - r.top) / r.height - 0.5;
+            req();
+          });
+          band.addEventListener("pointerleave", function () {
+            mx = my = 0;
+            req();
+          });
+        }
+
+        /* ---------- chart data: drop into demand zone, double bottom, neckline break ---------- */
+        var wp = [
+          [0, 65800],
+          [14, 65950],
+          [28, 65400],
+          [58, 63260],
+          [62, 63330],
+          [72, 64230],
+          [76, 64180],
+          [86, 63340],
+          [90, 63420],
+          [104, 64460],
+          [112, 64700],
+          [119, 64472],
+        ];
+        seed = 8;
+        var N = 120,
+          K = [],
+          prev = 65800;
+        for (var i = 0; i < N; i++) {
+          var j = 0;
+          while (wp[j + 1][0] < i) j++;
+          var a = wp[j],
+            b = wp[j + 1],
+            t = (i - a[0]) / (b[0] - a[0] || 1),
+            base = a[1] + (b[1] - a[1]) * t;
+          var c = base + (rnd() - 0.5) * 160;
+          if ((i >= 56 && i <= 62) || (i >= 84 && i <= 90)) c = Math.max(63190, c);
+          if (i === N - 1) c = 64472;
+          var o = prev,
+            hi = Math.max(o, c) + rnd() * 110,
+            lo = Math.min(o, c) - rnd() * 110;
+          if (i === 58) lo = 63255;
+          if (i === 86) lo = 63305;
+          var v = 700 + Math.abs(c - o) * 2.2 + rnd() * 300;
+          if (i === 58 || i === 104) v *= 2.2;
+          if (i >= 100 && i <= 106) v *= 1.5;
+          K.push({ o: o, h: hi, l: lo, c: c, v: v });
+          prev = c;
+        }
+        var closes = K.map(function (k) {
+            return k.c;
+          }),
+          ema = [],
+          bbu = [],
+          bbl = [],
+          al = 2 / 51;
+        closes.forEach(function (c, i) {
+          ema.push(i ? ema[i - 1] + al * (c - ema[i - 1]) : c);
+          var s = closes.slice(Math.max(0, i - 19), i + 1),
+            m =
+              s.reduce(function (q, x) {
+                return q + x;
+              }, 0) / s.length,
+            sd = Math.sqrt(
+              s.reduce(function (q, x) {
+                return q + (x - m) * (x - m);
+              }, 0) / s.length,
+            );
+          bbu.push(m + 2 * sd);
+          bbl.push(m - 2 * sd);
+        });
+        // volume profile (computed from the same candles the chart draws)
+        var LO = 62900,
+          HI = 66300,
+          BINS = 48,
+          prof = new Array(BINS).fill(0),
+          bh = (HI - LO) / BINS;
+        K.forEach(function (k) {
+          var b0 = Math.max(0, Math.floor((k.l - LO) / bh)),
+            b1 = Math.min(BINS - 1, Math.floor((k.h - LO) / bh));
+          for (var q = b0; q <= b1; q++) prof[q] += k.v / (b1 - b0 + 1);
+        });
+        var poc = prof.indexOf(Math.max.apply(null, prof)),
+          tot = prof.reduce(function (q, x) {
+            return q + x;
+          }, 0),
+          va = prof[poc],
+          vlo = poc,
+          vhi = poc;
+        while (va < tot * 0.7) {
+          var dn = vlo > 0 ? prof[vlo - 1] : -1,
+            upv = vhi < BINS - 1 ? prof[vhi + 1] : -1;
+          if (upv >= dn) {
+            vhi++;
+            va += upv;
+          } else {
+            vlo--;
+            va += dn;
+          }
+        }
+        function binPx(q) {
+          return LO + (q + 0.5) * bh;
+        }
+        var hvn = [],
+          lvn = [];
+        for (var q = 2; q < BINS - 2; q++) {
+          if (q === poc) continue;
+          if (
+            prof[q] > prof[q - 1] &&
+            prof[q] > prof[q + 1] &&
+            prof[q] > prof[q - 2] &&
+            prof[q] > prof[q + 2] &&
+            prof[q] > tot / BINS
+          )
+            hvn.push(q);
+          if (prof[q] < prof[q - 1] && prof[q] < prof[q + 1] && q > vlo && q < vhi) lvn.push(q);
+        }
+        hvn.sort(function (x, y) {
+          return prof[y] - prof[x];
+        });
+        hvn = hvn.slice(0, 2);
+        lvn.sort(function (x, y) {
+          return prof[x] - prof[y];
+        });
+        lvn = lvn.slice(0, 1);
+        var lv = [
+          ["POC", binPx(poc), "Point of control: most traded price", "var(--info-bg)", "#7DB4FF"],
+          [
+            "VAH",
+            LO + (vhi + 1) * bh,
+            "Top of the 70% value area",
+            "var(--raised)",
+            "var(--muted)",
+          ],
+          ["VAL", LO + vlo * bh, "Bottom of the value area", "var(--raised)", "var(--muted)"],
+        ];
+        hvn.forEach(function (q) {
+          lv.push([
+            "HVN",
+            binPx(q),
+            "High-volume node: price tends to stall",
+            "var(--up-bg)",
+            "var(--up)",
+          ]);
+        });
+        lvn.forEach(function (q) {
+          lv.push([
+            "LVN",
+            binPx(q),
+            "Low-volume node: price moves through fast",
+            "var(--warn-bg)",
+            "var(--amber)",
+          ]);
+        });
+        lv.sort(function (x, y) {
+          return y[1] - x[1];
+        });
+        $("#levels").innerHTML = lv
+          .map(function (l) {
+            return (
+              '<li><b style="background:' +
+              l[3] +
+              ";color:" +
+              l[4] +
+              '">' +
+              l[0] +
+              '</b><span class="mute">' +
+              l[2] +
+              '</span><span class="num">' +
+              fmt(l[1]) +
+              "</span></li>"
+            );
+          })
+          .join("");
+        $("#lastpx").textContent = fmt(closes[N - 1]) + " · 4h";
+
+        var layer = { ema: true, bb: false, zones: true, vp: true, pattern: true };
+        function pill(g, text, x, y) {
+          g.font = "600 11px Inter, sans-serif";
+          var tw = g.measureText(text).width + 14;
+          g.fillStyle = "#E6EDF3";
+          g.beginPath();
+          if (g.roundRect) g.roundRect(x, y - 10, tw, 20, 10);
+          else g.rect(x, y - 10, tw, 20);
+          g.fill();
+          g.fillStyle = "#0B0F14";
+          g.fillText(text, x + 7, y);
+          g.font = '11px "JetBrains Mono", monospace';
+        }
+        function draw() {
+          var cv = $("#c-chart"),
+            d = devicePixelRatio || 1,
+            w = cv.clientWidth,
+            h = cv.clientHeight;
+          if (!w) return;
+          cv.width = w * d;
+          cv.height = h * d;
+          var g = cv.getContext("2d");
+          g.setTransform(d, 0, 0, d, 0, 0);
+          g.font = '11px "JetBrains Mono", monospace';
+          g.textBaseline = "middle";
+          var top = w < 700 ? 104 : 62,
+            P0 = { l: 10, r: 64, t: top, b: 118 },
+            vh = 78,
+            plotW = w - P0.l - P0.r,
+            ph = h - P0.t - P0.b;
+          var Y = function (p) {
+              return P0.t + ((HI - p) / (HI - LO)) * ph;
+            },
+            bw = plotW / (N + 14),
+            X = function (i) {
+              return P0.l + i * bw + bw / 2;
+            };
+          for (var t = 63000; t <= 66000; t += 500) {
+            g.strokeStyle = "rgba(148,170,200,.07)";
+            g.beginPath();
+            g.moveTo(P0.l, Y(t));
+            g.lineTo(w - P0.r, Y(t));
+            g.stroke();
+            g.fillStyle = T.faint;
+            g.fillText(fmt(t), w - P0.r + 8, Y(t));
+          }
+          if (layer.zones) {
+            g.fillStyle = "rgba(86,211,100,.12)";
+            g.fillRect(X(30), Y(63480), w - P0.r - X(30), Y(63150) - Y(63480));
+            g.strokeStyle = "rgba(86,211,100,.45)";
+            g.strokeRect(X(30) + 0.5, Y(63480) + 0.5, w - P0.r - X(30) - 1, Y(63150) - Y(63480));
+            g.fillStyle = "rgba(244,112,103,.10)";
+            g.fillRect(X(12), Y(66050), w - P0.r - X(12), Y(65650) - Y(66050));
+            g.strokeStyle = "rgba(244,112,103,.4)";
+            g.strokeRect(X(12) + 0.5, Y(66050) + 0.5, w - P0.r - X(12) - 1, Y(65650) - Y(66050));
+            g.fillStyle = T.up;
+            g.fillText("DEMAND 63,150–63,480", X(31) + 4, Y(63150) + 10);
+            g.fillStyle = T.down;
+            g.fillText("SUPPLY 65,650–66,050", X(13) + 4, Y(66050) - 10);
+          }
+          if (layer.vp) {
+            var mxv = Math.max.apply(null, prof),
+              maxW = plotW * 0.2,
+              x0 = w - P0.r;
+            prof.forEach(function (v, q) {
+              var y1 = Y(LO + (q + 1) * bh),
+                y2 = Y(LO + q * bh),
+                inVA = q >= vlo && q <= vhi;
+              g.fillStyle =
+                q === poc
+                  ? "rgba(76,154,255,.75)"
+                  : inVA
+                    ? "rgba(76,154,255,.32)"
+                    : "rgba(148,170,200,.16)";
+              g.fillRect(
+                x0 - (v / mxv) * maxW,
+                y1 + 0.5,
+                (v / mxv) * maxW,
+                Math.max(1, y2 - y1 - 1),
+              );
+            });
+            g.setLineDash([5, 4]);
+            g.strokeStyle = T.signal;
+            g.beginPath();
+            g.moveTo(P0.l, Y(binPx(poc)));
+            g.lineTo(x0, Y(binPx(poc)));
+            g.stroke();
+            g.setLineDash([]);
+            g.fillStyle = T.signal;
+            g.fillText("POC " + fmt(binPx(poc)), P0.l + 6, Y(binPx(poc)) - 9);
+          }
+          if (layer.bb) {
+            g.fillStyle = "rgba(125,180,255,.08)";
+            g.beginPath();
+            bbu.forEach(function (v, i) {
+              i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v));
+            });
+            for (var q = N - 1; q >= 0; q--) g.lineTo(X(q), Y(bbl[q]));
+            g.closePath();
+            g.fill();
+          }
+          K.forEach(function (k, i) {
+            var col = k.c >= k.o ? T.up : T.down;
+            g.strokeStyle = col;
+            g.fillStyle = col;
+            g.beginPath();
+            g.moveTo(X(i), Y(k.h));
+            g.lineTo(X(i), Y(k.l));
+            g.stroke();
+            var y1 = Y(Math.max(k.o, k.c)),
+              y2 = Y(Math.min(k.o, k.c));
+            g.fillRect(X(i) - bw * 0.32, y1, bw * 0.64, Math.max(1, y2 - y1));
+          });
+          if (layer.ema) {
+            g.strokeStyle = T.amber;
+            g.lineWidth = 1.6;
+            g.beginPath();
+            ema.forEach(function (v, i) {
+              i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v));
+            });
+            g.stroke();
+            g.lineWidth = 1;
+          }
+          var vmax = Math.max.apply(
+              null,
+              K.map(function (k) {
+                return k.v;
+              }),
+            ),
+            vb = h - 26;
+          K.forEach(function (k, i) {
+            g.fillStyle = k.c >= k.o ? "rgba(86,211,100,.35)" : "rgba(244,112,103,.35)";
+            var hh = (k.v / vmax) * vh;
+            g.fillRect(X(i) - bw * 0.32, vb - hh, bw * 0.64, hh);
+          });
+          g.fillStyle = T.faint;
+          g.fillText("VOLUME", P0.l + 4, vb - vh - 6);
+          if (layer.pattern) {
+            var p = P[sel];
+            g.lineWidth = 2;
+            g.strokeStyle = "rgba(230,237,243,.9)";
+            if (sel === "db") {
+              g.beginPath();
+              g.moveTo(X(50), Y(63700));
+              g.lineTo(X(58), Y(K[58].l));
+              g.lineTo(X(72), Y(64280));
+              g.lineTo(X(86), Y(K[86].l));
+              g.lineTo(X(104), Y(64460));
+              g.stroke();
+              g.setLineDash([4, 4]);
+              g.beginPath();
+              g.moveTo(X(66), Y(64280));
+              g.lineTo(X(110), Y(64280));
+              g.stroke();
+              g.setLineDash([]);
+              g.fillStyle = T.fg;
+              g.fillText("neckline 64,280", X(74), Y(64280) - 10);
+              pill(g, "Double bottom · in demand zone", X(44), Y(63100) + 26);
+            }
+            if (sel === "be") {
+              var bx = X(87);
+              g.strokeRect(bx - bw * 1.6, Y(K[87].h) - 6, bw * 2.4, Y(K[86].l) - Y(K[87].h) + 12);
+              pill(g, "Bullish engulfing · at VAL", bx - bw * 1.6, Y(K[86].l) + 30);
+            }
+            if (sel === "bf") {
+              g.beginPath();
+              g.moveTo(X(98), Y(63900));
+              g.lineTo(X(108), Y(64650));
+              g.stroke();
+              g.setLineDash([4, 4]);
+              g.beginPath();
+              g.moveTo(X(108), Y(64760));
+              g.lineTo(X(119), Y(64560));
+              g.moveTo(X(108), Y(64420));
+              g.lineTo(X(119), Y(64250));
+              g.stroke();
+              g.setLineDash([]);
+              pill(g, "Bull flag · above POC", X(90), Y(63750) + 20);
+            }
+            g.lineWidth = 1;
+            var xa = X(N - 1) + bw,
+              xb = w - P0.r - plotW * 0.21;
+            if (xb > xa + 40) {
+              [
+                [p.target, T.up, "Target " + fmt(p.target)],
+                [p.entry, T.signal, "Entry " + fmt(p.entry)],
+                [p.stop, T.down, "Stop " + fmt(p.stop)],
+              ].forEach(function (l) {
+                g.strokeStyle = l[1];
+                g.setLineDash(l[0] === p.entry ? [] : [5, 3]);
+                g.beginPath();
+                g.moveTo(xa, Y(l[0]));
+                g.lineTo(xb, Y(l[0]));
+                g.stroke();
+                g.setLineDash([]);
+                g.fillStyle = l[1];
+                g.fillText(l[2], xa + 4, Y(l[0]) - 9);
+              });
+              g.fillStyle = "rgba(86,211,100,.08)";
+              g.fillRect(xa, Y(p.target), xb - xa, Y(p.entry) - Y(p.target));
+              g.fillStyle = "rgba(244,112,103,.08)";
+              g.fillRect(xa, Y(p.entry), xb - xa, Y(p.stop) - Y(p.entry));
+            }
+          }
+          var last = closes[N - 1];
+          g.fillStyle = T.signal;
+          g.fillRect(w - P0.r + 2, Y(last) - 9, P0.r - 4, 18);
+          g.fillStyle = "#0B0F14";
+          g.fillText(fmt(last), w - P0.r + 6, Y(last));
+        }
+        addEventListener("resize", function () {
+          if (!$("#v-chart").hidden) draw();
+        });
+        document.querySelectorAll("[data-layer]").forEach(function (b) {
+          b.addEventListener("click", function () {
+            var k = b.dataset.layer;
+            layer[k] = !layer[k];
+            b.setAttribute("aria-pressed", String(layer[k]));
+            draw();
+          });
+        });
+        $("#tf").addEventListener("click", function (e) {
+          var b = e.target.closest("button");
+          if (!b) return;
+          this.querySelectorAll("button").forEach(function (x) {
+            x.setAttribute("aria-pressed", String(x === b));
+          });
+          toast("The sample shows 4h. Each timeframe has its own detected patterns.");
+        });
+
+        function renderPatterns() {
+          $("#patlist").innerHTML = ["db", "bf", "be"]
+            .map(function (id) {
+              var p = P[id],
+                w = wilson(p.pool.k, p.pool.n);
+              return (
+                '<li><button type="button" data-pat="' +
+                id +
+                '" aria-pressed="' +
+                (id === sel) +
+                '"><b>' +
+                p.name +
+                ' <span class="mute" style="font-weight:500">' +
+                p.loc +
+                '</span></b><span class="num">' +
+                pct(p.pool.k / p.pool.n) +
+                "</span><small>" +
+                p.tf +
+                " · " +
+                p.pool.n +
+                " past cases · " +
+                (w[0] > 0.5 ? "edge candidate" : "no edge") +
+                "</small></button></li>"
+              );
+            })
+            .join("");
+          var p = P[sel],
+            sw = wilson(p.sym.k, p.sym.n),
+            pw = wilson(p.pool.k, p.pool.n),
+            pr = p.pool.k / p.pool.n,
+            rr = Math.abs(p.win / p.loss),
+            ex = pr * rr - (1 - pr);
+          $("#setup").innerHTML =
+            '<div class="setup-h"><div><span class="lbl">Setup on latest candle · ' +
+            p.tf +
+            "</span><h2>" +
+            p.name +
+            " " +
+            p.loc +
+            "</h2></div>" +
+            verdict(p.pool.k, p.pool.n) +
+            "</div>" +
+            '<div class="big"><div><span class="lbl">Win rate · 20 coins</span><span class="num ' +
+            (pw[0] > 0.5 ? "up" : "") +
+            '">' +
+            pct(pr) +
+            "</span><small>" +
+            p.pool.k +
+            " of " +
+            p.pool.n +
+            " · range " +
+            pct(pw[0]) +
+            "–" +
+            pct(pw[1]) +
+            "</small></div>" +
+            '<div><span class="lbl">Avg move</span><span class="num up">+' +
+            p.win +
+            "%</span><small>on winners · losers " +
+            p.loss +
+            "%</small></div>" +
+            '<div><span class="lbl">This coin only</span><span class="num">' +
+            p.sym.k +
+            " / " +
+            p.sym.n +
+            "</span><small>range " +
+            pct(sw[0]) +
+            "–" +
+            pct(sw[1]) +
+            (p.sym.n < 30 ? " · too few alone" : "") +
+            "</small></div>" +
+            '<div><span class="lbl">Expectancy (gross)</span><span class="num ' +
+            (ex >= 0 ? "up" : "down") +
+            '">' +
+            (ex >= 0 ? "+" : "") +
+            ex.toFixed(2) +
+            "R</span><small>median " +
+            p.bars +
+            " candles to result</small></div></div>" +
+            '<div class="card-h" style="margin:4px 0 8px"><h2 style="font-size:14px">Confluence</h2><button class="q" type="button" data-explain="confluence" aria-label="What is confluence?">?</button></div>' +
+            '<ul class="checklist">' +
+            p.checks
+              .map(function (c) {
+                return (
+                  '<li><span class="mk ' +
+                  c[0] +
+                  '">' +
+                  (c[0] === "ok" ? "✓" : c[0] === "x" ? "✕" : "!") +
+                  "</span><span>" +
+                  c[1] +
+                  "</span><span></span></li>"
+                );
+              })
+              .join("") +
+            "</ul>" +
+            '<div class="card-h" style="margin:14px 0 8px"><h2 style="font-size:14px">Last 5 occurrences</h2></div>' +
+            '<div class="outcomes" aria-label="Last five outcomes">' +
+            p.last
+              .map(function (o) {
+                return '<span class="' + o[2] + '">' + (o[2] === "w" ? "W" : "L") + "</span>";
+              })
+              .join("") +
+            "</div>" +
+            '<div class="xs" style="margin-top:8px"><table class="tbl"><tbody>' +
+            p.last
+              .map(function (o) {
+                return (
+                  '<tr><td class="num mute">' +
+                  o[0] +
+                  "</td><td>" +
+                  o[1] +
+                  '</td><td class="r num ' +
+                  (o[2] === "w" ? "up" : "down") +
+                  '">' +
+                  o[3] +
+                  '</td><td class="r num mute">' +
+                  o[4] +
+                  " bars</td></tr>"
+                );
+              })
+              .join("") +
+            "</tbody></table></div>" +
+            '<p class="note" style="margin-top:12px">Pattern history, before fees. Becomes a confirmation only after a costed out-of-sample backtest (P2) and forward test (P4).</p>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn primary" href="#risk">Size this trade</a><a class="btn" href="#watch">Alert me next time</a></div>';
+          $("#r-entry").value = p.entry;
+          $("#r-stop").value = p.stop;
+          $("#r-tgt").value = p.target;
+          $("#r-p").value = Math.round(pr * 100);
+        }
+        $("#patlist").addEventListener("click", function (e) {
+          var b = e.target.closest("[data-pat]");
+          if (!b) return;
+          sel = b.dataset.pat;
+          renderPatterns();
+          draw();
+        });
+
+        /* ---------- pattern library ---------- */
+        $("#library").innerHTML = library
+          .map(function (r) {
+            var p = r[3] / r[2],
+              w = wilson(r[3], r[2]),
+              rr = Math.abs(r[4] / r[5]),
+              ex = p * rr - (1 - p);
+            return (
+              "<tr><td><b>" +
+              r[0] +
+              '</b></td><td class="num mute">' +
+              r[1] +
+              '</td><td class="r num">' +
+              r[2] +
+              '</td><td class="r num">' +
+              pct(p) +
+              "</td><td>" +
+              ciBar(p, w[0], w[1]) +
+              '</td><td class="r num up">+' +
+              r[4] +
+              '%</td><td class="r num down">' +
+              r[5] +
+              '%</td><td class="r num ' +
+              (ex >= 0 ? "up" : "down") +
+              '">' +
+              (ex >= 0 ? "+" : "") +
+              ex.toFixed(2) +
+              "R</td><td>" +
+              verdict(r[3], r[2]) +
+              "</td></tr>"
+            );
+          })
+          .join("");
+
+        /* ---------- risk ---------- */
+        function num(id) {
+          return parseFloat($(id).value);
+        }
+        function calc() {
+          var eq = num("#r-eq"),
+            rp = num("#r-pct") / 100,
+            e = num("#r-entry"),
+            s = num("#r-stop"),
+            t = num("#r-tgt"),
+            fee = num("#r-fee") / 100,
+            p = num("#r-p") / 100,
+            long = $("#r-side").value === "long",
+            err = $("#rerr");
+          var bad = [eq, rp, e, s, t, fee, p].some(isNaN)
+            ? "Fill every field with a number."
+            : long && !(s < e && t > e)
+              ? "For a long, the stop must be below entry and the target above it."
+              : !long && !(s > e && t < e)
+                ? "For a short, the stop must be above entry and the target below it."
+                : null;
+          err.hidden = !bad;
+          if (bad) {
+            err.textContent = bad;
+            $("#rout").innerHTML = "";
+            return;
+          }
+          var risk = eq * rp,
+            lossU = Math.abs(e - s) + e * fee + s * fee,
+            qty = risk / lossU,
+            notional = qty * e,
+            winU = Math.abs(t - e) - e * fee - t * fee,
+            rr = winU / lossU,
+            be = 1 / (1 + rr),
+            ex = p * rr - (1 - p);
+          $("#rout").innerHTML = [
+            ["Position size", qty.toFixed(4) + " BTC", "≈ " + fmt(notional) + " USDT notional"],
+            [
+              "Money at risk",
+              risk.toFixed(2) + " USDT",
+              (rp * 100).toFixed(2) + "% of equity, fees in",
+            ],
+            ["Reward : risk", rr.toFixed(2) + " R", "after fees"],
+            ["Break-even win rate", pct(be, 1), "need more wins than this"],
+            [
+              "Expectancy",
+              (ex >= 0 ? "+" : "") + ex.toFixed(2) + " R",
+              "at " + pct(p) + " win rate",
+            ],
+            ["Leverage implied", (notional / eq).toFixed(2) + "×", "notional ÷ equity"],
+          ]
+            .map(function (c, i) {
+              return (
+                '<div><span class="lbl">' +
+                c[0] +
+                '</span><span class="num ' +
+                (i === 4 ? (ex >= 0 ? "up" : "down") : "") +
+                '">' +
+                c[1] +
+                "</span><small>" +
+                c[2] +
+                "</small></div>"
+              );
+            })
+            .join("");
+        }
+        $("#rform").addEventListener("input", calc);
+        $("#rform").addEventListener("submit", function (e) {
+          e.preventDefault();
+        });
+
+        /* ---------- alerts ---------- */
+        $("#w-set").innerHTML = library
+          .map(function (r, i) {
+            return '<option value="' + i + '">' + r[0].toLowerCase() + "</option>";
+          })
+          .join("");
+        function wprev() {
+          var r = library[+$("#w-set").value],
+            p = r[3] / r[2],
+            w = wilson(r[3], r[2]);
+          $("#wprev").innerHTML = [
+            ["Past cases", r[2]],
+            ["Win rate", pct(p)],
+            ["95% range", pct(w[0]) + "–" + pct(w[1])],
+            ["Avg win / loss", "+" + r[4] + "% / " + r[5] + "%"],
+            ["Verdict", r[2] < 30 ? "too few cases" : w[0] > 0.5 ? "edge candidate" : "no edge"],
+          ]
+            .map(function (x) {
+              return "<div><dt>" + x[0] + "</dt><dd>" + x[1] + "</dd></div>";
+            })
+            .join("");
+        }
+        $("#w-set").addEventListener("change", wprev);
+        wprev();
+        var wl = [
+          {
+            on: true,
+            t: "any watchlist coin prints a double bottom · in demand zone on 4h",
+            r: "61%",
+            last: "Today 12:00",
+          },
+          {
+            on: true,
+            t: "SOL-USDT prints a bull flag · above point of control on 4h",
+            r: "58%",
+            last: "Today 08:00",
+          },
+          {
+            on: false,
+            t: "BTC-USDT prints a hammer · anywhere on 1h",
+            r: "50%",
+            last: "Yesterday",
+          },
+        ];
+        function rw() {
+          $("#wlist").innerHTML = wl
+            .map(function (x, i) {
+              return (
+                '<tr><td><button class="switch" type="button" role="switch" aria-checked="' +
+                x.on +
+                '" aria-label="Alert on" data-i="' +
+                i +
+                '"></button></td><td>' +
+                x.t +
+                '</td><td class="r num">' +
+                x.r +
+                '</td><td class="mute">' +
+                x.last +
+                "</td></tr>"
+              );
+            })
+            .join("");
+        }
+        rw();
+        $("#wlist").addEventListener("click", function (e) {
+          var b = e.target.closest("[data-i]");
+          if (!b) return;
+          var x = wl[+b.dataset.i];
+          x.on = !x.on;
+          rw();
+          toast(x.on ? "Alert on" : "Alert paused");
+        });
+        $("#wform").addEventListener("submit", function (e) {
+          e.preventDefault();
+          var r = library[+$("#w-set").value];
+          wl.unshift({
+            on: true,
+            t: $("#w-sym").value + " prints a " + r[0].toLowerCase() + " on " + $("#w-tf").value,
+            r: pct(r[3] / r[2]),
+            last: "Just created",
+          });
+          rw();
+          toast("Alert created. Telegram will message you when it prints");
+        });
+
+        /* ---------- data ---------- */
+        $("#cov").innerHTML = [
+          ["BTC-USDT · Binance perp", "Nov 2024", 100, [], 0],
+          ["ETH-USDT · Binance perp", "Nov 2024", 100, [], 0],
+          ["SOL-USDT · Binance perp", "Nov 2024", 100, [], 2],
+          ["SOL-USD · Delta perp", "Mar 2025", 67, [22, 40, 61], 318],
+          ["DOGE-USDT · Binance perp", "Nov 2024", 100, [], 0],
+        ]
+          .map(function (r) {
+            var gp = r[3]
+              .map(function (x) {
+                return '<b style="left:' + x + '%"></b>';
+              })
+              .join("");
+            return (
+              "<tr><td><b>" +
+              r[0] +
+              '</b></td><td class="num mute">' +
+              r[1] +
+              '</td><td><div class="cov" role="img" aria-label="' +
+              r[2] +
+              '% of two years stored"><i style="width:' +
+              r[2] +
+              '%"></i>' +
+              gp +
+              '</div></td><td class="r num">' +
+              r[4] +
+              "</td><td>" +
+              (r[3].length
+                ? '<span class="chip c-warn">REFILLING</span>'
+                : '<span class="chip c-live">COMPLETE</span>') +
+              "</td></tr>"
+            );
+          })
+          .join("");
+        var jobs = [
+          { n: "SOL-USD · Delta gaps", p: 34 },
+          { n: "XRP-USDT · Binance perp", p: 71 },
+        ];
+        function rj() {
+          $("#jobs").innerHTML = jobs
+            .map(function (j) {
+              return (
+                '<div class="job"><b>' +
+                j.n +
+                '</b><span class="num mute">' +
+                (j.p >= 100 ? "done" : j.p + "%") +
+                '</span><div class="bar" role="progressbar" aria-label="' +
+                j.n +
+                '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' +
+                j.p +
+                '"><i style="width:' +
+                j.p +
+                '%"></i></div></div>'
+              );
+            })
+            .join("");
+        }
+        rj();
+        setInterval(function () {
+          var c = false;
+          jobs.forEach(function (j) {
+            if (j.p < 100) {
+              j.p = Math.min(100, j.p + 1 + Math.round(Math.random() * 3));
+              c = true;
+            }
+          });
+          if (c) rj();
+        }, 1500);
+        $("#addjob").addEventListener("click", function () {
+          jobs.push({ n: "AVAX-USDT · Binance perp", p: 0 });
+          rj();
+          toast("Queued: 2 years of AVAX-USDT");
+        });
+
+        /* ---------- toast / overlays ---------- */
+        var tt;
+        function toast(m) {
+          var t = $("#toast");
+          t.textContent = m;
+          t.hidden = false;
+          clearTimeout(tt);
+          tt = setTimeout(function () {
+            t.hidden = true;
+          }, 2600);
+        }
+        var last = null;
+        function open(el, f) {
+          last = document.activeElement;
+          el.hidden = false;
+          var x = el.querySelector(f);
+          if (x) x.focus();
+        }
+        function close(el) {
+          el.hidden = true;
+          if (last) last.focus();
+        }
+        var items = [
+            ["BTC-USDT chart", "chart"],
+            ["SOL-USDT chart", "chart"],
+            ["ETH-USDT chart", "chart"],
+            ["Double bottom · in demand zone", "evidence"],
+            ["Bull flag · above point of control", "evidence"],
+            ["Bullish engulfing · at value-area low", "evidence"],
+            ["Position size calculator", "risk"],
+            ["Pattern alerts", "watch"],
+            ["Data coverage", "data"],
+          ],
+          si = 0,
+          find = $("#find");
+        function rf() {
+          var q = $("#find-in").value.trim().toLowerCase(),
+            l = items.filter(function (i) {
+              return i[0].toLowerCase().indexOf(q) > -1;
+            });
+          si = Math.min(si, Math.max(0, l.length - 1));
+          $("#find-list").innerHTML = l.length
+            ? l
+                .map(function (i, k) {
+                  return (
+                    '<li><button type="button" data-go="' +
+                    i[1] +
+                    '" class="' +
+                    (k === si ? "sel" : "") +
+                    '"><span>' +
+                    i[0] +
+                    '</span><span class="lbl">' +
+                    i[1] +
+                    "</span></button></li>"
+                  );
+                })
+                .join("")
+            : '<li style="padding:8px 10px;color:var(--muted)">Nothing matches. Try BTC or "double bottom".</li>';
+        }
+        $("#open-find").addEventListener("click", function () {
+          $("#find-in").value = "";
+          si = 0;
+          rf();
+          open(find, "#find-in");
+        });
+        $("#find-in").addEventListener("input", function () {
+          si = 0;
+          rf();
+        });
+        $("#find-in").addEventListener("keydown", function (e) {
+          var b = $("#find-list").querySelectorAll("[data-go]");
+          if (e.key === "ArrowDown") {
+            si = Math.min(b.length - 1, si + 1);
+            rf();
+            e.preventDefault();
+          }
+          if (e.key === "ArrowUp") {
+            si = Math.max(0, si - 1);
+            rf();
+            e.preventDefault();
+          }
+          if (e.key === "Enter" && b[si]) {
+            close(find);
+            location.hash = b[si].dataset.go;
+          }
+        });
+        $("#find-list").addEventListener("click", function (e) {
+          var b = e.target.closest("[data-go]");
+          if (b) {
+            close(find);
+            location.hash = b.dataset.go;
+          }
+        });
+        find.addEventListener("click", function (e) {
+          if (e.target === find) close(find);
+        });
+
+        var EX = {
+          method: [
+            "Method",
+            [
+              [
+                "Rules first",
+                "Each pattern is defined in code (for example: two lows within 0.3%, a neckline break on above-average volume) before any result is measured, so the pattern is never tuned to the history.",
+              ],
+              [
+                "Win = target before stop",
+                "Target is the measured move or the next opposing zone; the stop sits beyond the pattern low. A case wins only if the target is hit first.",
+              ],
+              [
+                "Ranges, not points",
+                'Every win rate shows a 95% range. If it reaches down to 50% or below, the verdict is "no edge". Under 30 cases: "too few".',
+              ],
+              [
+                "Pooling",
+                "One coin rarely has enough cases. The same setup is also measured across 20 coins; the pooled number is what can support confidence.",
+              ],
+            ],
+          ],
+          winrate: [
+            "Win rate and sample size",
+            [
+              [
+                "Example",
+                '"4 of 5" on one coin is 80%, but the true rate could be anywhere from 38% to 96%. Across 20 coins the same setup is 129 of 212 = 61%, with a range of 54–67%.',
+              ],
+              [
+                "Why both",
+                "The coin-only number shows local behaviour; the pooled number shows whether the edge is real.",
+              ],
+              ["Avg move", "Average gain on winners and average loss on losers, before fees."],
+              [
+                "Expectancy",
+                "win% × (avg win ÷ avg loss) − loss%. Above zero means the setup paid over many trades, before costs.",
+              ],
+            ],
+          ],
+          pipeline: [
+            "From pattern to confirmation",
+            [
+              [
+                "Live now",
+                "Data, indicators, volume levels, pattern and zone detection, and pattern history.",
+              ],
+              [
+                "Next",
+                "A costed, out-of-sample backtest (Phase 2), then live paper trading (Phase 4).",
+              ],
+              [
+                "Confirmation",
+                "Only after news and risk checks pass (Phases 5–6), with a calibrated confidence.",
+              ],
+            ],
+          ],
+          vprofile: [
+            "Volume levels",
+            [
+              [
+                "Volume profile",
+                "How much traded at each price over the visible range, drawn on the right of the chart.",
+              ],
+              ["POC", "Point of control: the single most traded price. Price often returns to it."],
+              ["VAH / VAL", "Value area high and low: the band holding 70% of the volume."],
+              [
+                "HVN / LVN",
+                "High-volume nodes slow price down; low-volume nodes are gaps price crosses quickly.",
+              ],
+            ],
+          ],
+          zone: [
+            "Demand and supply zones",
+            [
+              [
+                "Demand zone",
+                "A price area where buyers stepped in strongly before: price left it fast, on high volume.",
+              ],
+              ["Supply zone", "The same for sellers."],
+              [
+                "Tests and held",
+                "How many times price returned, and how many times the zone held. Fresh zones (0–2 tests) are stronger.",
+              ],
+            ],
+          ],
+          confluence: [
+            "Confluence",
+            [
+              [
+                "Meaning",
+                "Independent reasons agreeing: pattern, location (zone or volume level), volume behaviour and trend.",
+              ],
+              [
+                "How it is used",
+                "Each combination is measured separately in the pattern library. A double bottom inside a demand zone (61%) performs differently from one in open space (49%).",
+              ],
+            ],
+          ],
+          risk: [
+            "Position sizing",
+            [
+              [
+                "Size from the stop",
+                "Size = money you accept losing ÷ loss per unit if the stop is hit, fees included.",
+              ],
+              ["R", "1R is the amount you risk."],
+              ["Break-even win rate", "1 ÷ (1 + reward:risk)."],
+              ["Expectancy", "win% × R − loss%."],
+            ],
+          ],
+          coverage: [
+            "Research data",
+            [
+              ["Coverage", "Share of 2 years stored as 1-minute candles."],
+              [
+                "Gaps",
+                "Missing minutes are re-requested automatically. Pattern stats skip any case touching an unrepaired gap.",
+              ],
+            ],
+          ],
+        };
+        var dr = $("#drawer");
+        document.addEventListener("click", function (e) {
+          var b = e.target.closest("[data-explain]");
+          if (!b) return;
+          var d = EX[b.dataset.explain];
+          $("#dr-t").textContent = d[0];
+          $("#dr-b").innerHTML = d[1]
+            .map(function (r) {
+              return "<div><dt>" + r[0] + "</dt><dd>" + r[1] + "</dd></div>";
+            })
+            .join("");
+          open(dr, "#dr-x");
+        });
+        $("#dr-x").addEventListener("click", function () {
+          close(dr);
+        });
+        document.addEventListener("keydown", function (e) {
+          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+            e.preventDefault();
+            $("#open-find").click();
+          }
+          if (e.key === "Escape") {
+            [find, dr].forEach(function (o) {
+              if (!o.hidden) close(o);
+            });
+          }
+        });
+
+        route();
+        paint();
+      })();
+    </script>
+  </body>
+</html>

@@ -13,6 +13,8 @@
  * - REST API for replay and alert testing
  */
 
+import { mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
 import express, { type Request, type Response } from "express";
 import { telegramService } from "./telegramService";
 import { closeDatabase, getDatabase, type StorageConfig } from "./storage/database";
@@ -33,19 +35,8 @@ const dbConfig: StorageConfig = {
   maxRowsPerTable: Number(process.env.DB_MAX_ROWS ?? 1000000),
 };
 
-// Ensure data directory exists
-import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dataDir = `${__dirname}/data`;
-
-try {
-  await mkdir(dataDir, { recursive: true });
-} catch {
-  // Directory may already exist
-}
+// Create the database's own folder (node:sqlite cannot create missing directories).
+await mkdir(dirname(dbConfig.dbPath), { recursive: true });
 const db = getDatabase(dbConfig);
 
 // Health check
@@ -108,10 +99,13 @@ app.post("/alerts/send", async (req: Request, res: Response) => {
     rule?: unknown;
   };
 
-  if (
-    !trigger ||
-    !(trigger && "ruleId" in trigger && "ruleName" in trigger && "reason" in trigger)
-  ) {
+  const isTrigger =
+    typeof trigger === "object" &&
+    trigger !== null &&
+    "ruleId" in trigger &&
+    "ruleName" in trigger &&
+    "reason" in trigger;
+  if (!isTrigger) {
     return res.status(400).json({ error: "Invalid alert trigger" });
   }
 
@@ -127,7 +121,7 @@ app.post("/alerts/send", async (req: Request, res: Response) => {
 // -----------------------------------------------------------------------
 
 // Store candles
-app.post("/storage/candles", (req: ExpressRequest, res: ExpressResponse) => {
+app.post("/storage/candles", (req: Request, res: Response) => {
   try {
     const { candles, exchange, symbol, type, interval } = req.body as {
       candles?: unknown;
@@ -158,7 +152,7 @@ app.post("/storage/candles", (req: ExpressRequest, res: ExpressResponse) => {
 });
 
 // Get candles
-app.get("/storage/candles", (req: ExpressRequest, res: ExpressResponse) => {
+app.get("/storage/candles", (req: Request, res: Response) => {
   try {
     const { exchange, symbol, type, interval, startTime, endTime, limit } = req.query as {
       exchange?: string;
@@ -191,7 +185,7 @@ app.get("/storage/candles", (req: ExpressRequest, res: ExpressResponse) => {
 });
 
 // Store trades
-app.post("/storage/trades", (req: ExpressRequest, res: ExpressResponse) => {
+app.post("/storage/trades", (req: Request, res: Response) => {
   try {
     const { trades } = req.body as {
       trades?: unknown;
@@ -212,7 +206,7 @@ app.post("/storage/trades", (req: ExpressRequest, res: ExpressResponse) => {
 });
 
 // Get trades
-app.get("/storage/trades", (req: ExpressRequest, res: ExpressResponse) => {
+app.get("/storage/trades", (req: Request, res: Response) => {
   try {
     const { exchange, symbol, type, startTime, endTime, limit } = req.query as {
       exchange?: string;
@@ -243,7 +237,7 @@ app.get("/storage/trades", (req: ExpressRequest, res: ExpressResponse) => {
 });
 
 // Store order book snapshot
-app.post("/storage/orderbook", (req: ExpressRequest, res: ExpressResponse) => {
+app.post("/storage/orderbook", (req: Request, res: Response) => {
   try {
     const { snapshot } = req.body as {
       snapshot?: unknown;
@@ -261,7 +255,7 @@ app.post("/storage/orderbook", (req: ExpressRequest, res: ExpressResponse) => {
 });
 
 // Get order book snapshot
-app.get("/storage/orderbook", (req: ExpressRequest, res: ExpressResponse) => {
+app.get("/storage/orderbook", (req: Request, res: Response) => {
   try {
     const { exchange, symbol, type, atTime } = req.query as {
       exchange?: string;
@@ -302,7 +296,7 @@ app.get("/storage/stats", async (_req: Request, res: Response) => {
 // -----------------------------------------------------------------------
 
 // Start replay
-app.post("/replay/start", async (req: ExpressRequest, res: ExpressResponse) => {
+app.post("/replay/start", async (req: Request, res: Response) => {
   try {
     const { speed, symbols, startDate, endDate, rules, onTrigger } = req.body as {
       speed?: unknown;
@@ -313,11 +307,13 @@ app.post("/replay/start", async (req: ExpressRequest, res: ExpressResponse) => {
       onTrigger?: unknown;
     };
 
-    if (!speed || !symbols?.length) {
+    const _symbols = (Array.isArray(symbols) ? symbols : symbols ? [symbols] : []).map((x) =>
+      String(x),
+    );
+    if (!speed || _symbols.length === 0) {
       return res.status(400).json({ error: "speed and symbols required" });
     }
     const _speed = Number(speed);
-    const _symbols = (Array.isArray(symbols) ? symbols : [symbols]).map((x) => String(x));
     const _startDate = startDate ? Number(startDate) : undefined;
     const _endDate = endDate ? Number(endDate) : undefined;
 
@@ -346,13 +342,13 @@ app.post("/replay/start", async (req: ExpressRequest, res: ExpressResponse) => {
 });
 
 // Stop replay
-app.post("/replay/stop", (_req: ExpressRequest, res: ExpressResponse) => {
+app.post("/replay/stop", (_req: Request, res: Response) => {
   // ReplayEngine is ephemeral - this is more for future webhook support
   res.json({ stopped: true });
 });
 
 // Test rule against history
-app.post("/test/rule", (req: ExpressRequest, res: ExpressResponse) => {
+app.post("/test/rule", (req: Request, res: Response) => {
   try {
     const { rule, candles, trades } = req.body as {
       rule?: unknown;
@@ -360,7 +356,7 @@ app.post("/test/rule", (req: ExpressRequest, res: ExpressResponse) => {
       trades?: unknown;
     };
 
-    if (!rule || !candles?.length) {
+    if (!rule || !Array.isArray(candles) || candles.length === 0) {
       return res.status(400).json({ error: "rule and candles required" });
     }
 
@@ -377,7 +373,7 @@ app.post("/test/rule", (req: ExpressRequest, res: ExpressResponse) => {
 });
 
 // Compare rule versions
-app.post("/test/compare", (req: ExpressRequest, res: ExpressResponse) => {
+app.post("/test/compare", (req: Request, res: Response) => {
   try {
     const { oldRules, newRules, candles, trades } = req.body as {
       oldRules?: unknown;
@@ -386,7 +382,7 @@ app.post("/test/compare", (req: ExpressRequest, res: ExpressResponse) => {
       trades?: unknown;
     };
 
-    if (!oldRules || !newRules || !candles?.length) {
+    if (!oldRules || !newRules || !Array.isArray(candles) || candles.length === 0) {
       return res.status(400).json({ error: "oldRules, newRules, and candles required" });
     }
 
@@ -407,7 +403,7 @@ app.post("/test/compare", (req: ExpressRequest, res: ExpressResponse) => {
 // Database Maintenance
 // -----------------------------------------------------------------------
 
-app.post("/storage/vacuum", (_req: ExpressRequest, res: ExpressResponse) => {
+app.post("/storage/vacuum", (_req: Request, res: Response) => {
   try {
     db.vacuum();
     res.json({ success: true, message: "Database vacuumed" });
@@ -416,7 +412,7 @@ app.post("/storage/vacuum", (_req: ExpressRequest, res: ExpressResponse) => {
   }
 });
 
-app.post("/storage/cleanup", (_req: ExpressRequest, res: ExpressResponse) => {
+app.post("/storage/cleanup", (_req: Request, res: Response) => {
   try {
     // Force cleanup
     db.cleanupOldData();

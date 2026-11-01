@@ -3,6 +3,7 @@
 **Status:** ⬜ Not started.
 
 ## Responsibilities
+
 - Ingest crypto news, exchange announcements (listings, delistings, maintenance), the macro
   calendar (CPI, FOMC, NFP) and token unlocks.
 - Classify each item by symbols, category and sentiment, and estimate impact.
@@ -26,10 +27,12 @@ flowchart TB
 ```
 
 ## Acceptance criteria
+
 - [ ] The event-study table exists for each category before that category may block a signal.
 - [ ] Every block reason is visible on the vetoed signal.
 - [ ] Forward test (M5) shows whether news filtering improved expectancy, measured rather than assumed.
 
 ## Open questions
+
 - Which sources (free tiers vary)? CryptoPanic, exchange RSS/announcement pages, a public
   economic calendar. Decide in Phase 5.
