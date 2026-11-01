@@ -23,8 +23,7 @@ mindmap
         Symbol search 🚧 filter bug
       Persistence ⬜
         Backend collector ⬜
-        QuestDB market data ⬜
-        Postgres app data ⬜
+        QuestDB store ⬜
         Historical backfill ⬜
     Research ⬜
       Indicators / TA ⬜

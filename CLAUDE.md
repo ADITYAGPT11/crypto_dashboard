@@ -14,6 +14,7 @@
 | --- | --- | --- |
 | `docs/context/STATUS.md` | always, first | anything ships, breaks, or is found broken |
 | `docs/context/PROJECT_MAP.md` | touching code | files/modules/events are added, moved or removed |
+| `docs/context/ARCHITECTURE.md` | adding a service, folder or package | the target structure or chosen stack changes |
 | `docs/context/ROADMAP.md` | planning new work | a phase starts, finishes or changes scope |
 | `docs/context/DECISIONS.md` | "why is it like this?" | a non-obvious choice is made (append, never rewrite) |
 | `docs/context/MINDMAP.md` | onboarding / big picture | modules or roadmap phases change |

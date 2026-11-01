@@ -19,51 +19,24 @@ tools beat a big pile. Before installing anything, check its README, licence and
 Project skills worth writing (in `.claude/skills/`) as we go:
 `new-exchange-adapter`, `backtest-report`, `strategy-gate-check`, `update-context`.
 
-## 2 · Data & exchange connectivity
+## 2 · Chosen stack
 
-| Library | Why |
-| --- | --- |
-| **CCXT** (Python/JS) | Unified REST + WebSocket for 100+ exchanges; historical candles/funding for backfill |
-| **QuestDB** ✅ chosen | Market-data store: fast ingest, `SAMPLE BY` / `LATEST ON` / `ASOF JOIN` |
-| **PostgreSQL** ✅ chosen | App data: signals, paper trades, risk state, config |
-| **DuckDB** + Parquet | Local research over exports; fast scans, zero ops |
-| **Polars** (or pandas) | Fast dataframes for features |
-| ClickHouse | Only if we store full tick history (billions of rows) |
+The chosen packages and tools, per folder and phase, live in **`ARCHITECTURE.md` §4–5**.
+This file keeps AI tooling and the alternatives we considered.
 
-## 3 · Research, backtesting, statistics
+## 3 · Alternatives considered (not adopted now)
 
-| Library | Role |
-| --- | --- |
-| **vectorbt** (open-source edition) | Fast vectorised screening of many parameter sets; *screen only*, it's weaker for complex order logic |
-| **NautilusTrader** | Event-driven, production-grade engine where the same strategy code runs in backtest and live: candidate for M3/M4 parity |
-| backtesting.py | Simple event-driven backtests; good for learning and quick validation |
-| Freqtrade | Full crypto bot (backtest/paper/live); useful as a **reference** design, heavier to bend to our confirmation model |
-| **pandas-ta** / **TA-Lib** | Technical indicators |
-| **statsmodels**, **scipy** | Hypothesis tests, regressions, stationarity/cointegration (basis, pairs) |
-| **arch** | GARCH volatility models (regime/vol filters) |
-| **QuantStats** | Tear-sheet reports (Sharpe, Sortino, drawdowns, monthly returns) for strategy reports |
-| **Optuna** | Parameter search; pair it with walk-forward to avoid overfitting |
-| scikit-learn / LightGBM | Later: ML filters on top of rule-based signals |
-| Riskfolio-Lib / skfolio | Later: portfolio-level risk and allocation |
+| Option | Instead of | Revisit when |
+| --- | --- | --- |
+| TimescaleDB / PostgreSQL | QuestDB-only | append-only app data gets awkward (P3) |
+| ClickHouse | QuestDB for ticks | storing full trade history at billions of rows |
+| NautilusTrader | own event-driven backtester | decide at the start of P2 (Rust core, live/backtest parity) |
+| backtesting.py | own event-driven backtester | quick learning/validation experiments |
+| Freqtrade | building our own pipeline | reference design only; doesn't fit the confirmation model |
+| Riskfolio-Lib / skfolio | simple risk limits | portfolio-level allocation (after P6) |
+| scikit-learn / LightGBM | rule-based signals | ML *filters* on proven signals (after P4) |
+| NATS / Redis Streams | in-process event bus | backend splits into several processes |
+| CryptoPanic API, FinBERT | — | news sources/classifier choice at P5 |
 
 Reading: *Advances in Financial Machine Learning* (López de Prado) for labelling, purged CV and the
 deflated Sharpe ratio. These are the core anti-overfitting ideas behind the M3 gate.
-
-## 4 · News & sentiment (P5)
-
-| Tool | Role |
-| --- | --- |
-| CryptoPanic API, exchange announcement feeds, RSS | Sources |
-| FinBERT (Hugging Face) or Claude API | Classification and sentiment |
-| A public economic calendar | Macro event windows (FOMC, CPI, NFP) |
-
-## 5 · Frontend & ops
-
-| Tool | Role |
-| --- | --- |
-| TradingView **lightweight-charts** | Price/candle charts (free, Apache-2.0) |
-| Vitest (via Vite+) | Frontend tests |
-| pytest + hypothesis | Backend tests, property tests for the cost model and risk rules |
-| GitHub Actions | CI: build, lint, tests on every PR |
-| Docker Compose | Run collector + API + DB together |
-| Telegram Bot API | Confirmation alerts |

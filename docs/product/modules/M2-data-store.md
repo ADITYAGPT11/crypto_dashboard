@@ -25,24 +25,22 @@ flowchart TB
 ```
 
 ## Storage choice
-Decided 2026-11-01 (see `docs/context/DECISIONS.md`):
-- **QuestDB** for market data: `candles`, `funding`, `open_interest`, `news_events`.
-  Ingest via the official Python client (InfluxDB Line Protocol); query over the Postgres wire
-  protocol (`psycopg`). Use `SAMPLE BY` for higher timeframes, `LATEST ON` for last values and
+Decided 2026-11-01 (see `docs/context/DECISIONS.md`, `ARCHITECTURE.md`): **QuestDB only**.
+- Ingest via the official Python client (InfluxDB Line Protocol); query over the Postgres wire
+  protocol (`psycopg`). Use `SAMPLE BY` for higher timeframes, `LATEST ON` for current state and
   `ASOF JOIN` for spot↔perp / cross-exchange alignment.
-- **PostgreSQL** for app data: `signals`, `paper_trades`, risk state, config.
-- **DuckDB + Polars** locally for heavy research over Parquet exports.
-- Both databases run in Docker Compose.
+- App data (signals, paper trades) is **append-only events**; PostgreSQL deferred until proven needed.
+- DuckDB + Polars optional, locally, for heavy research over Parquet exports.
 
-## Core tables (QuestDB: first four · PostgreSQL: last two)
+## Core tables (all QuestDB)
 | Table | Key | Columns |
 | --- | --- | --- |
 | `candles` | exchange, symbol, market, interval, ts_open | o, h, l, c, v, trades |
 | `funding` | exchange, symbol, ts | rate_pct, interval_s |
 | `open_interest` | exchange, symbol, ts | oi, oi_usd |
 | `news_events` | id | ts, source, title, symbol (one row per symbol tagged), category, impact_score |
-| `signals` | id | ts, strategy, symbol, side, entry, stop, target, score, status |
-| `paper_trades` | id | signal_id, open_ts, close_ts, entry, exit, pnl_r, fees, reason |
+| `signal_events` | signal_id, ts | event (created/vetoed/confirmed/expired), strategy_version, symbol, side, entry, stop, target, score, reason |
+| `trade_events` | trade_id, ts | event (opened/marked/closed), signal_id, price, qty, pnl_r, fees, reason |
 
 ## Acceptance criteria
 - [ ] 2+ years of 1m candles for the top 20 USDT pairs (Binance and OKX), with funding history.

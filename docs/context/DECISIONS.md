@@ -45,3 +45,14 @@ Rejected: TimescaleDB alone (simpler, one DB, but clunkier market-data queries);
 with app data as append-only events (viable, more design discipline).
 Consequence: DuckDB + Polars stay as a *local research* tool over Parquet exports. Revisit with
 ClickHouse only if we store full tick/trade history at billions of rows.
+
+### 2026-11-01 · QuestDB only; PostgreSQL deferred (supersedes the entry above)
+Why: fewer moving parts. Phases 1–2 are pure market data. Signals and paper trades are stored as
+append-only events in QuestDB (current state via `LATEST ON`), which also gives an audit trail.
+Revisit: add PostgreSQL only if append-only app data proves painful in Phase 3.
+
+### 2026-11-01 · One backend process with an in-process event bus; monorepo layout
+Why: seconds-level latency budget; one process is simplest to run and debug. Modules communicate
+only through Pydantic event models, so the bus can become NATS/Redis (or a module can move to
+Rust) without rewriting module logic. Layout: `apps/web`, `backend/src/tcs`, `research/`,
+`infra/`. See `ARCHITECTURE.md`.

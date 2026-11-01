@@ -1,5 +1,7 @@
 # Project map
 
+What exists in code **today**. The target system is in `ARCHITECTURE.md`.
+
 Stack: React 19 · TypeScript (strict) · Vite+ (`vite-plus`: Vite + oxlint + oxfmt) · SCSS ·
 react-router 7 · eventemitter3. Browser-only, no backend.
 
