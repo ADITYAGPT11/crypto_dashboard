@@ -56,3 +56,7 @@ Why: seconds-level latency budget; one process is simplest to run and debug. Mod
 only through Pydantic event models, so the bus can become NATS/Redis (or a module can move to
 Rust) without rewriting module logic. Layout: `apps/web`, `backend/src/tcs`, `research/`,
 `infra/`. See `ARCHITECTURE.md`.
+
+### 2026-11-01 · TanStack Query deferred to Phase 3
+Why: it pays off for request/response data on several screens (reports, history, charts). Phase 1's
+UI only reads `/health`, where plain `fetch` is enough. Live ticks never use it.

@@ -35,7 +35,7 @@ npm run lint      # oxlint via vite-plus (type-aware) — must pass before commi
 npx vp fmt src    # format (oxfmt via vite-plus)
 ```
 
-There is no test runner yet (see STATUS → gaps).
+There is no test runner yet (ROADMAP Phase 0 adds Vitest + CI).
 
 ## Conventions (follow the existing code)
 

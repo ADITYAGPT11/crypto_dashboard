@@ -50,6 +50,7 @@ flowchart LR
 - [ ] Strategy runtime shared with the backtester (parity test)
 - [ ] Signals table + API; Strategies and Confirmations screens (paper only)
 - [ ] Re-introduce a spread/basis view, fed by real calculations
+- [ ] Add TanStack Query for API data on the new screens (plain `fetch` until then)
 
 **Exit:** live signals match replayed backtest entries 1:1.
 

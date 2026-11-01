@@ -175,7 +175,7 @@ in the lockfile.
 | --- | --- | --- |
 | **vitest** (via Vite+) + Testing Library | Tests | P0 |
 | openapi-typescript | Types generated from the backend schema | P1 |
-| @tanstack/react-query | Server state, caching, refetch | P1 |
+| @tanstack/react-query | Request/response data (reports, history, candles): caching, refetch, retries. *Not* for live ticks; those stay on WebSocket + `LiveMarketDataService` | P3 |
 | **lightweight-charts** (TradingView) | Candles, funding, OI charts | P3 |
 
 ## 5 · Tools

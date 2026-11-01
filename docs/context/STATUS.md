@@ -7,6 +7,11 @@ _Last verified: 2026-11-01 · branch `claude/amazing-gauss-eyr3t5`_
 **Phase 0 — Live market data layer** (see `ROADMAP.md`). No signals, history, backtests or
 trading logic exist yet.
 
+## Next up (todo pointer, details in `ROADMAP.md` → Phase 0)
+
+1. Fix symbol filter (issue 2) → 2. Unsubscribe on removal (3) → 3. Stale/down detection (5)
+→ 4. Delta USD labelling + funding units (1, 6) → 5. Vitest + GitHub Actions CI.
+
 ## Health
 
 | Check | State |
