@@ -34,6 +34,14 @@ latency budget is seconds. Escape hatch: modules talk via language-neutral messa
 latency-critical hot path (market data, execution) can be rewritten in Rust later if forward
 tests prove latency costs money.
 
-### PROPOSED · DuckDB + Parquet as the first data store
-Why: embedded, zero-ops, fast analytical scans. Revisit if we need concurrent remote writers.
-Status: **awaiting owner approval**.
+### 2026-11-01 · QuestDB for market data + PostgreSQL for app data (approved)
+Why: the backend has several processes reading and writing at once (collector, signals, API), so an
+embedded single-writer store (DuckDB) doesn't fit as the system of record. QuestDB is columnar,
+built for market data, ingests very fast, and has trading-friendly SQL (`SAMPLE BY`, `LATEST ON`,
+`ASOF JOIN` for spot/perp and cross-exchange alignment). Its weak spot is mutable relational data,
+so signals, paper trades, risk state and config live in PostgreSQL. Both are free to self-host
+(QuestDB OSS is Apache 2.0).
+Rejected: TimescaleDB alone (simpler, one DB, but clunkier market-data queries); QuestDB alone
+with app data as append-only events (viable, more design discipline).
+Consequence: DuckDB + Polars stay as a *local research* tool over Parquet exports. Revisit with
+ClickHouse only if we store full tick/trade history at billions of rows.

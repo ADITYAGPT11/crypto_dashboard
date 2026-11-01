@@ -24,9 +24,11 @@ Project skills worth writing (in `.claude/skills/`) as we go:
 | Library | Why |
 | --- | --- |
 | **CCXT** (Python/JS) | Unified REST + WebSocket for 100+ exchanges; historical candles/funding for backfill |
-| **DuckDB** + Parquet | Embedded analytical store; fast scans, zero ops |
+| **QuestDB** ✅ chosen | Market-data store: fast ingest, `SAMPLE BY` / `LATEST ON` / `ASOF JOIN` |
+| **PostgreSQL** ✅ chosen | App data: signals, paper trades, risk state, config |
+| **DuckDB** + Parquet | Local research over exports; fast scans, zero ops |
 | **Polars** (or pandas) | Fast dataframes for features |
-| TimescaleDB / QuestDB | Only if we outgrow DuckDB |
+| ClickHouse | Only if we store full tick history (billions of rows) |
 
 ## 3 · Research, backtesting, statistics
 

@@ -15,21 +15,26 @@ flowchart TB
   LIVE["M1 live events"] --> W["writer<br/>batch every 1–5 s"]
   REST["exchange REST"] --> BFJ["backfill job<br/>per symbol × range"]
   BFJ --> W
-  W --> RAW[("raw tables<br/>candles_1m · funding · oi")]
+  W --> RAW[("QuestDB<br/>candles_1m · funding · oi")]
   RAW --> QC{"quality check<br/>gaps · dupes · outliers"}
   QC -- issue --> BFJ
-  QC -- ok --> AGG["derive 5m/15m/1h/4h/1d"]
+  QC -- ok --> AGG["derive 5m/15m/1h/4h/1d<br/>QuestDB SAMPLE BY"]
   AGG --> RAW
   RAW --> M3["M3 research"]
   RAW --> M4["M4 lookback"]
 ```
 
 ## Storage choice (proposed)
-Start with **DuckDB + Parquet**: embedded, zero ops, very fast for analytical scans, and readable
-from Python and Node. Move to **TimescaleDB** or **QuestDB** only if concurrent writers or remote
-access require it. Recorded in `docs/context/DECISIONS.md` once agreed.
+Decided (see `docs/context/DECISIONS.md`):
+- **QuestDB** for market data: `candles`, `funding`, `open_interest`, `news_events`.
+  Ingest via the official Python client (InfluxDB Line Protocol); query over the Postgres wire
+  protocol (`psycopg`). Use `SAMPLE BY` for higher timeframes, `LATEST ON` for last values and
+  `ASOF JOIN` for spot↔perp / cross-exchange alignment.
+- **PostgreSQL** for app data: `signals`, `paper_trades`, risk state, config.
+- **DuckDB + Polars** locally for heavy research over Parquet exports.
+- Both databases run in Docker Compose.
 
-## Core tables
+## Core tables (QuestDB: first four · PostgreSQL: last two)
 | Table | Key | Columns |
 | --- | --- | --- |
 | `candles` | exchange, symbol, market, interval, ts_open | o, h, l, c, v, trades |

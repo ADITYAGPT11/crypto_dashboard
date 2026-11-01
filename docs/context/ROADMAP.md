@@ -26,10 +26,11 @@ flowchart LR
 **Exit:** `STATUS.md` known issues 1–5 closed; CI is green.
 
 ## Phase 1 · Backend + history (M1, M2)
-- [ ] Decide backend stack (see DECISIONS, *proposed*: Python 3.12 + FastAPI)
+- [x] Decide backend stack: Python 3.12 + FastAPI; QuestDB + PostgreSQL (see DECISIONS)
 - [ ] Monorepo layout: `apps/web` (this React app), `apps/api`, `packages/research`
 - [ ] Collector service: Binance + OKX (+ Delta) via CCXT; health + gap detection
-- [ ] DuckDB/Parquet store; candles 1m + funding + OI
+- [ ] Docker Compose: QuestDB (market data) + PostgreSQL (app data)
+- [ ] QuestDB tables: candles 1m + funding + OI; Postgres: signals, paper trades
 - [ ] Backfill job: 2 years of the top 20 USDT pairs
 - [ ] Data quality report (gaps, dupes, outliers)
 - [ ] API: `/candles`, `/funding`, `/health`; UI reads health from the API
