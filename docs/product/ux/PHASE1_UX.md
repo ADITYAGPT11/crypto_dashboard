@@ -1,95 +1,86 @@
-# Phase 1 UX: the evidence foundation
+# Phase 1 UX: setup scanner and chart workspace
 
 **Prototype:** [`phase1-prototype.html`](phase1-prototype.html). Open it in a browser; it is
-self-contained and uses sample data. All six screens, symbol/study search (Ctrl/⌘ K), the
-explainer drawer, the risk calculator and the condition preview work.
+self-contained and uses sample data. Every screen, the chart layer toggles, the pattern
+switcher, search (Ctrl/⌘ K), the explainer drawer, the risk calculator and alert previews work.
 
-## Design thesis
+## What the owner wants first
 
-The product exists to issue **high-confidence trade confirmations** backed by research,
-backtesting, forward testing, measured edge, probability, TA, news and risk. Phase 1 can't issue
-confirmations yet. It builds the data and statistics they will stand on. So the UI:
+1. **Dashboard**: what is setting up right now, and how did that setup do before.
+2. **TradingView-style chart** with indicators, **automatic chart-pattern detection**,
+   **demand/supply zones** and **key volume levels**.
+3. **Pattern history** for every detected setup: "this occurred N times, moved X%, won Y% of the
+   time".
+4. The core idea: *a bullish pattern forming inside a demand zone has a high chance of winning,
+   with confidence from backtested data.* The UI measures exactly that, honestly.
 
-1. **Is organised around the confirmation from day one.** The home screen is the
-   *Confirmation desk*: the full pipeline (Data → TA → Stats → Backtest → Forward → News → Risk →
-   Confirmation), with what each stage does, its status, and the phase that unlocks it. "0
-   confirmations" is shown honestly, with the path to the first one.
-2. **Speaks in evidence, not opinion.** Every probability carries its sample size (n) and a 95%
-   Wilson range. If the range crosses 50% the verdict is **no edge**. Indicator readings are
-   ranked against two years of stored history (percentiles).
-3. **Explains without dumbing down.** Real terms (base rate, percentile, R, expectancy,
-   break-even win rate, regime) each have a "?" that opens a precise definition. The Method
-   drawer explains how we avoid fooling ourselves (sample size, ranges, multiple testing).
+## Honesty rules for pattern statistics
 
-## Screens and features
+- A setup is **pattern + location** (e.g. double bottom *in a demand zone*, bull flag *above the
+  point of control*). Each combination is measured separately, because location changes results
+  (sample: double bottom in a demand zone 61%, in open space 49%).
+- **Win** = target hit before stop. Target is the measured move or the next opposing zone; stop
+  sits beyond the pattern. Rules are fixed in code before anything is measured.
+- Every win rate shows **n** and a **95% Wilson range**. Example: 4 of 5 on one coin is 80%, but
+  the true rate could be 38–96%. So the panel shows **this coin** and **the same setup across 20
+  coins** (e.g. 129 of 212 = 61%, range 54–67%). Only the pooled number can support confidence.
+- Verdicts: **edge candidate** (range entirely above 50%), **no edge**, or **too few** (under 30).
+- Phase 1 numbers are **gross** (before fees). Phase 2 re-tests edge candidates with fees,
+  slippage and out-of-sample data before anything can become a confirmation.
 
-| Screen | What it does | Moto pillar | Backend it needs |
-| --- | --- | --- | --- |
-| **Desk** (home) | Pipeline status across all 8 stages; conditions active right now with probability, n, 95% range, verdict; path to first confirmation; regime per major | Confirmation, statistics | `/pipeline`, `/studies/active`, `/regime` |
-| **Market** | Price with EMA 50 + Bollinger; indicator readings as 2-year percentiles; "When conditions looked like this, what happened next?" histogram of forward returns with n, P, range, median, 5th/95th percentile | TA, statistics | `/candles`, `/indicators`, `/studies/{id}/events` |
-| **Evidence** | Base-rate study library with verdicts and next step (backtest in P2 or archive); "how a study becomes a confirmation"; guards against overfitting | Research, probability, mathematical edge | `/studies` |
-| **Risk** | Position-size calculator from equity, risk %, entry, stop, target, fees and assumed win probability: size, money at risk, R:R, break-even win rate, expectancy, implied leverage; Phase 6 portfolio limits previewed | Risk management | none (pure maths); limits from config |
-| **Conditions** | Sentence-style watch ("Notify me when SOL-USDT funding percentile is above 95"), **with its history shown before saving** (times it happened, P(outcome), range, verdict, low-n warning); Telegram delivery | Statistics, alerts | `/conditions` CRUD, `/studies/preview`, Telegram worker |
-| **Research data** | Coverage per series, missing minutes, quality checks, backfill queue, feed status | Data (the foundation of backtests) | `/coverage`, `/quality`, `/backfill`, `/health` |
+## Screens
 
-Later phases plug into the same shell: Backtest results (P2) feed the Evidence screen,
-forward-test records (P4) and news windows (P5) light up their pipeline stages, and confirmation
-cards (P6) take over the top of the Desk (see the earlier canvas for their layout).
+| Screen | What it shows | Backend it needs |
+| --- | --- | --- |
+| **Dashboard** | Scanner headline + KPIs; **setups detected now** (symbol, TF, setup, past n, win rate with range, avg move, verdict, open chart); pipeline from pattern to confirmation; watchlist cards | `/scanner/now`, `/prices` (WS), `/pipeline` |
+| **Chart** | Candles + volume; toggles for EMA 50, Bollinger, zones, volume profile, pattern; detected pattern drawn on the chart with entry/stop/target; side panel: patterns on this chart, **setup card** (win rate across 20 coins and this coin, avg move, expectancy, confluence checklist, last 5 occurrences); key volume levels (POC, VAH, VAL, HVN, LVN); zones with tests and holds | `/candles`, `/indicators`, `/patterns?symbol&tf`, `/zones`, `/volume-profile`, `/setups/{id}/history` |
+| **Pattern stats** | Library of every pattern × location: n, win rate, range, avg win/loss, gross expectancy, verdict; how a setup becomes a confirmation; guards against overfitting | `/setups` |
+| **Risk** | Position-size calculator pre-filled from the selected setup | none (pure maths) |
+| **Alerts** | "Tell me when [coin] prints a [setup] on [TF]" with the setup's record shown before saving; Telegram delivery | `/alerts`, Telegram worker |
+| **Data** | Coverage, quality checks, backfill queue | `/coverage`, `/quality`, `/backfill` |
 
 ## Screen flow
 
 ```mermaid
 flowchart LR
-  D["Desk<br/>pipeline · active conditions"] --> M["Market<br/>TA readings · forward-return study"]
-  D --> E["Evidence<br/>base-rate library"]
-  M -- "study looks like an edge" --> E
-  E -- "edge candidate" --> BT["Backtest (Phase 2)"]
-  M --> C["Conditions<br/>watch with history preview"]
-  D --> R["Risk<br/>position sizing"]
-  D --> DATA["Research data<br/>coverage · quality"]
-  D & M & E & R & C -.-> X["Explainer drawer<br/>? · Method"]
+  D["Dashboard<br/>setups detected now"] -- "Chart" --> C["Chart workspace<br/>patterns · zones · volume levels"]
+  C -- "setup card" --> H["Pattern history<br/>n · win rate · avg move"]
+  C -- "Size this trade" --> R["Risk calculator"]
+  C -- "Alert me next time" --> A["Alerts"]
+  D --> S["Pattern stats library"]
+  S -- "edge candidate" --> BT["Costed backtest (Phase 2)"]
+  D --> DATA["Research data"]
 ```
 
-## Rules for every screen
+## Detection scope for Phase 1
 
-1. Every probability shows **n** and a **95% range**; never a bare percentage.
-2. A range that crosses 50% is labelled **no edge**. Below 30 events, warn "too few to trust".
-3. Statistics are labelled **observations**; only the pipeline's last stage may say
-   "confirmation".
-4. Every number shows freshness or provenance (live age, stored range, study period).
-5. Every term of art has a "?" with a precise definition; no hover-only tooltips.
-6. Inputs explain their effect live (risk calculator, condition preview).
-7. State is shown in words and shape, not colour alone (chips with text, ▲▼, +/−).
-8. Locked features are visible, labelled with the phase that unlocks them, never hidden.
+| Group | Items |
+| --- | --- |
+| Candlestick | Bullish/bearish engulfing, hammer, shooting star, morning/evening star |
+| Chart patterns | Double bottom/top, inverse/head & shoulders, bull/bear flag, triangle breakouts |
+| Locations | Demand/supply zones (origin of a fast move on high volume, with test count), POC, value-area high/low, high/low-volume nodes |
+| Indicators | EMA, SMA, RSI, MACD, VWAP, Bollinger, ATR (already in `src/utils/indicators.ts`) |
 
-## Visual language: the first design's terminal style
+Chart rendering uses TradingView **Lightweight Charts** (Apache-2.0, already a dependency), not
+TradingView's paid Charting Library. Detection and statistics run server-side on stored candles.
 
-Matches the first UX canvas (Confirmations, Detail, Markets, Strategies, Risk & Health), so Phase 1
-and later screens share one look.
+## Visual language
 
-| Token | Value | Use |
-| --- | --- | --- |
-| Ground / header / card / raised | `#0B0F14` / `#0E131A` / `#121821` / `#19212C` | page, top nav, cards (solid), active nav and inputs |
-| Borders | `#263041` (inner rows `#1E2733`) | card and table lines |
-| Accent | `#4C9AFF` blue (soft `#2B4A75`) | primary buttons, probability marks, focus |
-| Up / down | `#56D364` on `#12261A` / `#F47067` on `#2D1517` | always with ▲▼ or +/− |
-| Warning | `#F0A35E` on `#2A1F12` | stale data, gaps, low-n |
-| Text / muted | `#E6EDF3` / `#9AA7B4` | body / labels |
-| Faces | Inter (UI), JetBrains Mono (every figure, tabular) | |
+The first canvas's terminal style (Inter + JetBrains Mono, `#0B0F14` ground, `#4C9AFF` accent,
+solid bordered cards, pill badges, top navigation) with **modern detailing**:
 
-- Top navigation bar (brand · tabs · status pills · UTC clock), a centred 1360 px column, a page
-  title with a one-line description, solid bordered cards with 12 px radius, pill badges.
-- Confidence-range bars and percentile ticks are the core evidence visuals.
-- **Glass** is limited to the sticky top bar (frosted when content scrolls under it), dialogs and
-  the explainer drawer. **Parallax** is limited to a faint three-layer Desk header (contour field,
-  dot grid, price trace), off under `prefers-reduced-motion`.
+- Gradient-edged **feature cards** (setups table, setup card) with a soft blue glow.
+- Frosted **floating chart toolbar** and legend over the chart; frosted sticky top bar, search
+  and explainer drawer.
+- Hover lift on watchlist cards, gradient primary buttons, a faint ambient glow behind the page.
+- **Parallax** only in the dashboard header band (contour field, dot grid, price trace), off under
+  `prefers-reduced-motion`.
 
 ## Acceptance criteria (real implementation)
 
-- [ ] All six screens built in `apps/web` against the Phase 1 API.
-- [ ] Every probability computed server-side from stored data, with n and Wilson range.
-- [ ] Studies are reproducible: stored definition, data range and code version.
-- [ ] Every "?" and the Method drawer have final copy.
-- [ ] Contrast ≥ 4.5:1 on solid and glass surfaces; parallax off under reduced motion.
-- [ ] Works at 400 px with no horizontal page scroll.
-- [ ] Conditions fire server-side with the browser closed and arrive on Telegram.
+- [ ] Pattern and zone detectors are deterministic, unit-tested on fixture candles, and versioned.
+- [ ] Setup history is computed server-side from stored candles; every number shows n and range.
+- [ ] Setup card shows both the coin-only and the pooled result.
+- [ ] Chart uses Lightweight Charts with overlays for zones, volume profile, pattern and plan.
+- [ ] Contrast ≥ 4.5:1; parallax and transitions off under reduced motion; works at 400 px.
+- [ ] Alerts fire server-side with the browser closed and arrive on Telegram.

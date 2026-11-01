@@ -43,12 +43,16 @@ flowchart LR
 - [ ] QuestDB tables: candles 1m, funding, OI
 - [ ] Backfill job: 2 years of the top 20 USDT pairs
 - [ ] Data quality report (gaps, dupes, outliers)
-- [ ] API: `/candles`, `/funding`, `/indicators`, `/regime`, `/studies`, `/conditions`, `/coverage`,
-      `/quality`, `/backfill`, `/health`
-- [ ] Base-rate study engine: condition → forward outcome, n, Wilson 95% range, verdict
-- [ ] Phase 1 UI per `docs/product/ux/PHASE1_UX.md`: Desk (pipeline), Market, Evidence, Risk
-      calculator, Conditions, Research data
-- [ ] Server-side conditions + Telegram delivery (port from `src/backend/telegramService.ts`)
+- [ ] Detectors (deterministic, versioned, unit-tested): candlestick and chart patterns,
+      demand/supply zones, volume profile (POC, VAH/VAL, HVN/LVN)
+- [ ] Setup history engine: pattern × location → outcome (target before stop), n, win rate,
+      Wilson 95% range, avg win/loss, gross expectancy; per coin and pooled across 20 coins
+- [ ] API: `/candles`, `/indicators`, `/patterns`, `/zones`, `/volume-profile`, `/scanner/now`,
+      `/setups`, `/setups/{id}/history`, `/alerts`, `/coverage`, `/quality`, `/backfill`, `/health`
+- [ ] Phase 1 UI per `docs/product/ux/PHASE1_UX.md`, in priority order: **Dashboard** (setup
+      scanner), **Chart workspace** (Lightweight Charts + indicators, patterns, zones, volume
+      levels, setup card), Pattern stats, Risk calculator, Alerts, Research data
+- [ ] Server-side setup alerts + Telegram delivery (port from `src/backend/telegramService.ts`)
 
 **Exit:** 7 days of unattended collection; < 0.1 % gaps after backfill; Phase 1 UI acceptance
 criteria met.

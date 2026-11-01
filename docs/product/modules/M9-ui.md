@@ -22,8 +22,9 @@ flowchart LR
 
 ## Phase 1 UX
 
-Confirmation-desk shell, evidence-first screens, rules and the visual language (the first
-canvas's terminal style; subtle glass and parallax) are in
+Dashboard (setup scanner) and chart workspace first (indicators, pattern detection, zones,
+volume levels, setup history), plus the visual language (first canvas's terminal style with
+modern detailing) are in
 [`../ux/PHASE1_UX.md`](../ux/PHASE1_UX.md), with a clickable prototype in
 [`../ux/phase1-prototype.html`](../ux/phase1-prototype.html).
 

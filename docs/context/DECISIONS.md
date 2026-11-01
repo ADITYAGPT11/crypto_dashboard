@@ -95,3 +95,14 @@ reduced motion.
 Consequence: `docs/product/ux/PHASE1_UX.md` + prototype are the reference for Phase 1 UI. Phase 1
 gains a base-rate study engine (pure statistics on stored data) and a risk calculator. Later
 phases light up pipeline stages in the same shell.
+
+### 2026-11-01 · Phase 1 priority: setup-scanner dashboard and chart workspace first
+Why: owner wants a dashboard followed by TradingView-style charts with indicators, pattern
+detection, demand/supply zones, key volume levels and the history of each setup ("occurred N
+times, moved X%, won Y%"), on the thesis that bullish patterns in demand zones win more often.
+Consequence: Phase 1 gains detectors and a setup-history engine. A setup is pattern + location;
+every win rate is shown with n and a Wilson range, per coin and pooled across 20 coins, because
+small per-coin samples (e.g. 4 of 5) cannot support confidence alone. Phase 1 numbers are gross;
+Phase 2 re-tests edge candidates with costs out-of-sample. Charts use Lightweight Charts, not the
+paid TradingView Charting Library. The visual language keeps the first canvas's style with modern
+detailing (gradient-edged feature cards, frosted chart toolbar, hover lift).
