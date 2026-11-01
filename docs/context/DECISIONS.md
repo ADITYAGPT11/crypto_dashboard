@@ -25,11 +25,14 @@ hooks re-render only the affected `PriceCell`.
 ### 2026-11-01 · Product docs: one spec per module in `docs/product/modules/`
 Why: lets a session load only the module it's working on; flowcharts in Mermaid render on GitHub.
 
-### PROPOSED · Backend in Python 3.12 + FastAPI, frontend stays React/TS
+### 2026-11-01 · Backend in Python 3.12 + FastAPI, frontend stays React/TS (approved)
 Why: research/backtest/statistics libraries (vectorbt, NautilusTrader, statsmodels, arch,
 QuantStats) are Python-first; one server-side language for collector, research, signals and risk
 keeps the M3↔M4 code-parity requirement achievable.
-Status: **awaiting owner approval**. Alternative: Node/TS collector + Python research only.
+Not HFT: the product is research-driven with human execution (minutes-to-days holding), so the
+latency budget is seconds. Escape hatch: modules talk via language-neutral messages/schemas, so a
+latency-critical hot path (market data, execution) can be rewritten in Rust later if forward
+tests prove latency costs money.
 
 ### PROPOSED · DuckDB + Parquet as the first data store
 Why: embedded, zero-ops, fast analytical scans. Revisit if we need concurrent remote writers.
