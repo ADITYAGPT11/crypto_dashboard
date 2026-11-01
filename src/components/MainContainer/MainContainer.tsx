@@ -12,6 +12,7 @@ import styles from "./MainContainer.module.scss";
 import SymbolSearch from "../../common-components/SymbolSearch";
 import { loadWatchlist, saveWatchlist } from "../../utils/watchlistStorage";
 import OrderBookPanel from "../dashboard/OrderBookPanel";
+import AlertsPanel from "../AlertsPanel/AlertsPanel";
 import {
   loadPanelLayout,
   savePanelLayout,
@@ -26,6 +27,7 @@ const PANEL_LABELS: Record<PanelId, string> = {
   priceTable: "Price table",
   arbitrage: "Spread panel",
   orderBook: "Order book",
+  alerts: "Alerts",
 };
 
 const EXCHANGES = ["BINANCE", "DELTA", "OKX"];
@@ -143,7 +145,14 @@ const MainContainer: React.FC = () => {
         case "connectionStatus":
           return <ConnectionStatus key={panelId} statuses={connectionStatuses} />;
         case "chart":
-          return <ChartPanel key={panelId} symbols={symbolList} />;
+          return (
+            <ChartPanel
+              key={panelId}
+              symbol={symbolList[0] ?? "BTC-USDT"}
+              intervals={CANDLE_INTERVALS}
+              setInterval={setActiveInterval}
+            />
+          );
         case "priceTable":
           return (
             <PriceTable
@@ -165,6 +174,9 @@ const MainContainer: React.FC = () => {
             );
           }
           return null;
+        case "alerts":
+          // Module 6 (alert rules): rule builder + trigger log, own evaluation timer.
+          return <AlertsPanel key={panelId} symbols={symbolList} />;
       }
     },
     [symbolList, connectionStatuses, arbitrageOpportunities, removeSymbol],

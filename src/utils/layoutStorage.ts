@@ -21,6 +21,7 @@ export const DEFAULT_PANEL_LAYOUT = [
   "priceTable",
   "arbitrage",
   "orderBook",
+  "alerts",
 ] as const;
 
 export type PanelId = (typeof DEFAULT_PANEL_LAYOUT)[number];

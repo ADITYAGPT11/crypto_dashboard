@@ -24,8 +24,8 @@ export function toCanonicalInterval(raw: string): CandleInterval | null {
 /** Guard: at least a few full candles should exist before indicators run. */
 export const MIN_CANDLES_FOR_INDICATORS = 5;
 
-/** Sane cap for a client-side candle buffer. */
-export const MAX_CANDLE_BUFFER = 1000;
+/** Sane cap for a client-side candle buffer (deep-history pages included). */
+export const MAX_CANDLE_BUFFER = 5000;
 
 /**
  * Validate/coerce one raw candle object (from REST JSON or WS messages) into
@@ -90,6 +90,32 @@ export function mergeCandle(buffer: Candle[], update: CandleData): Candle[] {
     buffer.splice(0, buffer.length - MAX_CANDLE_BUFFER);
   }
   return buffer;
+}
+
+/**
+ * Prepend older REST candles (ascending) to the head of an ascending buffer:
+ * - rows at-or-newer than the buffer head are skipped (overlap dedupe)
+ * - any newer/equal row inside the batch is skipped (batch dedupe)
+ * - the buffer is trimmed from the head to MAX_CANDLE_BUFFER
+ * Mutates and returns the number of rows actually added.
+ */
+export function prependCandles(buffer: Candle[], olderAsc: Candle[]): number {
+  const head = buffer[0];
+  let added = 0;
+  // Iterate the older batch newest-first so dedupe against buffer[0]
+  // covers rows inserted from the same batch.
+  for (let i = olderAsc.length - 1; i >= 0; i--) {
+    const c = olderAsc[i];
+    if (!Number.isFinite(c?.openTime)) continue;
+    if (head && c.openTime >= head.openTime) continue;
+    if (buffer.length > 0 && c.openTime >= buffer[0].openTime) continue;
+    buffer.unshift(c);
+    added++;
+  }
+  if (buffer.length > MAX_CANDLE_BUFFER) {
+    buffer.splice(0, buffer.length - MAX_CANDLE_BUFFER);
+  }
+  return added;
 }
 
 /** Sort REST-returned candles ascending by openTime and drop malformed rows. */

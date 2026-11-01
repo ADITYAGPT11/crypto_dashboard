@@ -8,16 +8,21 @@
     "build": "tsc -b && vp build",
     "lint": "vp lint .",
     "lint:fix": "vp lint . --fix",
-    "preview": "vp preview"
+    "preview": "vp preview",
+    "backend": "node --experimental-strip-types src/backend/index.ts"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.2.0",
     "eventemitter3": "^5.0.4",
+    "express": "^4.18.2",
     "lightweight-charts": "^5.2.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.12.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^6.1.2",

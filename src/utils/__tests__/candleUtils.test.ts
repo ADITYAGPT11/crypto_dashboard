@@ -5,6 +5,7 @@ import {
   MAX_CANDLE_BUFFER,
   mergeCandle,
   normalizeHistory,
+  prependCandles,
   toCanonicalInterval,
   toCandle,
 } from "../candleUtils";
@@ -20,6 +21,50 @@ function candleData(overrides: Partial<CandleData> = {}): CandleData {
     ...overrides,
   };
 }
+
+describe("prependCandles", () => {
+  function mk(openTime: number, close = 100 + openTime): Candle {
+    return { openTime, open: close, high: close + 1, low: close - 1, close, volume: 1 };
+  }
+
+  it("prepends older candles before the buffer head", () => {
+    const buffer = [mk(60_000), mk(120_000)];
+    const added = prependCandles(buffer, [mk(0), mk(30_000)]);
+    expect(added).toBe(2);
+    expect(buffer.map((c) => c.openTime)).toEqual([0, 30_000, 60_000, 120_000]);
+  });
+
+  it("skips rows at-or-newer than the buffer head (overlap dedupe)", () => {
+    const buffer = [mk(60_000), mk(120_000)];
+    const added = prependCandles(buffer, [mk(30_000), mk(60_000), mk(90_000)]);
+    expect(added).toBe(1);
+    expect(buffer.map((c) => c.openTime)).toEqual([30_000, 60_000, 120_000]);
+  });
+
+  it("dedupes rows repeated inside the incoming batch", () => {
+    const buffer = [mk(60_000)];
+    const added = prependCandles(buffer, [mk(0), mk(30_000), mk(30_000)]);
+    expect(added).toBe(2);
+    expect(buffer.map((c) => c.openTime)).toEqual([0, 30_000, 60_000]);
+  });
+
+  it("trims from the head to MAX_CANDLE_BUFFER", () => {
+    const buffer = [mk(20_000_000)];
+    const batch: Candle[] = [];
+    for (let i = 0; i < MAX_CANDLE_BUFFER + 6; i++) batch.push(mk(i));
+    const added = prependCandles(buffer, batch);
+    expect(added).toBe(MAX_CANDLE_BUFFER + 6);
+    expect(buffer.length).toBe(MAX_CANDLE_BUFFER);
+    expect(buffer[0].openTime).toBe(7); // the 7 oldest rows (0..6) were trimmed off
+    expect(buffer[buffer.length - 1].openTime).toBe(20_000_000); // original head intact
+  });
+
+  it("returns 0 with an empty or fully-duplicated batch", () => {
+    const buffer = [mk(60_000)];
+    expect(prependCandles(buffer, [])).toBe(0);
+    expect(prependCandles(buffer, [mk(60_000), mk(90_000)])).toBe(0);
+  });
+});
 
 describe("toCanonicalInterval", () => {
   it("normalizes exchange-native spellings", () => {

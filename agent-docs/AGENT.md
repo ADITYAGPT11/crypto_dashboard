@@ -43,7 +43,7 @@ A **free-first crypto market-analysis platform** — analysis only, never trade 
 | Styling                 | SCSS modules (`*.module.scss`) + shared `.scss`                     |
 | Event plumbing          | `eventemitter3`                                                     |
 | Testing                 | `vp test` (Vitest is built into Vite+)                              |
-| Backend/SQLite/Telegram | **Not yet started** (Modules 7–8)                                   |
+| Backend/SQLite/Telegram | **Module 7 started** (Telegram service + Express backend)           |
 
 ### Commands (use these, in this order, before declaring a module done)
 
@@ -161,30 +161,46 @@ Rules of thumb:
   hidden across reloads).
 - ✅ **Module 4 (charting & indicators)** — implemented 2026-10-24: `lightweight-charts@5.2.1`
   (Apache-2.0, attribution in README + on-chart logo). Candle pipeline: `Candle`/`CandleInterval`
-  contracts in `src/types/marketData.ts`; kline WS streams + REST backfill (200 candles) on
-  Binance spot/futures and OKX spot/swap via `src/services/CandleService.ts` (refcounted
-  subscriptions, in-place ascending buffers, max 1000 candles); `useCandles` hook;
-  `ChartPanel` (symbol/source/interval selectors, volume histogram, magnet crosshair, built-in
-  pan/zoom + autoSize). Indicators EMA/SMA/RSI/MACD/VWAP/Bollinger/ATR are pure functions in
-  `src/utils/indicators.ts` (14 unit tests); RSI/ATR/MACD get their own panes; toggles + params
-  editable; loading/backfill-failure/insufficient-candle overlay states. Limitations: Delta has
-  no candle source yet; ~200-candle window only (VWAP resets per UTC day over that window);
-  no drawing tools; no persisted history/replay.
-- 🚧 **Module 5 (order book & order-flow)** — started 2026-10-25: `BinanceAdapter` rebuilt
-  (combined-stream envelopes `wss://…/stream`, per-symbol tracked streams with replay on
-  reconnect, kline WS + REST backfill, funding from `@markPrice@1s`, per-market connection
-  status). Order book: partial-book `@depth20@100ms` stream → `orderBookBbo` +
-  `orderBookSnapshot` events → `OrderBookService` (keyed store) → `OrderBookPanel` ladder
-  (first tracked symbol, Binance spot). NOTE: REST depth snapshot hosts are unreachable from
-  the dev host, so diff-depth sync was replaced with the self-contained partial-book stream —
-  revisit if REST access is restored. Remaining Module 5 scope: aggregated depth chart,
-  imbalance/depth metrics in the UI, large visible orders / unusual trade prints,
-  liquidity-churn tracking, limitation labels.
-- ⬜ Modules 6 (alert rules), 7 (Telegram), 8 (history/replay),
+  contracts in `src/types/marketData.ts`; kline WS streams + REST backfill (1000 candles —
+  Binance single 1000-row request, OKX paged 300/req) on Binance spot/futures and OKX spot/swap
+  via `src/services/CandleService.ts` (refcounted subscriptions, in-place ascending buffers,
+  max 5000 candles); `useCandles` hook; `ChartPanel` (symbol/source/interval selectors, volume
+  histogram, magnet crosshair, built-in pan/zoom + autoSize). 2026-10-25: TradingView-style
+  scroll-back — scrolling near the left edge loads older pages (Binance `endTime`, OKX `after`
+  cursor) via `CandleService.loadMoreHistory` (in-flight + exhaustion guards, visible view
+  anchored during prepends). Indicators EMA/SMA/RSI/MACD/VWAP/Bollinger/ATR are pure functions
+  in `src/utils/indicators.ts` (14 unit tests); RSI/ATR/MACD get their own panes; ＋ Indicators
+  dropdown picker + removable chips; params editable; loading/backfill-failure/insufficient-
+  candle overlay states. Limitations: Delta has no candle source yet; VWAP resets per UTC day
+  over the loaded window; no drawing tools; no persisted history/replay.
+- ✅ **Module 5 (order book & order-flow)** — completed 2026-10-25: partial-book
+  `@depth20@100ms` stream → `OrderBookService` → rebuilt `OrderBookPanel` (TradingView-style
+  cumulative depth bars behind ladder rows, BBO + spread/spread%, imbalance pressure with
+  configurable top-N, large-order level highlighting, ▲/▼ liquidity-churn arrows via
+  `diffDepthByLevel`/`churnMapByPrice`, freshness label, settings row). Trade prints:
+  `BinanceAdapter` emits `TradeEvent`s from `aggTrade` → `TradeService` rolling store (250/key)
+  → `useTrades` → "Large prints" list with configurable threshold + buy/sell side. Limitation
+  labels in the panel (visible liquidity only, no order owners, spoofing risk, churn cannot
+  separate cancels from fills). OKX/Delta trade sources not wired yet.
+- ✅ **Module 6 (alert rules)** — completed 2026-10-25: `src/types/alertRules.ts` (serializable
+  rule format), `src/services/AlertEngine.ts` (pure deterministic evaluation: priceCross /
+  percentMove / volumeSpike / indicatorThreshold (RSI·SMA·EMA) / bookImbalance /
+  largeLiquidity; ALL/ANY combine; cooldownMs as cooldown + dedupe; enabled flag;
+  candle_close vs intrabar semantics per rule), `alertRulesStorage` (localStorage rules +
+  capped trigger log with {firedAt, values, reason}). Live wiring: `AlertService` singleton —
+  2s evaluation timer assembling `AlertEngineContext` from CandleService/OrderBookService/
+  LiveMarketDataService (prev-price map for cross detection), persisted trigger log, "trigger" /
+  "rulesChanged" / "logChanged" events. UI: `AlertsPanel` (layout panel id `alerts`) — rule
+  list with enable/disable/delete, multi-condition builder for all six condition kinds,
+  recent-trigger log. Replay-tested (18 tests: crossing-only semantics, cooldown suppression,
+  deterministic rerun, target discovery).
+- ✅ **Module 7 (Telegram alert delivery)** — Started: `src/backend/telegramService.ts` (rate-limited Telegram Bot API client with retries, formatted alert messages) + `src/backend/index.ts` (Express server with `/health`, `/telegram/config`, `/alerts/send` endpoints). `express` added to dependencies. Remaining: bot token setup, testing, per-rule notification settings.
+- ⬜ Modules 8 (history/replay — needs SQLite),
   9 (heatmap), 10 (derivatives/stats), 11 (reliability/release) — **not started**.
-- Tests (2026-10-25): 161 passing across 8 files under `vp test` — `watchlistStorage` (15),
-  `candleUtils` (10), `indicators` (14), `symbolUtils` (25), adapter message-parsing (34),
-  `orderBookUtils` (34), `layoutStorage` (8), `tickerStats` + formatters (10). Total: 161.
+- Tests (2026-10-25): 191 passing across 9 files under `vp test` — `watchlistStorage` (15),
+  `candleUtils` (15), `indicators` (14), `symbolUtils` (25), adapter message-parsing (34),
+  `orderBookUtils` (41, incl. level-diff churn + large-print filters), `layoutStorage` (8+14),
+  `tickerStats` + formatters (10+5), `alertEngine` replay + target discovery (18).
 
 ### Known gaps / debt to keep in mind
 

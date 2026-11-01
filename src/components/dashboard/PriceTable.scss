@@ -3,18 +3,19 @@
   border-radius: 8px;
   border: 1px solid var(--border-primary);
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 15px;
+  font-size: 14px;
   table-layout: fixed;
+  background: var(--background-secondary);
 
   th,
   td {
-    padding: 10px;
+    padding: 12px;
     text-align: left;
     border-bottom: 1px solid var(--border-primary);
   }

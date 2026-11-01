@@ -7,6 +7,7 @@ import type {
   OrderBookBbo,
   OrderBookLevel,
   OrderBookSnapshot,
+  TradeEvent,
 } from "../types/marketData";
 import { normalizeHistory, toCanonicalInterval, toCandle } from "../utils/candleUtils";
 import type { ConnectionStatusPayload } from "../types/connection";
@@ -184,17 +185,21 @@ export class BinanceAdapter extends EventEmitter {
 
   /**
    * REST history backfill (returned ascending). No key, no signing.
-   * 200 candles keeps free-tier usage per chart reasonable.
+   * `limit` caps rows per page (Binance allows up to 1000 spot / 1500 futures);
+   * pass `endTime` (epoch ms) to page further back through history.
    */
   async fetchCandleHistory(
     symbol: string,
     interval: CandleInterval,
     market: BinanceMarket,
-    limit = 200,
+    limit = 1000,
+    endTime?: number,
   ): Promise<CandleData[]> {
     const restBase =
       market === "spot" ? "api.binance.com/api/v3/klines" : "fapi.binance.com/fapi/v1/klines";
-    const url = `https://${restBase}?symbol=${toWireSymbol(symbol).toUpperCase()}&interval=${interval}&limit=${limit}`;
+    const url = `https://${restBase}?symbol=${toWireSymbol(symbol).toUpperCase()}&interval=${interval}&limit=${limit}${
+      endTime != null ? `&endTime=${endTime}` : ""
+    }`;
     const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!response.ok) {
       throw new Error(`Binance candles HTTP ${response.status}`);
@@ -234,14 +239,29 @@ export class BinanceAdapter extends EventEmitter {
     if (!symbol || !kind) return;
 
     if (kind === "aggTrade") {
-      const t = data as { p?: string; T?: number } | undefined;
+      const t = data as { p?: string; q?: string; m?: boolean; T?: number; E?: number } | undefined;
+      const price = parseFloat(t?.p ?? "0");
       this.emit("marketData", {
         exchange: "BINANCE",
         symbol,
         type: marketType,
-        currentPrice: parseFloat(t?.p ?? "0"),
-        timeStamp: t?.T ?? Date.now(),
+        currentPrice: price,
+        timeStamp: t?.T ?? t?.E ?? Date.now(),
       } satisfies GenericMarketData);
+
+      // Module 5 trade print (aggTrade merges fills; m = buyer was the maker).
+      const quantity = parseFloat(t?.q ?? "0");
+      if (price > 0 && quantity > 0 && t?.T != null) {
+        this.emit("trade", {
+          exchange: "BINANCE",
+          symbol,
+          type: marketType,
+          price,
+          quantity,
+          buyerMaker: t.m === true,
+          timeStamp: t.T,
+        } satisfies TradeEvent);
+      }
       return;
     }
 

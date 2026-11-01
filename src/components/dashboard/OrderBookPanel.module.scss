@@ -4,7 +4,7 @@
   border: 1px solid var(--border-primary);
   padding: 18px 20px;
   margin-top: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--panel-shadow);
 }
 
 .header {
@@ -133,9 +133,116 @@
 
 .depthSection {
   display: grid;
-  grid-template-columns: 1fr 60px 1fr;
-  gap: 6px;
+  grid-template-columns: 1fr 120px 1fr;
+  gap: 8px;
   align-items: start;
+  min-height: 200px;
+}
+
+.sideCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sideHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 4px 4px;
+}
+
+.sideTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sideTotal {
+  font-size: 11px;
+  color: var(--text-primary);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+
+.colLabels {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  padding: 0 4px 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-primary);
+
+  span:nth-child(1) {
+    text-align: left;
+  }
+
+  span:nth-child(2) {
+    text-align: center;
+  }
+
+  span:nth-child(3) {
+    text-align: right;
+  }
+}
+
+.sideCol .levelRow > :first-child {
+  text-align: left;
+}
+
+.sideCol .levelRow > :last-child {
+  text-align: right;
+}
+
+.centerCol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.midBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px;
+  background: var(--background-elevated, var(--background-primary));
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.midLabel {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-secondary);
+}
+
+.midPrice {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.midSpread {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.midSpreadPct {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
 }
 
 .depthColumn {
@@ -177,6 +284,7 @@
 }
 
 .levelRow {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 4px;
@@ -184,6 +292,7 @@
   font-size: 12px;
   font-family: "JetBrains Mono", "Fira Code", monospace;
   border-radius: 3px;
+  overflow: hidden;
   transition: background-color 0.15s ease;
 
   &:hover {
@@ -229,11 +338,199 @@
 }
 
 .emptyDepth {
+  grid-column: 1 / -1;
   padding: 8px 4px;
   text-align: center;
   font-size: 12px;
   color: var(--text-secondary);
   font-style: italic;
+}
+
+.depthBar {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  right: 0;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* Mirrored bars: both sides grow from the center edge outward. */
+.barFromCenter {
+  right: 0;
+  left: auto;
+  background: rgba(239, 83, 80, 0.14); // asks (left column)
+}
+
+.barFromCenterLeft {
+  left: 0;
+  right: auto;
+  background: rgba(38, 166, 154, 0.14); // bids (right column)
+}
+
+.addedLevel {
+  color: #16a34a;
+}
+
+.removedLevel {
+  color: #e74c3c;
+}
+
+.liquidityBlock {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--background-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+}
+
+.liquidityHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.liquidityVerdict {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.verdictBid {
+  color: var(--accent-positive);
+}
+
+.verdictAsk {
+  color: var(--accent-negative);
+}
+
+.splitBar {
+  display: flex;
+  height: 18px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-primary);
+}
+
+.splitBid {
+  background: rgba(38, 166, 154, 0.75);
+  transition: width 0.4s ease;
+}
+
+.splitAsk {
+  background: rgba(239, 83, 80, 0.75);
+  transition: width 0.4s ease;
+}
+
+.splitLabels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px;
+}
+
+.splitLabel {
+  font-weight: 600;
+}
+
+.bidText {
+  color: var(--accent-positive);
+}
+
+.askText {
+  color: var(--accent-negative);
+}
+
+.splitMid {
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.liquidityNote {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.settingsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+
+  input {
+    width: 58px;
+    background: var(--background-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-size: 11px;
+    padding: 2px 6px;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+  }
+}
+
+.printsSection {
+  margin-top: 12px;
+  border-top: 1px solid var(--border-primary);
+  padding-top: 8px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.printRow {
+  display: grid;
+  grid-template-columns: 64px auto auto 1fr;
+  gap: 8px;
+  font-size: 12px;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  padding: 2px 0;
+}
+
+.printTime {
+  color: var(--text-secondary);
+}
+
+.printQty {
+  font-weight: 600;
+}
+
+.printBuy {
+  color: var(--accent-positive, #27ae60);
+}
+
+.printSell {
+  color: var(--accent-negative, #e74c3c);
+}
+
+.printPrice {
+  color: var(--text-primary);
+}
+
+.printSide {
+  color: var(--text-secondary);
+  text-align: right;
 }
 
 .empty {

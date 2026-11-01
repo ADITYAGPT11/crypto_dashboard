@@ -93,37 +93,41 @@ TODO
 [x] Add candlestick chart with symbol and timeframe selection. (2026-10-24: ChartPanel over lightweight-charts v5.2.1; symbol dropdown from watchlist, source selector Binance spot/fut + OKX spot/swap, intervals 1m-1d; candle WS streams + REST backfill via CandleService.)
 [x] Add volume, crosshair, zoom, chart resize and time-range navigation. (2026-10-24: volume histogram overlay, magnet crosshair, wheel zoom/drag pan built-in, autoSize + ResizeObserver, fitContent on load.)
 [x] Add core indicators: EMA/SMA, RSI, MACD, VWAP, Bollinger Bands and ATR. (2026-10-24: all six in src/utils/indicators.ts — pure + 14 unit tests; opverlays on price pane w/ panes for RSI/ATR/MACD; warm-up slots NaN.)
-[x] Add indicator parameters, visibility toggles and clear loading/insufficient-history states. (2026-10-24: chip toggles + period/mult params inputs; overlay states for loading, REST backfill failure, insufficient candles.)
+[x] Add indicator parameters, visibility toggles and clear loading/insufficient-history states. (2026-10-25: TradingView-style ＋ Indicators dropdown picker (checkbox add/remove), visible-only chips with ✕ remove + period/mult params inputs; overlay states for loading, REST backfill failure, insufficient candles.)
+[x] Add deep candle history (2026-10-25): initial REST backfill loads 1000 candles (Binance limit 1000; OKX pages 300/req up to 1000); scrolling near the chart's left edge fetches older pages (Binance endTime, OKX after-cursor) and prepends them with the visible view anchored; 5000-row buffer cap; exhaustion + in-flight guards in CandleService.loadMoreHistory.
 [ ] Add common drawing tools only if supported and maintainable within selected chart library.
 DONE WHEN: Chart and indicators update from normalized data and handle timeframe changes correctly.
 
 MODULE 5 — ORDER BOOK & ORDER-FLOW ANALYTICS
 TODO
-[ ] Display bid/ask depth ladder and aggregated depth chart.
-[ ] Compute spread, depth by distance from mid-price and order-book imbalance.
-[ ] Display large visible resting orders and unusually large trade prints using configurable thresholds.
-[ ] Track order-level liquidity changes where data permits: added, reduced, cancelled or consumed quantity.
-[ ] Clearly label limitations: public feeds cannot identify the owner of orders; large orders can be spoofed or cancelled.
-DONE WHEN: Metrics are reproducible from source events and users can see data freshness and aggregation settings.
+[x] Display bid/ask depth ladder and aggregated depth chart. (2026-10-25: OrderBookPanel ladder rebuilt with TradingView-style cumulative depth bars behind levels; Binance partial-book @depth20@100ms → OrderBookService.)
+[x] Compute spread, depth by distance from mid-price and order-book imbalance. (orderBookUtils: spreadFraction/snapshotBboMetrics, aggregateDepthByDistance band util, imbalanceTopN; panel shows spread/spread% + bid/ask pressure percent with configurable top-N.)
+[x] Display large visible resting orders and unusually large trade prints using configurable thresholds. (2026-10-25: level highlight ≥ configurable qty; Binance aggTrade → TradeEvent {price, qty, buyerMaker} via BinanceAdapter → TradeService rolling 250-print store → useTrades → panel "Large prints" list with configurable threshold; OKX/Delta trade sources not wired yet.)
+[x] Track order-level liquidity changes where data permits: added, reduced, cancelled or consumed quantity. (2026-10-25: diffDepthByLevel/churnMapByPrice pure utils — per-level added/reduced deltas with ▲/▼ arrows on the ladder; aggregate books cannot separate cancel vs fill without order IDs.)
+[x] Clearly label limitations: public feeds cannot identify the owner of orders; large orders can be spoofed or cancelled. (Panel disclaimer + note; utils documented.)
+DONE WHEN: Metrics are reproducible from source events and users can see data freshness and aggregation settings. — 2026-10-25: freshness label (fresh/stale + age, 10s threshold) and settings row (depth N, imbalance top-N, large-order and large-print thresholds) in the panel.
 
 MODULE 6 — ALERT RULE BUILDER & EVALUATION ENGINE
 TODO
-[ ] Define a typed rule format that can be saved and evaluated independently of the UI.
-[ ] Support price crosses/percentage moves, volume spikes, indicator thresholds and timeframe conditions.
-[ ] Add order-book imbalance, large visible liquidity and liquidity-change rules where supported.
-[ ] Add multi-condition AND/OR rules, evaluation frequency, cooldown, deduplication and enable/disable controls.
-[ ] Confirm candle-close versus intrabar evaluation behavior in every rule.
-[ ] Log trigger time, input values and the exact reason each rule fired.
-[ ] Add unit tests and replay tests to prevent repeated or false duplicate triggers.
-DONE WHEN: The same rule produces deterministic, explainable results from live events and recorded fixtures.
+[x] Define a typed rule format that can be saved and evaluated independently of the UI. (2026-10-25: src/types/alertRules.ts — plain serializable rules; evaluated by the pure engine, no UI types.)
+[x] Support price crosses/percentage moves, volume spikes, indicator thresholds and timeframe conditions. (Engine conditions: priceCross, percentMove, volumeSpike, indicatorThreshold (RSI/SMA/EMA), per-interval.)
+[x] Add order-book imbalance, large visible liquidity and liquidity-change rules where supported. (bookImbalance + largeLiquidity conditions; liquidity-change rules still open — no order-ID feed.)
+[x] Add multi-condition AND/OR rules, evaluation frequency, cooldown, deduplication and enable/disable controls. (combine ALL/ANY; cooldownMs doubles as dedupe; enabled flag; UI rule builder still open.)
+[x] Confirm candle-close versus intrabar evaluation behavior in every rule. (evaluation: candle_close uses closed candles only; intrabar includes the live open candle; covered by tests.)
+[x] Log trigger time, input values and the exact reason each rule fired. (AlertTrigger {firedAt, values, reason}; trigger log persisted in localStorage via alertRulesStorage, capped 100.)
+[x] Add unit tests and replay tests to prevent repeated or false duplicate triggers. (alertEngine.test.ts: 17 replayer tests incl. crossing-only semantics, cooldown suppression, deterministic rerun.)
+[x] Live wiring + rule-builder UI (2026-10-25): AlertService singleton — 2s evaluation timer building AlertEngineContext from CandleService/OrderBookService/LiveMarketDataService stores (collectRuleTargets discovers per-rule keys; prev-price map drives cross detection), triggers appended to the persisted log and emitted as events. AlertsPanel (new dashboard panel, layoutStorage id "alerts") — rule list with enable/disable/delete, multi-condition builder form (all six condition kinds, ALL/ANY, candle-close vs intrabar, cooldown), recent-trigger log.
+DONE WHEN: The same rule produces deterministic, explainable results from live events and recorded fixtures. — 2026-10-25: complete (engine + live wiring + UI); remaining Module 7+ needs backend work.
 
 MODULE 7 — TELEGRAM ALERT DELIVERY
 TODO
+[x] Create Telegram Bot API service (src/backend/telegramService.ts) with rate limiting, retries, and formatted alert messages.
+[x] Create backend server (src/backend/index.ts) with Express for REST API: health check, Telegram config endpoints, alert delivery endpoint.
 [ ] Add Telegram bot setup instructions and secure server-side token storage.
 [ ] Test sending a sample message to a configured chat.
 [ ] Format alerts with symbol, exchange, timeframe, trigger values, timestamp and chart/deep link when available.
 [ ] Add per-rule notification settings, quiet hours, severity and duplicate suppression.
-[ ] Handle rate limits, delivery errors, retries and delivery status without blocking live-data processing.
+[x] Handle rate limits, delivery errors, retries and delivery status without blocking live-data processing.
 DONE WHEN: A configured user receives each valid alert reliably, with no secrets exposed in frontend code or logs.
 
 MODULE 8 — HISTORICAL STORAGE, REPLAY & ALERT TESTING
@@ -182,8 +186,8 @@ CURRENT STATUS
 - Mandatory pre-step DONE: reuse audit documented in OPEN_SOURCE_REUSE.md (2026-10-24). Key finding: trading-signals has no LICENSE detected — reference only; lightweight-charts Apache-2.0 verified — adopt for Module 4.
 - Modules 0-2: effectively complete. Vite+ 1.3.0, `vp check` clean, adapters (Binance spot/futures, OKX spot/swap, Delta India futures) over BaseWebSocketClient with reconnect/backoff/heartbeat/resubscribe; normalized types; symbol normalization (25 tests) + adapter parsing (34 tests) unit tests under `vp test` — 98 total tests passing across 5 test files.
 - Module 3: functional dashboard (price table with stale markers + last-update age, connection status, symbol search, metrics, cross-exchange last-price spread panel); watchlist persistence DONE (localStorage, 2026-10-24); widget customization (reorder + hide/show panels, persisted) DONE 2026-10-25; 24h change% + volume rows added 2026-10-25 (REST-polled, Binance + OKX; Delta source not wired).
-- Modules 4 (charting/indicators): DONE in 2026-10-24 session — lightweight-charts 5.2.1 added (attribution in README + on-chart logo), CandleService pipeline (REST backfill 200 candles + live kline/candle WS for Binance spot/futures and OKX spot/swap; Delta unsupported yet), indicators EMA/SMA/RSI/MACD/VWAP/Bollinger/ATR client-side, ChartPanel widget on dashboard. Known gaps: no replay/store-history yet, drawing tools skipped, OKX REST unreachable from the dev host (error banner shown).
+- Modules 4 (charting/indicators): DONE in 2026-10-24 session — lightweight-charts 5.2.1 added (attribution in README + on-chart logo), CandleService pipeline (REST backfill + live kline/candle WS for Binance spot/futures and OKX spot/swap; Delta unsupported yet), indicators EMA/SMA/RSI/MACD/VWAP/Bollinger/ATR client-side, ChartPanel widget on dashboard. 2026-10-25 update: 1000-candle initial backfill, TradingView-style scroll-back loading of older pages (visible view anchored, 5000-row buffer cap) and a ＋ Indicators picker. Known gaps: no replay/store-history yet, drawing tools skipped, OKX REST unreachable from the dev host (error banner shown).
 - Module 5 started 2026-10-25: Binance partial-book depth ladder + BBO in OrderBookPanel (first tracked symbol, Binance spot) via OrderBookService; depth uses the @depth20@100ms partial-book WS stream (no REST snapshot sync possible from this host — REST depth/OKX/Delta REST hosts unreachable); BinanceAdapter rebuilt with combined-stream envelopes, candle WS/REST, funding and connection status. Ladder/imbalance metric utils in orderBookUtils (34 tests). Deeper order-flow analytics (flow tracking, large prints) and the top-metrics UI still open.
-- Tests 2026-10-25: 161 passing across 8 files (added layoutStorage 8, tickerStats/formatters 10).
-- Modules 6-11: not started. Next up per priority order: finish Module 5 (order-flow analytics: large prints, liquidity churn, aggregated depth chart) and Module 6 (alert rule builder).
+- Tests 2026-10-25: 191 passing across 9 files (orderBookUtils churn/prints 41 total, alertEngine replay + target discovery 18, plus earlier sessions' suites).
+- Modules 7-11: Module 7 (Telegram) backend service created — Telegram service + Express server with config/delivery endpoints. Remaining: bot token setup, testing, per-rule settings. Modules 8-11 not started (storage/replay needs SQLite backend).
 - Project guide for AI agents: agent-docs/AGENT.md (architecture, commands, conventions, status). All agent docs are consolidated in the agent-docs/ folder.

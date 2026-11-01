@@ -15,8 +15,11 @@ import {
   findLargeLevels,
   DEFAULT_LARGE_LEVEL_CONFIG,
   spreadFraction,
+  diffDepthByLevel,
+  churnMapByPrice,
+  findLargePrints,
 } from "../orderBookUtils";
-import type { OrderBookLevel } from "../../types/marketData";
+import type { OrderBookLevel, TradeEvent } from "../../types/marketData";
 
 // ---------------------------------------------------------------------------
 // Helpers to build test snapshots / BBOs
@@ -399,5 +402,101 @@ describe("spreadFraction", () => {
 
   it("returns NaN when bid is zero", () => {
     expect(Number.isNaN(spreadFraction(0, 102))).to.equal(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Liquidity churn (level diff)
+// ---------------------------------------------------------------------------
+
+describe("diffDepthByLevel", () => {
+  function lvl(price: number, quantity: number): OrderBookLevel {
+    return { price, quantity, updatedAt: 0 };
+  }
+
+  it("flags no baseline when the previous snapshot has no levels", () => {
+    const prev = makeSnap({ bids: [], asks: [] });
+    const next = makeSnap({ bids: [lvl(100, 5)], asks: [] });
+    const diff = diffDepthByLevel(prev, next);
+    expect(diff.hasBaseline).to.equal(false);
+    expect(diff.bidAdded).to.equal(0);
+    expect(diff.deltas.length).to.equal(0);
+  });
+
+  it("detects added, reduced and unchanged levels per side", () => {
+    const prev = makeSnap({
+      bids: [lvl(100, 5), lvl(99, 2)],
+      asks: [lvl(101, 3)],
+    });
+    const next = makeSnap({
+      bids: [lvl(100, 7), lvl(99, 2), lvl(98, 4)],
+      asks: [lvl(101, 1)],
+    });
+    const diff = diffDepthByLevel(prev, next);
+    expect(diff.bidAdded).to.equal(6); // +2 at 100, +4 at 98
+    expect(diff.bidReduced).to.equal(0);
+    expect(diff.askAdded).to.equal(0);
+    expect(diff.askReduced).to.equal(2);
+    expect(diff.deltas.length).to.equal(3);
+  });
+
+  it("counts a vanished level's full quantity as reduced", () => {
+    const prev = makeSnap({ bids: [lvl(100, 5)], asks: [] });
+    const next = makeSnap({ bids: [], asks: [] });
+    const diff = diffDepthByLevel(prev, next);
+    expect(diff.bidReduced).to.equal(5);
+    expect(diff.deltas).to.deep.equal([{ price: 100, side: "bid", delta: -5 }]);
+  });
+
+  it("ignores malformed levels and produces no deltas when nothing changed", () => {
+    const prev = makeSnap({
+      bids: [lvl(100, 5), lvl(Number.NaN, 3)],
+      asks: [],
+    });
+    const next = makeSnap({ bids: [lvl(100, 5)], asks: [] });
+    const diff = diffDepthByLevel(prev, next);
+    expect(diff.bidAdded).to.equal(0);
+    expect(diff.bidReduced).to.equal(0);
+    expect(diff.deltas.length).to.equal(0);
+  });
+});
+
+describe("churnMapByPrice", () => {
+  it("keys deltas by side and price", () => {
+    const map = churnMapByPrice([
+      { price: 100, side: "bid", delta: 3 },
+      { price: 101, side: "ask", delta: -2 },
+    ]);
+    expect(map.get("bid|100")).to.equal(3);
+    expect(map.get("ask|101")).to.equal(-2);
+    expect(map.get("bid|101")).to.equal(undefined);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Large trade prints
+// ---------------------------------------------------------------------------
+
+describe("findLargePrints", () => {
+  function print(quantity: number, ts = 1000): TradeEvent {
+    return {
+      exchange: "BINANCE",
+      symbol: "BTC-USDT",
+      type: "SPOT",
+      price: 64_000,
+      quantity,
+      buyerMaker: true,
+      timeStamp: ts,
+    };
+  }
+
+  it("keeps only prints at or above the threshold", () => {
+    const trades = [print(0.5, 1), print(5, 2), print(5.5, 3)];
+    expect(findLargePrints(trades, 5).map((t) => t.timeStamp)).to.deep.equal([2, 3]);
+  });
+
+  it("returns empty for empty input and for NaN thresholds", () => {
+    expect(findLargePrints([], 1)).to.deep.equal([]);
+    expect(findLargePrints([print(5)], Number.NaN)).to.deep.equal([]);
   });
 });

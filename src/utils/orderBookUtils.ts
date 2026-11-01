@@ -12,7 +12,12 @@
  *   estimate of true executable depth or institutional intent.
  */
 
-import type { OrderBookBbo, OrderBookLevel, OrderBookSnapshot } from "../types/marketData";
+import type {
+  OrderBookBbo,
+  OrderBookLevel,
+  OrderBookSnapshot,
+  TradeEvent,
+} from "../types/marketData";
 
 // ---------------------------------------------------------------------------
 // Top-of-book metrics
@@ -221,4 +226,122 @@ export function spreadFraction(bid: number, ask: number, mid?: number): number {
   const m = mid ?? (bid + ask) / 2;
   if (m <= 0) return NaN;
   return (ask - bid) / m;
+}
+
+// ---------------------------------------------------------------------------
+// Liquidity churn — per-level quantity changes between two snapshots
+// ---------------------------------------------------------------------------
+
+/** One price level's quantity change between two book snapshots. */
+export interface DepthDelta {
+  price: number;
+  side: "bid" | "ask";
+  /** Positive = liquidity added at this level; negative = reduced/removed. */
+  delta: number;
+}
+
+/** Per-side churn between two visible-depth snapshots. */
+export interface DepthDiffResult {
+  /** Sum of positive per-level deltas on the bid side (base asset units). */
+  bidAdded: number;
+  /** Sum of negative per-level deltas on the bid side (absolute quantity). */
+  bidReduced: number;
+  askAdded: number;
+  askReduced: number;
+  /** Per-level deltas of every changed level. */
+  deltas: DepthDelta[];
+  /** False when the previous snapshot carried no depth to diff against. */
+  hasBaseline: boolean;
+}
+
+/**
+ * Diff the resting levels of two snapshots by exact price.
+ *
+ * Data honesty: public aggregate books quote only the sum of resting orders at
+ * each price, so "reduced" mixes genuine fills, resting-order edits and
+ * cancellations — indistinguishable without an order-ID feed. A level that
+ * vanishes entirely counts its full previous quantity as reduced.
+ */
+export function diffDepthByLevel(
+  prev: OrderBookSnapshot,
+  next: OrderBookSnapshot,
+): DepthDiffResult {
+  const result: DepthDiffResult = {
+    bidAdded: 0,
+    bidReduced: 0,
+    askAdded: 0,
+    askReduced: 0,
+    deltas: [],
+    hasBaseline: prev.bids.length > 0 || prev.asks.length > 0,
+  };
+
+  for (const side of ["bid", "ask"] as const) {
+    if (!result.hasBaseline) break;
+    const before = side === "bid" ? prev.bids : prev.asks;
+    const after = side === "bid" ? next.bids : next.asks;
+
+    const prevQty = new Map<number, number>();
+    for (const l of before) {
+      if (Number.isFinite(l.price) && Number.isFinite(l.quantity)) {
+        prevQty.set(l.price, l.quantity);
+      }
+    }
+    const seen = new Set<number>();
+    for (const l of after) {
+      if (!Number.isFinite(l.price) || !Number.isFinite(l.quantity)) continue;
+      seen.add(l.price);
+      const beforeQty = prevQty.get(l.price);
+      if (beforeQty == null) {
+        if (l.quantity > 0) {
+          result.deltas.push({ price: l.price, side, delta: l.quantity });
+          if (side === "bid") result.bidAdded += l.quantity;
+          else result.askAdded += l.quantity;
+        }
+      } else if (l.quantity !== beforeQty) {
+        const delta = l.quantity - beforeQty;
+        result.deltas.push({ price: l.price, side, delta });
+        if (delta > 0) {
+          if (side === "bid") result.bidAdded += delta;
+          else result.askAdded += delta;
+        } else if (side === "bid") {
+          result.bidReduced += -delta;
+        } else {
+          result.askReduced += -delta;
+        }
+      }
+    }
+    // Levels that vanished entirely count their full previous quantity as reduced.
+    for (const l of before) {
+      if (!Number.isFinite(l.price) || !Number.isFinite(l.quantity)) continue;
+      if (!seen.has(l.price) && l.quantity > 0) {
+        result.deltas.push({ price: l.price, side, delta: -l.quantity });
+        if (side === "bid") result.bidReduced += l.quantity;
+        else result.askReduced += l.quantity;
+      }
+    }
+  }
+  return result;
+}
+
+/** Per-price churn Map for the UI ladder (fast row-level lookup). */
+export function churnMapByPrice(deltas: DepthDelta[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const d of deltas) {
+    map.set(`${d.side}|${d.price}`, d.delta);
+  }
+  return map;
+}
+
+// ---------------------------------------------------------------------------
+// Large trade prints (configurable threshold)
+// ---------------------------------------------------------------------------
+
+/**
+ * Filter a trade list down to prints at/above the configured quantity.
+ * These are standalone observations of executed volume — a public feed cannot
+ * link a print to a specific account, order or algorithm.
+ */
+export function findLargePrints(trades: TradeEvent[], minQuantity: number): TradeEvent[] {
+  const min = Number.isFinite(minQuantity) ? minQuantity : Infinity;
+  return trades.filter((t) => Number.isFinite(t.quantity) && t.quantity >= min);
 }

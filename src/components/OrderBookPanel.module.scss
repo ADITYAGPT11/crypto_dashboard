@@ -1,0 +1,308 @@
+.panel {
+  background-color: var(--background-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+  padding: 18px 20px;
+  margin-top: 20px;
+  box-shadow: var(--panel-shadow);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-primary);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.timestamp {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: "JetBb Mono", "Fira Code", monospace;
+}
+
+.bboRow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.bboCell {
+  .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+  }
+
+  .price {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: "JetBb Mono", "Fira Code", monospace;
+    color: var(--text-primary);
+    transition: color 0.2s ease;
+  }
+}
+
+.bidCell .price {
+  color: var(--accent-positive, #27ae60);
+}
+
+.askCell .price {
+  color: var(--accent-negative, #e74c3c);
+}
+
+.muted {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 8px;
+  font-weight: 500;
+}
+
+.spreadCell {
+  text-align: center;
+
+  .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+  }
+
+  .spreadValue {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: "JetBb Mono", "Fira Code", monospace;
+    color: var(--text-primary);
+  }
+}
+
+.liquidityBlock {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--background-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+}
+
+.liquidityHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.liquidityTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.liquidityVerdict {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.verdictBid {
+  color: var(--accent-positive);
+}
+
+.verdictAsk {
+  color: var(--accent-negative);
+}
+
+/* Liquidity split — horizontal bar */
+.splitBar {
+  display: flex;
+  height: 20px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.splitBid {
+  background: linear-gradient(90deg, var(--accent-positive, #27ae60), #2ecc71);
+  transition: width 0.4s ease;
+  box-shadow: 2px 0 4px rgba(39, 174, 96, 0.4);
+}
+
+.splitAsk {
+  background: linear-gradient(90deg, var(--accent-negative, #e74c3c), #e67e22);
+  transition: width 0.4s ease;
+  box-shadow: 2px 0 4px rgba(231, 76, 60, 0.4);
+}
+
+.splitLabels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-family: var(--font-mono, "JetBb Mono", monospace);
+  font-size: 11px;
+}
+
+.splitLabel {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bidText {
+  color: var(--accent-positive);
+}
+
+.askText {
+  color: var(--accent-negative);
+}
+
+.splitMid {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.liquidityNote {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.settingsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+
+  input {
+    width: 58px;
+    background: var(--background-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-size: 11px;
+    padding: 2px 6px;
+    font-family: "JetBb Mono", "Fira Code", monospace;
+  }
+}
+
+.plaintsSection {
+  margin-top: 12px;
+  border-top: 1px solid var(--border-primary);
+  padding-top: 8px;
+}
+
+.bTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.printRow {
+  display: grid;
+  grid-template-columns: 64px auto auto 1fr;
+  gap: 8px;
+  font-size: 12px;
+  font-family: "JetBb Mono", "Fira Code", monospace;
+  padding: 2px 0;
+}
+
+.printTime {
+  color: var(--text-secondary);
+}
+
+.printQty {
+  font-weight: 600;
+}
+
+.printBuy {
+  color: var(--accent-positive, #27ae60);
+}
+
+.printSell {
+  color: var(--accent-negative, #e74c3c);
+}
+
+.printPrice {
+  color: var(--text-primary);
+}
+
+.printSide {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 14px;
+}
+
+.disclaimer {
+  margin: 12px 0 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.disclaimerNote {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--accent-negative, #e74c3c);
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .bboRow {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .spreadCell {
+    display: none;
+  }
+
+  .depthSection {
+    grid-template-columns: 1fr;
+    gap: 2px;
+
+    .midMarker {
+      display: none;
+    }
+  }
+}

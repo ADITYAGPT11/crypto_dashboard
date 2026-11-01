@@ -7,7 +7,7 @@ import type {
   MarketType,
 } from "../types/marketData";
 import { candleKey } from "../types/marketData";
-import { mergeCandle } from "../utils/candleUtils";
+import { mergeCandle, prependCandles } from "../utils/candleUtils";
 import { BinanceAdapter } from "../adapters/BinanceAdapter";
 import { OkxAdapter } from "../adapters/OkxAdapter";
 
@@ -32,6 +32,10 @@ export class CandleService extends EventEmitter {
   private backfillFailed = new Set<string>();
   /** key → backfill in flight */
   private backfilling = new Set<string>();
+  /** key → one load-more-older page in flight (scroll-back load) */
+  private loadingOlder = new Set<string>();
+  /** key → exchange returned a short page; nothing older to load */
+  private olderExhausted = new Set<string>();
 
   private constructor() {
     super();
@@ -75,12 +79,120 @@ export class CandleService extends EventEmitter {
     if (before && last === before) {
       return;
     }
+    this.notify(key, data);
+  }
+
+  private notify(key: string, data: CandleData) {
     for (const fn of this.candleListeners.get(key) ?? []) {
       try {
         fn(data);
       } catch (e) {
         console.error("Candle listener error", e);
       }
+    }
+  }
+
+  /**
+   * False when older history for this key is believed exhausted (exchange
+   * returned a short page) or a load is already running; the chart stops
+   * requesting older pages on scroll once this flips.
+   */
+  hasMoreHistory(
+    exchange: ExchangeName,
+    type: MarketType,
+    symbol: string,
+    interval: CandleInterval,
+  ): boolean {
+    const key = candleKey(exchange, type, symbol, interval);
+    return !this.olderExhausted.has(key);
+  }
+
+  /** Number of candles currently buffered for a key. */
+  getBufferLength(
+    exchange: ExchangeName,
+    type: MarketType,
+    symbol: string,
+    interval: CandleInterval,
+  ): number {
+    return this.getCandles(exchange, type, symbol, interval).length;
+  }
+
+  /**
+   * Load one page of candles older than the current buffer head and prepend
+   * them (TradingView-style scroll-back). Resolves false when nothing more
+   * can be loaded (exhausted, already loading, empty buffer or no source).
+   * Notifies listeners of the changed buffer so the chart redraws.
+   */
+  async loadMoreHistory(
+    exchange: ExchangeName,
+    type: MarketType,
+    symbol: string,
+    interval: CandleInterval,
+    pageSize = 1000,
+  ): Promise<boolean> {
+    const key = candleKey(exchange, type, symbol, interval);
+    const buffer = this.buffers.get(key);
+    const earliest = buffer?.[0]?.openTime;
+    if (
+      !buffer ||
+      buffer.length === 0 ||
+      earliest == null ||
+      this.loadingOlder.has(key) ||
+      this.olderExhausted.has(key) ||
+      !this.sources
+    ) {
+      return false;
+    }
+    this.loadingOlder.add(key);
+    try {
+      let rows: CandleData[] = [];
+      if (exchange === "BINANCE") {
+        rows = await this.sources.BINANCE.fetchCandleHistory(
+          symbol,
+          interval,
+          type === "SPOT" ? "spot" : "futures",
+          pageSize,
+          earliest, // endTime → strictly older klines
+        );
+      } else if (exchange === "OKX") {
+        rows = await this.sources.OKX.fetchCandleHistory(
+          symbol,
+          interval,
+          type === "SPOT" ? "SPOT" : "SWAP",
+          pageSize,
+          earliest, // page strictly older than the current buffer head
+        );
+      }
+
+      const olderAsc = rows
+        .filter((r) => r.candle.openTime < earliest)
+        .map((r) => ({ ...r.candle }))
+        .sort((a, b) => a.openTime - b.openTime);
+
+      // A short page means the exchange has nothing older.
+      if (rows.length < pageSize || olderAsc.length === 0) {
+        this.olderExhausted.add(key);
+      }
+      const added = prependCandles(buffer, olderAsc);
+      if (added === 0) {
+        return false;
+      }
+      // Fan out with a representative event so useCandles re-reads the buffer.
+      this.notify(key, {
+        exchange,
+        type,
+        symbol,
+        interval,
+        candle: buffer[buffer.length - 1],
+      } satisfies CandleData);
+      return true;
+    } catch (error) {
+      console.error(`Older history failed for ${exchange} ${type} ${symbol} ${interval}:`, error);
+      // Surface as exhausted for now; a later subscribe retry clears it.
+      this.olderExhausted.add(key);
+      return false;
+    } finally {
+      this.loadingOlder.delete(key);
     }
   }
 
@@ -147,17 +259,20 @@ export class CandleService extends EventEmitter {
     this.backfilling.add(key);
     try {
       let rows: CandleData[] | undefined;
+      const DESIRED_HISTORY_ROWS = 1000;
       if (exchange === "BINANCE") {
         rows = await this.sources.BINANCE.fetchCandleHistory(
           symbol,
           interval,
           type === "SPOT" ? "spot" : "futures",
+          DESIRED_HISTORY_ROWS,
         );
       } else if (exchange === "OKX") {
         rows = await this.sources.OKX.fetchCandleHistory(
           symbol,
           interval,
           type === "SPOT" ? "SPOT" : "SWAP",
+          DESIRED_HISTORY_ROWS, // OKX pages internally (300 rows per request)
         );
       }
       if (!this.candleListeners.has(key)) return; // unsubscribed mid-backfill

@@ -220,29 +220,40 @@ export class OkxAdapter extends EventEmitter {
   }
 
   /**
-   * REST history backfill (returned ascending; OKX sends latest-first and we
-   * normalize). No key, no signing.
+   * REST history backfill (returned ascending). No key, no signing.
+   * OKX serves at most 300 rows per request; when a larger `limit` is asked
+   * the remaining pages are followed via `after` (records stricter-older than
+   * that timestamp) so charts can load deeper history.
    */
   async fetchCandleHistory(
     symbol: string,
     interval: CandleInterval,
     type: "SPOT" | "SWAP",
-    limit = 200,
+    limit = 300,
+    afterTs?: number,
   ): Promise<CandleData[]> {
     const instId = type === "SPOT" ? symbol : `${symbol}-SWAP`;
-    const response = await fetch(
-      `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${toOkxBar(interval)}&limit=${limit}`,
-      { signal: AbortSignal.timeout(10_000) },
-    );
-    if (!response.ok) {
-      throw new Error(`OKX candles HTTP ${response.status}`);
+    const rows: string[][] = [];
+    // `after` makes OKX return records strictly older than the timestamp.
+    let afterParam = afterTs != null ? String(afterTs) : undefined;
+
+    while (rows.length < limit) {
+      const page = await fetchOkxCandlePage(
+        instId,
+        toOkxBar(interval),
+        Math.min(300, limit - rows.length),
+        afterParam,
+      );
+      if (page.length === 0) break;
+      rows.push(...page);
+      // OKX returns latest-first; last row's ts is the older boundary.
+      const oldestTs = parseInt(page[page.length - 1][0], 10);
+      if (!(oldestTs > 0)) break;
+      afterParam = String(oldestTs);
     }
-    const payload = (await response.json()) as { code: string; data: string[][] };
-    if (payload.code !== "0") {
-      throw new Error(`OKX candles API error ${payload.code}`);
-    }
+
     const candles = normalizeHistory(
-      (payload.data ?? []).map((row) => ({
+      rows.map((row) => ({
         openTime: parseInt(row[0]),
         open: parseFloat(row[1]),
         high: parseFloat(row[2]),
@@ -260,4 +271,26 @@ export class OkxAdapter extends EventEmitter {
       candle,
     }));
   }
+}
+
+/** One OKX candles API request (no more than 300 rows). */
+async function fetchOkxCandlePage(
+  instId: string,
+  bar: string,
+  limit: number,
+  after?: string,
+): Promise<string[][]> {
+  const afterQ = after != null ? `&after=${after}` : "";
+  const response = await fetch(
+    `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=${limit}${afterQ}`,
+    { signal: AbortSignal.timeout(10_000) },
+  );
+  if (!response.ok) {
+    throw new Error(`OKX candles HTTP ${response.status}`);
+  }
+  const payload = (await response.json()) as { code: string; data: string[][] };
+  if (payload.code !== "0") {
+    throw new Error(`OKX candles API error ${payload.code}`);
+  }
+  return payload.data ?? [];
 }

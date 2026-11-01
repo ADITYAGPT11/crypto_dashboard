@@ -8,6 +8,9 @@ import { DeltaExchangeAdapter } from "../adapters/DeltaExchangeAdapter";
 import type { ConnectionState, ConnectionStatusPayload } from "../types/connection";
 import type { GenericMarketData, OrderBookBbo, OrderBookSnapshot } from "../types/marketData";
 import { OrderBookService } from "./OrderBookService";
+import { TradeService } from "./TradeService";
+import { LiquidityHistoryService } from "./LiquidityHistoryService";
+import type { TradeEvent } from "../types/marketData";
 
 interface FundingRateEvent {
   exchange: string;
@@ -30,6 +33,8 @@ export class MarketDataService extends EventEmitter {
   private delta = new DeltaExchangeAdapter();
   private arbitrage = new ArbitrageService();
   private orderBookService = OrderBookService.getInstance();
+  private tradeService = TradeService.getInstance();
+  private liquidityHistory = LiquidityHistoryService.getInstance();
   private isInitialized = false;
 
   // exchange → market → state; aggregated per exchange for the UI
@@ -109,8 +114,12 @@ export class MarketDataService extends EventEmitter {
 
     const onSnapshot = (snap: OrderBookSnapshot) => {
       this.orderBookService.setSnapshot(snap.exchange, snap.type, snap.symbol, snap);
+      // Heatmap-ready liquidity frames (1s cadence, ring-capped).
+      this.liquidityHistory.record(snap);
       this.emit("orderBookSnapshot", snap);
     };
+
+    const onTrade = (trade: TradeEvent) => this.tradeService.addTrade(trade);
 
     const onMarketData = (msg: GenericMarketData) => {
       liveService.update(msg.exchange, msg.symbol, msg.type, msg.currentPrice, msg.timeStamp);
@@ -138,11 +147,14 @@ export class MarketDataService extends EventEmitter {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (adapter as any).on("fundingRate", onFundingRate);
     }
-    // Module 5: wire order-book events from Binance (only source with depth in scope).
+    // Module 5: wire order-book + trade-print events from Binance (the only
+    // source with public depth/aggTrade prints in scope).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (this.binance as any).on("orderBookBbo", onBbo);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (this.binance as any).on("orderBookSnapshot", onSnapshot);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this.binance as any).on("trade", onTrade);
   }
 
   /**

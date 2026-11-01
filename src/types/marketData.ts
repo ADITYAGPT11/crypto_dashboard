@@ -53,6 +53,8 @@ export interface ArbitrageOpportunity {
 export type CandleInterval = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
 export const CANDLE_INTERVALS: readonly CandleInterval[] = ["1m", "5m", "15m", "1h", "4h", "1d"];
 
+export const CANDLEBVALS = ["1m", "5m", "15m", "1h", "4h", "1d"];
+
 /**
  * One OHLCV candle, always open-high-low-close ascending by openTime.
  * `volume` is the traded base-asset volume when the source provides it,
@@ -142,6 +144,30 @@ export interface OrderBookBbo {
   bidQuantity: number;
   askPrice: number;
   askQuantity: number;
+  timeStamp: number;
+}
+
+// ---------------------------------------------------------------------------
+// Trade prints (Module 5 — order-flow analytics)
+// ---------------------------------------------------------------------------
+
+/**
+ * One executed public trade (the exchange's aggregate trade where fills are
+ * merged).
+ *
+ * Data honesty: the aggressor side is inferred from the exchange's
+ * buyer-is-maker flag; a public feed cannot attribute a print to a specific
+ * account, order or algorithm.
+ */
+export interface TradeEvent {
+  exchange: ExchangeName;
+  symbol: string; // canonical BASE-QUOTE
+  type: MarketType;
+  price: number;
+  /** Traded quantity in base-asset units. */
+  quantity: number;
+  /** True when the buyer was the resting side → aggressor (taker) sold. */
+  buyerMaker: boolean /** Epoch ms of the trade (adapter-normalized to ms). */;
   timeStamp: number;
 }
 
