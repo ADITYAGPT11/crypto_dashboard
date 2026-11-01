@@ -1,8 +1,8 @@
 # M9 · Dashboard UI
 
-**Status:** 🚧 One dashboard page with re-orderable panels: price table, chart + indicators,
-order book, spread panel, alert rule builder. **Crashes on load right now** (see STATUS).
-Screens for confirmations, strategies, risk and health are planned.
+**Status:** 🚧 Phase 1a built: Dashboard (setup scanner) and Chart workspace (`src/components/
+DashboardPage`, `ChartPage`), plus the older Markets page. Pattern stats, Risk, Alerts, Data,
+and later confirmation screens are planned.
 
 ## Screens
 

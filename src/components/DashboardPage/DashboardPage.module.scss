@@ -1,0 +1,246 @@
+@use "../../styles/page" as *;
+
+.page {
+  @include page;
+}
+.pagehead {
+  @include pagehead;
+}
+.card {
+  @include card;
+}
+.feature {
+  @include feature;
+}
+.cardHead {
+  @include card-head;
+}
+.lbl {
+  @include lbl;
+}
+.mute {
+  color: var(--t-muted);
+}
+.num {
+  font-family: var(--t-font-data);
+  font-variant-numeric: tabular-nums;
+}
+.up {
+  color: var(--t-up);
+}
+.down {
+  color: var(--t-down);
+}
+.r {
+  text-align: right !important;
+}
+.xs {
+  overflow-x: auto;
+}
+.tbl {
+  @include tbl;
+  min-width: 720px;
+}
+.btn {
+  @include btn;
+}
+.btnSm {
+  @include btn;
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+.ciCol {
+  width: 26%;
+}
+.ciCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  .num {
+    width: 36px;
+  }
+  > div {
+    flex: 1;
+  }
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+}
+.s8 {
+  grid-column: span 8;
+}
+.s4 {
+  grid-column: span 4;
+}
+@media (max-width: 1180px) {
+  .s8,
+  .s4 {
+    grid-column: span 12;
+  }
+}
+.alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--t-line);
+  background: var(--t-warn-bg);
+  color: var(--t-amber);
+}
+
+/* header band with parallax */
+.band {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--t-radius);
+  border: 1px solid var(--t-line);
+  background: var(--t-well);
+  padding: 22px;
+  h2 {
+    margin: 6px 0 0;
+    font-size: clamp(20px, 2.4vw, 28px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    max-width: 30ch;
+    text-wrap: balance;
+  }
+  p {
+    margin: 6px 0 0;
+    color: var(--t-muted);
+    max-width: 64ch;
+  }
+}
+.pxContour,
+.pxDots {
+  position: absolute;
+  inset: -14%;
+  pointer-events: none;
+  will-change: transform;
+}
+.pxContour {
+  z-index: -2;
+  opacity: 0.5;
+  background: repeating-radial-gradient(
+    circle at 80% 30%,
+    transparent 0 22px,
+    rgba(76, 154, 255, 0.1) 22px 23px
+  );
+  mask-image: radial-gradient(60% 80% at 78% 35%, #000, transparent 75%);
+}
+.pxDots {
+  z-index: -1;
+  opacity: 0.6;
+  background-image: radial-gradient(rgba(148, 170, 200, 0.22) 1px, transparent 1.2px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(90deg, transparent, #000 55%);
+}
+.kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  margin-top: 16px;
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+  .num {
+    font-size: 22px;
+    font-weight: 600;
+  }
+}
+
+/* pipeline */
+.pipe {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  li {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 0;
+    border-top: 1px solid var(--t-inner);
+    &:first-child {
+      border-top: 0;
+    }
+  }
+}
+%mk {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+}
+.mkOk {
+  @extend %mk;
+  background: var(--t-up-bg);
+  color: var(--t-up);
+}
+.mkNo {
+  @extend %mk;
+  background: var(--t-raised);
+  color: var(--t-muted);
+}
+
+/* watchlist */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--t-raised);
+  border: 1px solid var(--t-line);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s,
+    box-shadow 0.2s;
+  &:hover {
+    transform: translateY(-2px);
+    border-color: var(--t-signal-soft);
+    box-shadow: 0 14px 30px -18px rgba(76, 154, 255, 0.6);
+  }
+  svg {
+    width: 100%;
+    height: 36px;
+    display: block;
+  }
+}
+.tileTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.tilePx {
+  font-family: var(--t-font-data);
+  font-size: 19px;
+  font-weight: 600;
+}
+.tileMeta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--t-muted);
+}
+.sparkEmpty {
+  height: 36px;
+}

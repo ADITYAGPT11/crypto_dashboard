@@ -106,3 +106,19 @@ small per-coin samples (e.g. 4 of 5) cannot support confidence alone. Phase 1 nu
 Phase 2 re-tests edge candidates with costs out-of-sample. Charts use Lightweight Charts, not the
 paid TradingView Charting Library. The visual language keeps the first canvas's style with modern
 detailing (gradient-edged feature cards, frosted chart toolbar, hover lift).
+
+### 2026-11-01 · Phase 1a: analysis runs in the browser on Binance public history
+Why: the owner wants the Dashboard and Chart workspace now; the Python backend and QuestDB are
+not built yet. Detectors and statistics are pure TypeScript in `src/utils/` (unit-tested), fed by
+`HistoryService` (Binance USDⓈ-M REST, ~3,000 closed candles per coin, 10–12 coins).
+Consequence: limited history means many setups show "too few cases". In Phase 1b the same logic
+is ported to Python and runs on stored history; the TS versions remain the reference and tests.
+
+### 2026-11-01 · Verdict compares the win rate with break-even, not 50%
+Why: setups have different reward-to-risk. A 1.5R target breaks even at 40%, a measured-move
+target may need 65%. "Edge candidate" = n ≥ 30 and the Wilson 95% lower bound above the setup's
+break-even win rate (from its average win in R).
+
+### 2026-11-01 · Frozen `src/backend` excluded from the app's type-check and lint
+Why: it is Node code with its own unresolved errors and is replaced in Phase 1b; type-checking it
+with the browser app blocked `npm run build`.

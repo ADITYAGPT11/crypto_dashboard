@@ -15,10 +15,10 @@ flowchart LR
 ```
 
 ## Phase 0 · Stabilise the browser app (current)
-- [ ] Fix the runtime crash (`CANDLE_INTERVALS` / `setActiveInterval` undefined in `MainContainer`)
-- [ ] Fix the remaining type errors (missing imports in `AlertService`/`AlertEngine`,
+- [x] Fix the runtime crash (`CANDLE_INTERVALS` / `setActiveInterval` undefined in `MainContainer`)
+- [x] Fix the remaining type errors (missing imports in `AlertService`/`AlertEngine`,
       `CandleService.fetchCandles` in `ChartPanel`)
-- [ ] Delete dead files + unused `@electric-sql/pglite` (list in STATUS)
+- [x] Delete dead files (unused `@electric-sql/pglite` dependency still to remove)
 - [ ] Backend prototype: either make it start (`.ts` import extensions) or freeze it until
       Phase 1 replaces it. The Telegram client is worth porting.
 - [x] Test runner: Vitest via Vite+, 191 tests (master, 2026-10-25)
@@ -34,6 +34,14 @@ flowchart LR
 > The old module roadmap from `agent-docs/projectNotes.txt` (Modules 0–11) is folded in here:
 > 0–6 ≈ done (see STATUS); 7 Telegram → P6 alerts; 8 history/replay → P1 + P2; 9 liquidity
 > heatmap and 10 derivatives stats → Parking lot / P2 features; 11 reliability → every phase's exit.
+
+## Phase 1a · Dashboard + Chart workspace in the browser ✅ (2026-11-01)
+- [x] Analysis engine in `src/utils/`: volume profile, zones, double bottom / bullish engulfing /
+      hammer, outcome resolution, setup statistics with Wilson range and break-even verdict
+- [x] `HistoryService` (Binance public REST) + multi-coin scan
+- [x] Dashboard (setup scanner, setup performance table, pipeline, watchlist)
+- [x] Chart workspace (Lightweight Charts, overlays, setup card, volume levels, zones)
+- [ ] Pattern stats, Risk calculator, Alerts screens; more detectors
 
 ## Phase 1 · Backend + history (M1, M2)
 - [x] Decide backend stack: Python 3.12 + FastAPI + QuestDB (see DECISIONS, ARCHITECTURE)

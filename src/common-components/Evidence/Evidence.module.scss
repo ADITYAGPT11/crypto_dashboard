@@ -1,0 +1,112 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.up {
+  background: var(--t-up-bg);
+  color: var(--t-up);
+}
+.down {
+  background: var(--t-down-bg);
+  color: var(--t-down);
+}
+.warn {
+  background: var(--t-warn-bg);
+  color: var(--t-amber);
+}
+.info {
+  background: var(--t-info-bg);
+  color: #7db4ff;
+}
+.lock {
+  background: var(--t-raised);
+  color: var(--t-muted);
+}
+
+.ci {
+  position: relative;
+  height: 10px;
+  min-width: 110px;
+  border-radius: 5px;
+  background: var(--t-inner);
+}
+.band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 5px;
+  background: var(--t-signal-soft);
+}
+.pt {
+  position: absolute;
+  top: -3px;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--t-signal);
+}
+.be {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--t-amber);
+}
+
+.explain {
+  position: relative;
+  display: inline-flex;
+}
+.q {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--t-line);
+  background: transparent;
+  color: var(--t-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+
+  &:hover {
+    color: var(--t-fg);
+    border-color: var(--t-signal);
+  }
+}
+.pop {
+  position: absolute;
+  z-index: 20;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(320px, 80vw);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--t-line);
+  background: rgba(14, 19, 26, 0.92);
+  backdrop-filter: blur(14px);
+  color: var(--t-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-transform: none;
+  letter-spacing: 0;
+  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.8);
+
+  b {
+    color: var(--t-fg);
+  }
+}

@@ -4,9 +4,9 @@
 > confirmations** backed by deep research, historical backtesting, forward testing, mathematical
 > edge, statistical probability, technical analysis, news impact and risk management.
 >
-> **Today it is:** a browser React dashboard (live prices/funding from Binance, OKX, Delta India;
-> charts + indicators; order book; spread panel; rule-based alerts) plus an unfinished TypeScript
-> backend prototype. **It is currently broken**: read `docs/context/STATUS.md` first.
+> **Today it is:** a browser React app (Phase 1a): a setup-scanner **Dashboard** and a **Chart**
+> workspace (patterns, demand/supply zones, volume profile, win-rate history of every setup) on
+> Binance public history, plus the older Markets page. Read `docs/context/STATUS.md` first.
 
 ## Context map: read in this order, only as deep as the task needs
 
@@ -34,7 +34,7 @@ npm run dev         # dev server on http://localhost:3000
 npx vp test         # Vitest unit tests
 npx vp check        # format + lint + typecheck (no fixes); `npx vp check --fix` to fix
 npm run build       # tsc -b + production build
-npm run backend     # backend prototype on :3001 (currently fails to start, see STATUS)
+npm run backend     # frozen Node prototype (fails to start; replaced by Python in Phase 1b)
 ```
 
 **Done means:** `vp check` clean, `vp test` green, `npm run build` passes, and STATUS updated.
@@ -64,6 +64,9 @@ npm run backend     # backend prototype on :3001 (currently fails to start, see 
   `subscribe()` returning an unsubscribe fn + a small hook in `custom-hooks/`
   (pattern: `useLivePrice.ts`). Don't push tick data through parent React state.
 - New pure logic goes in `src/utils/<name>.ts` with tests in `src/utils/__tests__/`.
+- Analysis must never look ahead: detectors confirm a pattern only with candles that existed at
+  that time, and statistics show n, a Wilson 95% range and a break-even comparison.
+- New pages share `src/styles/_page.scss` mixins and `--t-*` tokens from `src/styles/tokens.css`.
 - New components: folder + `index.ts` + `Component.module.scss`. Don't copy the global-`.scss`
   pattern in `components/dashboard/*`.
 - TypeScript strict; no `any`; `import type` for types. No `console.*` in UI components.

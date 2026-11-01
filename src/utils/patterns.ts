@@ -143,7 +143,13 @@ export function detectHammers(candles: Candle[]): PatternHit[] {
   return hits;
 }
 
-function candleHit(type: PatternType, index: number, entry: number, low: number, a: number): PatternHit {
+function candleHit(
+  type: PatternType,
+  index: number,
+  entry: number,
+  low: number,
+  a: number,
+): PatternHit {
   const stop = low - 0.1 * a;
   return {
     type,

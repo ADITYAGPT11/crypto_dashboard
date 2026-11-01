@@ -25,7 +25,8 @@ export function computeVolumeProfile(candles: Candle[], bins = 48): VolumeProfil
 
   const binSize = (high - low) / bins;
   const volumes: number[] = Array.from({ length: bins }, () => 0);
-  const binOf = (price: number) => Math.min(bins - 1, Math.max(0, Math.floor((price - low) / binSize)));
+  const binOf = (price: number) =>
+    Math.min(bins - 1, Math.max(0, Math.floor((price - low) / binSize)));
 
   for (const c of candles) {
     const b0 = binOf(c.low);
@@ -60,7 +61,13 @@ export function computeVolumeProfile(candles: Candle[], bins = 48): VolumeProfil
   for (let b = 2; b < bins - 2; b++) {
     if (b === pocIndex) continue;
     const v = volumes[b];
-    if (v > avg && v > volumes[b - 1] && v > volumes[b + 1] && v >= volumes[b - 2] && v >= volumes[b + 2]) {
+    if (
+      v > avg &&
+      v > volumes[b - 1] &&
+      v > volumes[b + 1] &&
+      v >= volumes[b - 2] &&
+      v >= volumes[b + 2]
+    ) {
       hvnBins.push(b);
     }
   }

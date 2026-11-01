@@ -4,7 +4,12 @@ import type { PatternHit, SetupOccurrence } from "../../types/analysis";
 import { wilson, median } from "../stats";
 import { computeVolumeProfile } from "../volumeProfile";
 import { detectZones, activeZonesAt } from "../zones";
-import { detectBullishEngulfing, detectDoubleBottoms, detectHammers, PIVOT_BARS } from "../patterns";
+import {
+  detectBullishEngulfing,
+  detectDoubleBottoms,
+  detectHammers,
+  PIVOT_BARS,
+} from "../patterns";
 import { evaluateOutcome, locate, summarize, verdictFor, MIN_SAMPLE } from "../setupAnalysis";
 
 const H = 3_600_000;
@@ -26,7 +31,14 @@ function flat(n: number, price: number, startIndex = 0, range = 1, volume = 100)
   });
 }
 
-function c(i: number, open: number, high: number, low: number, close: number, volume = 100): Candle {
+function c(
+  i: number,
+  open: number,
+  high: number,
+  low: number,
+  close: number,
+  volume = 100,
+): Candle {
   return { openTime: i * H, open, high, low, close, volume };
 }
 
@@ -110,7 +122,9 @@ describe("detectZones", () => {
     const retest = c(n, 102, 102.2, 100.1, 101.9); // dips into zone, closes back above
     const away = c(n + 1, 101.9, 103, 101.5, 102.8);
     const breakdown = c(n + 2, 102.8, 102.9, 98.5, 98.8); // closes below zone low
-    const [zone] = detectZones([...base, retest, away, breakdown]).filter((z) => z.kind === "demand");
+    const [zone] = detectZones([...base, retest, away, breakdown]).filter(
+      (z) => z.kind === "demand",
+    );
     // The breakdown candle re-enters the zone: a second test, which fails.
     expect(zone.tests).toBe(2);
     expect(zone.held).toBe(1);
@@ -190,10 +204,21 @@ describe("candle patterns", () => {
 });
 
 describe("evaluateOutcome", () => {
-  const hit: PatternHit = { type: "hammer", index: 0, entry: 100, stop: 98, target: 103, low: 98.1, points: [] };
+  const hit: PatternHit = {
+    type: "hammer",
+    index: 0,
+    entry: 100,
+    stop: 98,
+    target: 103,
+    low: 98.1,
+    points: [],
+  };
 
   it("wins when the target is hit first", () => {
-    const o = evaluateOutcome([c(0, 100, 100, 100, 100), c(1, 100, 101, 99, 100.5), c(2, 100.5, 103.5, 100, 103)], hit);
+    const o = evaluateOutcome(
+      [c(0, 100, 100, 100, 100), c(1, 100, 101, 99, 100.5), c(2, 100.5, 103.5, 100, 103)],
+      hit,
+    );
     expect(o.result).toBe("win");
     expect(o.bars).toBe(2);
     expect(o.r).toBeCloseTo(1.5, 6);
@@ -215,8 +240,25 @@ describe("evaluateOutcome", () => {
 
 describe("locate and summarize", () => {
   it("places a pattern low inside an earlier intact demand zone", () => {
-    const zone = { kind: "demand" as const, low: 95, high: 97, startIndex: 4, formedIndex: 5, endIndex: null, tests: 1, held: 1 };
-    const inZone: PatternHit = { type: "hammer", index: 20, entry: 99, stop: 95.5, target: 104, low: 96, points: [{ index: 20, price: 96 }] };
+    const zone = {
+      kind: "demand" as const,
+      low: 95,
+      high: 97,
+      startIndex: 4,
+      formedIndex: 5,
+      endIndex: null,
+      tests: 1,
+      held: 1,
+    };
+    const inZone: PatternHit = {
+      type: "hammer",
+      index: 20,
+      entry: 99,
+      stop: 95.5,
+      target: 104,
+      low: 96,
+      points: [{ index: 20, price: 96 }],
+    };
     const outside: PatternHit = { ...inZone, low: 90, points: [{ index: 20, price: 90 }] };
     expect(locate(inZone, [zone], 1)).toBe("demandZone");
     expect(locate(outside, [zone], 1)).toBe("openSpace");
@@ -227,9 +269,23 @@ describe("locate and summarize", () => {
     const win = result === "win";
     return {
       symbol: "BTC-USDT",
-      hit: { type: "doubleBottom", index: i, entry: 100, stop: 98, target: 103, low: 98.5, points: [] },
+      hit: {
+        type: "doubleBottom",
+        index: i,
+        entry: 100,
+        stop: 98,
+        target: 103,
+        low: 98.5,
+        points: [],
+      },
       location: "demandZone",
-      outcome: { result, exitIndex: i + 3, movePct: win ? 3 : result === "loss" ? -2 : 0, r: win ? 1.5 : result === "loss" ? -1 : 0, bars: 3 },
+      outcome: {
+        result,
+        exitIndex: i + 3,
+        movePct: win ? 3 : result === "loss" ? -2 : 0,
+        r: win ? 1.5 : result === "loss" ? -1 : 0,
+        bars: 3,
+      },
       time: i * H,
     };
   }

@@ -21,7 +21,7 @@ export const MIN_SAMPLE = 30;
 
 export const LOCATION_LABELS: Record<SetupLocation, string> = {
   demandZone: "in demand zone",
-  openSpace: "open space",
+  openSpace: "in open space",
 };
 
 export function setupKey(type: PatternType, location: SetupLocation): string {
@@ -33,7 +33,11 @@ export function setupKey(type: PatternType, location: SetupLocation): string {
  * target touch on the same candle (conservative: we can't know the order).
  * "expired" = neither within MAX_HOLD_BARS; "open" = ran out of data first.
  */
-export function evaluateOutcome(candles: Candle[], hit: PatternHit, maxBars = MAX_HOLD_BARS): Outcome {
+export function evaluateOutcome(
+  candles: Candle[],
+  hit: PatternHit,
+  maxBars = MAX_HOLD_BARS,
+): Outcome {
   const last = Math.min(hit.index + maxBars, candles.length - 1);
   for (let j = hit.index + 1; j <= last; j++) {
     const c = candles[j];
@@ -58,7 +62,13 @@ export function evaluateOutcome(candles: Candle[], hit: PatternHit, maxBars = MA
     }
   }
   const ranOut = hit.index + maxBars > candles.length - 1;
-  return { result: ranOut ? "open" : "expired", exitIndex: null, movePct: 0, r: 0, bars: last - hit.index };
+  return {
+    result: ranOut ? "open" : "expired",
+    exitIndex: null,
+    movePct: 0,
+    r: 0,
+    bars: last - hit.index,
+  };
 }
 
 /**
@@ -103,7 +113,11 @@ export function verdictFor(n: number, ciLow: number, breakEven: number): Verdict
 }
 
 /** Aggregate resolved occurrences of one setup (any mix of symbols). */
-export function summarize(type: PatternType, location: SetupLocation, occ: SetupOccurrence[]): SetupStats {
+export function summarize(
+  type: PatternType,
+  location: SetupLocation,
+  occ: SetupOccurrence[],
+): SetupStats {
   const resolved = occ.filter((o) => o.outcome.result === "win" || o.outcome.result === "loss");
   const winsList = resolved.filter((o) => o.outcome.result === "win");
   const lossList = resolved.filter((o) => o.outcome.result === "loss");
@@ -152,6 +166,51 @@ export function summarizeAll(occ: SetupOccurrence[]): Map<string, SetupStats> {
 }
 
 /** Setups confirmed on one of the last `bars` closed candles. */
-export function currentSetups(analysis: SymbolAnalysis, closedCount: number, bars = 3): SetupOccurrence[] {
+export function currentSetups(
+  analysis: SymbolAnalysis,
+  closedCount: number,
+  bars = 3,
+): SetupOccurrence[] {
   return analysis.occurrences.filter((o) => o.hit.index >= closedCount - bars);
+}
+
+export interface CurrentSetup {
+  occurrence: SetupOccurrence;
+  /** The same setup across every analysed symbol. */
+  pooled: SetupStats;
+  /** The same setup on this symbol only. */
+  own: SetupStats;
+}
+
+export interface Scan {
+  analyses: Map<string, SymbolAnalysis>;
+  pooled: Map<string, SetupStats>;
+  /** Setups confirmed on the last few closed candles of each symbol, newest first. */
+  current: CurrentSetup[];
+}
+
+/** Analyse every symbol, pool the statistics, and list what is setting up now. */
+export function buildScan(
+  histories: { symbol: string; candles: Candle[] }[],
+  recentBars = 3,
+): Scan {
+  const analyses = new Map<string, SymbolAnalysis>();
+  const all: SetupOccurrence[] = [];
+  for (const h of histories) {
+    const a = analyzeSymbol(h.symbol, h.candles);
+    analyses.set(h.symbol, a);
+    all.push(...a.occurrences);
+  }
+  const pooled = summarizeAll(all);
+  const current: CurrentSetup[] = [];
+  for (const h of histories) {
+    const a = analyses.get(h.symbol)!;
+    const own = summarizeAll(a.occurrences);
+    for (const o of currentSetups(a, h.candles.length, recentBars)) {
+      const key = setupKey(o.hit.type, o.location);
+      current.push({ occurrence: o, pooled: pooled.get(key)!, own: own.get(key)! });
+    }
+  }
+  current.sort((x, y) => y.occurrence.time - x.occurrence.time);
+  return { analyses, pooled, current };
 }
