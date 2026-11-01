@@ -15,7 +15,7 @@ export default defineConfig({
       browser: true,
       es2026: true,
     },
-    ignorePatterns: ["node_modules", "dist", "build"],
+    ignorePatterns: ["node_modules", "dist", "build", "src/backend"],
     categories: {
       correctness: "warn",
     },

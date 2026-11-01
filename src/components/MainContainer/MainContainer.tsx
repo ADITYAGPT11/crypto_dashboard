@@ -4,7 +4,7 @@ import type { ArbitrageOpportunity } from "../../types/marketData";
 import type { ConnectionState } from "../../types/connection";
 
 import ArbitragePanel from "../ArbitragePanel/ArbitragePanel";
-import ChartPanel from "../ChartPanel/ChartPanel";
+import { Link } from "react-router-dom";
 import Metrics from "../dashboard/Metrics";
 import PriceTable from "../dashboard/PriceTable";
 import ConnectionStatus from "../dashboard/ConnectionStatus";
@@ -146,12 +146,10 @@ const MainContainer: React.FC = () => {
           return <ConnectionStatus key={panelId} statuses={connectionStatuses} />;
         case "chart":
           return (
-            <ChartPanel
-              key={panelId}
-              symbol={symbolList[0] ?? "BTC-USDT"}
-              intervals={CANDLE_INTERVALS}
-              setInterval={setActiveInterval}
-            />
+            <div key={panelId} className={styles.chartLink}>
+              <span>Charts, patterns, zones and volume levels live in the Chart workspace.</span>
+              <Link to={`/chart/${symbolList[0] ?? "BTC-USDT"}`}>Open chart</Link>
+            </div>
           );
         case "priceTable":
           return (

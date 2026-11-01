@@ -24,6 +24,7 @@ import { findLargeLevels, imbalanceTopN } from "../utils/orderBookUtils";
 import type {
   AlertCondition,
   AlertEngineContext,
+  AlertEngineState,
   AlertRule,
   AlertTrigger,
 } from "../types/alertRules";
