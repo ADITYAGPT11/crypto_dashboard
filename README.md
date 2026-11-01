@@ -1,122 +1,49 @@
-# Crypto Dashboard
+# Crypto Dashboard → Trade Confirmation System
 
-A React-based cryptocurrency dashboard with real-time data visualization from exchange public WebSocket APIs.
+Building an intelligent, research-driven trading system that generates **high-confidence trade
+confirmations** from deep research, historical backtesting, forward testing, mathematical edge,
+statistical probability, technical analysis, news impact and risk management.
+
+**Current stage:** a browser dashboard over exchange public APIs (Binance, OKX, Delta Exchange
+India): live prices and funding, candlestick charts with indicators, order book, cross-exchange
+spread panel and rule-based alerts. Analysis only; no trade execution. See
+[`docs/context/STATUS.md`](docs/context/STATUS.md) for what currently works and what's broken.
+
+## Quick start
+
+Requires Node 22.5+.
+
+```bash
+npm ci
+npm run dev        # http://localhost:3000
+```
+
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Vite+ dev server |
+| `npx vp test` | Unit tests (Vitest) |
+| `npx vp check` | Format + lint + typecheck |
+| `npm run build` | Type-check + production build into `dist/` |
+| `npm run preview` | Serve the production build |
+| `npm run backend` | Backend prototype (Express, port 3001) |
+
+No API keys or `.env` are needed for the dashboard; only public exchange endpoints are used.
+
+## Project context
+
+- [`CLAUDE.md`](CLAUDE.md): entry point for AI-assisted work (guardrails, conventions, commands)
+- [`docs/context/STATUS.md`](docs/context/STATUS.md): what works, what's broken, what's next
+- [`docs/context/PROJECT_MAP.md`](docs/context/PROJECT_MAP.md): today's code: data flow, files, events
+- [`docs/context/ARCHITECTURE.md`](docs/context/ARCHITECTURE.md): target architecture, folder structure, packages and tools
+- [`docs/product/README.md`](docs/product/README.md): product vision and module specs with flowcharts
+- [`docs/context/ROADMAP.md`](docs/context/ROADMAP.md): phases from dashboard to confirmations
+- [`docs/context/DECISIONS.md`](docs/context/DECISIONS.md): why things are the way they are
+- [`docs/context/TOOLING.md`](docs/context/TOOLING.md): AI tools, reuse audit, alternatives considered
+- [`docs/context/MINDMAP.md`](docs/context/MINDMAP.md): the whole project as a mind map
 
 ## Attribution
 
-- Candlestick charts are built with [Lightweight Charts™](https://www.tradingview.com/lightweight-charts/) (Apache-2.0), Copyright (c) TradingView, Inc. In line with the Lightweight Charts license, the TradingView attribution logo is displayed on every chart.
-- Agent/roadmap docs: see [`agent-docs/`](./agent-docs/).
-- Exchange data: Binance/OKX/Delta India public APIs.
-
----
-
-## Setup
-
-### 1. Install Dependencies
-
-```bash
-npm install
-```
-
-### 2. Configure Environment Variables
-
-Copy the example environment file and update with your credentials:
-
-```bash
-cp .env.example .env
-```
-
-### 3. Start the Application
-
-#### Option A: Start the Dev Server (Recommended)
-
-```bash
-npm run dev
-```
-
-The frontend dev server runs on `http://localhost:3000`.
-
-## Development
-
-### Available Scripts
-
-- `npm run dev` - Start the Vite development server
-- `npm run build` - Build for production
-- `npm run lint` - Run ESLint
-- `npm run preview` - Preview the production build
-
-## Production Deployment
-
-For production, run the production build and serve it from any static hosting or backend server.
-
----
-
-# React + TypeScript + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
-
-export default tseslint.config([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
-```
+- Candlestick charts are built with [Lightweight Charts™](https://www.tradingview.com/lightweight-charts/)
+  (Apache-2.0), Copyright (c) TradingView, Inc. In line with its licence, the TradingView
+  attribution logo is displayed on every chart.
+- Exchange data: Binance, OKX and Delta Exchange India public APIs.
