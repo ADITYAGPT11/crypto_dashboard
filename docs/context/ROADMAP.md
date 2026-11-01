@@ -15,14 +15,14 @@ flowchart LR
 ```
 
 ## Phase 0 · Stabilise the browser app (current)
+
 - [x] Fix the runtime crash (`CANDLE_INTERVALS` / `setActiveInterval` undefined in `MainContainer`)
 - [x] Fix the remaining type errors (missing imports in `AlertService`/`AlertEngine`,
       `CandleService.fetchCandles` in `ChartPanel`)
-- [x] Delete dead files (unused `@electric-sql/pglite` dependency still to remove)
-- [ ] Backend prototype: either make it start (`.ts` import extensions) or freeze it until
-      Phase 1 replaces it. The Telegram client is worth porting.
+- [x] Delete dead files and the unused `@electric-sql/pglite` dependency
+- [x] Backend prototype starts (`npm run backend` bundles it) and passes type-check + lint
 - [x] Test runner: Vitest via Vite+, 191 tests (master, 2026-10-25)
-- [ ] CI: GitHub Action running `vp check` + `vp test` + `npm run build` on each PR
+- [x] CI: GitHub Action (`.github/workflows/ci.yml`) runs check, tests, build and the backend bundle on each PR
 - [ ] Fix symbol filter dropping JUP/SUPER etc. (`SymbolService`)
 - [ ] Unsubscribe price/funding streams on symbol removal (all three adapters)
 - [ ] Exchange badge: `stale`/`down` instead of endless "Connecting…" (cells already show stale)
@@ -36,6 +36,7 @@ flowchart LR
 > heatmap and 10 derivatives stats → Parking lot / P2 features; 11 reliability → every phase's exit.
 
 ## Phase 1a · Dashboard + Chart workspace in the browser ✅ (2026-11-01)
+
 - [x] Analysis engine in `src/utils/`: volume profile, zones, double bottom / bullish engulfing /
       hammer, outcome resolution, setup statistics with Wilson range and break-even verdict
 - [x] `HistoryService` (Binance public REST) + multi-coin scan
@@ -44,6 +45,7 @@ flowchart LR
 - [ ] Pattern stats, Risk calculator, Alerts screens; more detectors
 
 ## Phase 1 · Backend + history (M1, M2)
+
 - [x] Decide backend stack: Python 3.12 + FastAPI + QuestDB (see DECISIONS, ARCHITECTURE)
 - [ ] Monorepo layout per `ARCHITECTURE.md`: move frontend to `apps/web`, scaffold `backend/` with uv
 - [ ] Collector service: Binance + OKX (+ Delta) via CCXT; health + gap detection
@@ -66,6 +68,7 @@ flowchart LR
 criteria met.
 
 ## Phase 2 · Research + backtest (M3)
+
 - [ ] Feature library (TA, funding percentile, basis, OI change, regime)
 - [ ] Vectorised screener + event-driven backtester with the shared cost model
 - [ ] Strategy report generator (HTML) + gate checker
@@ -75,6 +78,7 @@ criteria met.
 **Exit:** ≥ 1 strategy passes the gate in `M3-research-backtest.md`.
 
 ## Phase 3 · Signal engine (M4) + UI
+
 - [ ] Strategy runtime shared with the backtester (parity test)
 - [ ] Signals table + API; Strategies and Confirmations screens (paper only)
 - [ ] Upgrade the spread panel to fee- and USD/USDT-aware basis/spread calculations
@@ -83,17 +87,20 @@ criteria met.
 **Exit:** live signals match replayed backtest entries 1:1.
 
 ## Phase 4 · Forward test (M5)
+
 - [ ] Paper ledger for every signal and veto; drift detection + auto-pause
 
 **Exit:** ≥ 30 forward trades per promoted strategy inside the backtest 95 % band.
 
 ## Phase 5 · News impact (M6), can run in parallel after P1
+
 - [ ] Ingest news + calendar + exchange announcements; classify
 - [ ] Event-study per category; impact rules
 
 **Exit:** measured improvement (or none) of news filtering, documented.
 
 ## Phase 6 · Risk + confirmations (M7, M8)
+
 - [ ] Risk manager with all veto paths unit-tested
 - [ ] Calibrated confidence + confirmation cards + alerts (Telegram)
 - [ ] Monthly calibration report
@@ -101,10 +108,11 @@ criteria met.
 **Exit:** confirmations live; calibration within ± 5 %.
 
 ## Parking lot (ideas, not scheduled)
+
 - Order-book features for research: full depth needs snapshot + diff sync (today: top-20 partial book).
 - Liquidity heatmap (old Module 9); candidate renderer: nazmiefearmutcu/flowmap (see TOOLING).
 - Derivatives stats: OI, basis, liquidations, CVD, volume profile (old Module 10).
 - Chart drawing tools.
 - Angel One / Indian equities (removed in `4350c71`).
 - Auto-execution, only after Phase 4/6 evidence justifies it.
-- ML models (gradient boosting on features) as a *filter* on rule-based signals, never a black box.
+- ML models (gradient boosting on features) as a _filter_ on rule-based signals, never a black box.

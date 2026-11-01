@@ -18,14 +18,14 @@ npm ci
 npm run dev        # http://localhost:3000
 ```
 
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | Vite+ dev server |
-| `npx vp test` | Unit tests (Vitest) |
-| `npx vp check` | Format + lint + typecheck |
-| `npm run build` | Type-check + production build into `dist/` |
-| `npm run preview` | Serve the production build |
-| `npm run backend` | Backend prototype (Express, port 3001) |
+| Script            | What it does                                                           |
+| ----------------- | ---------------------------------------------------------------------- |
+| `npm run dev`     | Vite+ dev server on <http://localhost:3000>                            |
+| `npm test`        | Unit tests (Vitest)                                                    |
+| `npm run check`   | Format + lint + type-check                                             |
+| `npm run build`   | Type-check + production build into `dist/`                             |
+| `npm run preview` | Serve the production build                                             |
+| `npm run backend` | Bundle and start the backend prototype (Express + SQLite) on port 3001 |
 
 No API keys or `.env` are needed for the dashboard; only public exchange endpoints are used.
 

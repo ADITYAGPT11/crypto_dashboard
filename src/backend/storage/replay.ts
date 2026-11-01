@@ -68,7 +68,8 @@ export class ReplayEngine {
     const totalTrades = trades.length;
 
     // Build alert engine context
-    const _engineState = { lastFiredAt: {} as Record<string, number> };
+    // Carried across candles so cooldown/dedupe works during replay.
+    let engineState: AlertEngineState = { lastFiredAt: {} };
     const rules = this.config.rules?.filter((r) => r.enabled) ?? [];
 
     // Replay loop - process candles in chronological order
@@ -80,8 +81,8 @@ export class ReplayEngine {
       // Evaluate rules at this candle
       if (rules.length > 0) {
         const ctx = this.buildContext(candle, candles.slice(0, idx + 1), trades);
-        const { triggers } = evaluateAlertRules(rules, ctx, engineState);
-        // Keep engineState updated via the engine itself (if it mutates).
+        const { triggers, state } = evaluateAlertRules(rules, ctx, engineState);
+        engineState = state;
 
         for (const trigger of triggers) {
           totalTriggers++;
@@ -238,8 +239,6 @@ export function testRuleAgainstHistory(
   candles: Candle[],
   _trades: TradeEvent[] = [],
 ): ReplayTestResult {
-  const _engineState = { lastFiredAt: {} as Record<string, number> };
-
   // Build context from candles
   const candlesMap = new Map<string, Candle[]>();
   for (const candle of candles) {

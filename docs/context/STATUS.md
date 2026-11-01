@@ -12,20 +12,22 @@ are next; detection and statistics move server-side there. No confirmations yet 
 
 1. Pattern stats, Risk calculator and Alerts screens from `docs/product/ux/PHASE1_UX.md`.
 2. More detectors: bull flag, inverse head & shoulders, morning star; HVN/VAL as locations.
-3. GitHub Actions CI: `vp check` + `vp test` + `npm run build`.
+3. Keep CI green: `.github/workflows/ci.yml` runs on every PR.
 4. Phase 1b backend: Python collector + QuestDB, so history is stored and pooled across 20+ coins.
 5. Data bugs: symbol filter (issue 3), unsubscribe on removal (4), exchange "down" state (5),
    Delta USD labelling + funding units (1, 2).
 
 ## Health
 
-| Check | State |
-| --- | --- |
-| App in browser | ✅ loads; Dashboard and Chart verified end-to-end (desktop 1440 px, phone 400 px, no page errors, no horizontal scroll) with mocked Binance history |
-| `npm run build` | ✅ (chart code split into its own chunk) |
-| `npx vp lint .` | ✅ no errors or warnings (`src/backend` excluded, see DECISIONS) |
-| `npx vp test` | ✅ 215 tests, 11 files |
-| `npm run backend` | ❌ prototype doesn't start (`ERR_MODULE_NOT_FOUND`); frozen, replaced in Phase 1b |
+Verified 2026-11-01 from a clean `npm ci`:
+
+| Check                                                      | State                                                                                                                                              |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check` (`vp check`: format + lint + types)        | ✅ 134 files formatted; 0 errors or warnings in 91 files (backend included)                                                                        |
+| `npm test`                                                 | ✅ 215 tests, 11 files                                                                                                                             |
+| `npm run build` (`tsc -b` app + node + backend, then Vite) | ✅ chart code in its own chunk                                                                                                                     |
+| `npm run dev`                                              | ✅ <http://localhost:3000>; Dashboard, Chart, Markets, About load with no page errors (browser test at 1440 px and 400 px, mocked Binance history) |
+| `npm run backend`                                          | ✅ bundles `src/backend` and starts on :3001; `/health` OK, SQLite file created under `./data/`                                                    |
 
 ## What exists
 
@@ -44,7 +46,8 @@ are next; detection and statistics move server-side there. No confirmations yet 
   USDⓈ-M public REST, cached per session.
 - **Markets** (`/markets`): the earlier dashboard (price table, order book, spread panel, alert
   rule builder). Its chart panel now links to the Chart page.
-- **Backend prototype** (`src/backend/`): frozen; not type-checked or linted with the app.
+- **Backend prototype** (`src/backend/`): Express + `node:sqlite` + Telegram client; type-checked
+  and linted with the app, starts with `npm run backend`. Replaced by the Python backend in Phase 1b.
 
 ## Known issues
 
@@ -57,10 +60,15 @@ are next; detection and statistics move server-side there. No confirmations yet 
    4h, so several setups show "too few cases". Phase 1b stores more history; Phase 2 adds costs.
 7. **Pooled stats take a few seconds** on first load (≈24 REST requests); no progress bar yet.
 8. Order book and trade prints: Binance only. Delta: no candles, no 24 h stats.
-9. `getPopularSymbols()` lists rebranded coins (`MATIC`, `FTM`); `package.json` name is
-   `vite-project`; `.idx/dev.nix` lists Svelte/Vue extensions.
+9. `getPopularSymbols()` lists rebranded coins (`MATIC`, `FTM`); `.idx/dev.nix` lists Svelte/Vue
+   extensions.
+10. The backend is not called by the UI yet (alerts still evaluate in the browser).
 
 ## History
+
+- 2026-11-01: All checks green incl. the backend: 35 backend type errors fixed, replay crash
+  (`engineState` undefined) and cooldown fixed, database folder bug fixed, `npm run backend` starts;
+  unused `@electric-sql/pglite` removed; package renamed `crypto-dashboard`.
 
 - 2026-11-01: Phase 1a build: crash and type errors fixed, alert cooldown bug fixed, dead files
   removed, analysis engine + Dashboard + Chart workspace added (PR #2).

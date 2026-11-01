@@ -47,6 +47,7 @@ price table, spread (arbitrage), order book, alerts.
 ## Files
 
 **Entry / shell**
+
 - `index.html` → `src/main.tsx` → `src/App.tsx`: `TopNav` + routes `/` (Dashboard),
   `/chart/:symbol` (Chart, lazy-loaded), `/markets` (older dashboard), `/about`
 - `src/styles/tokens.css` (`--t-*` design tokens, dark), `src/styles/_page.scss` (page mixins)
@@ -54,6 +55,7 @@ price table, spread (arbitrage), order book, alerts.
   starts streaming, renders panels in "Edit layout" order
 
 **Exchange connectivity**
+
 - `src/websocket/BaseWebSocketClient.ts`: reconnect/backoff/jitter, send queue, optional heartbeat
 - `src/adapters/BinanceAdapter.ts`: combined streams; aggTrade (price + trade prints), bookTicker,
   depth20@100ms, klines + REST candle history, markPrice (funding)
@@ -61,6 +63,7 @@ price table, spread (arbitrage), order book, alerts.
 - `src/adapters/DeltaExchangeAdapter.ts`: trades, funding_rate (USD instruments mapped to `-USDT`)
 
 **Services (singletons, `getInstance()` / `resetInstance()`)**
+
 - `MarketDataService`: wires adapters → stores; `startMarketData`, `removeSymbol`
 - `LiveMarketDataService`: latest price/funding keyed `EXCHANGE|SYMBOL|TYPE`, per-key pub/sub
 - `CandleService`: refcounted candle subscriptions, backfill, `loadMoreHistory` (scroll-back)
@@ -93,26 +96,25 @@ overlay canvas; `SetupCard`), `MainContainer/` (Markets), `dashboard/` (`PriceTa
 `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
 `RealTimeClock`)
 
-**Backend prototype** (`src/backend/`, run with `npm run backend`, port 3001; doesn't start yet)
+**Backend prototype** (`src/backend/`, `npm run backend` bundles it to `dist-backend/` and starts it on port 3001; type-checked via `tsconfig.backend.json`)
+
 - `index.ts`: Express: `/health`, Telegram config, alert send, history storage + replay endpoints
 - `telegramService.ts`: rate-limited Telegram Bot API client
 - `storage/database.ts` (`node:sqlite`, retention limits), `storage/replay.ts` (replay + rule tests)
 
-**Backend prototype** is excluded from the app's type-check and lint (see DECISIONS).
-
 ## Events
 
-| Event | Emitted by | Payload (see `src/types/`) |
-| --- | --- | --- |
-| `marketData` | adapters → `MarketDataService` | `GenericMarketData` (price in canonical symbol) |
-| `fundingRate` | adapters → `MarketDataService` | rate (%), next time (ms), interval (s) |
-| `connectionStatus` | adapters; `MarketDataService` (aggregated) | `{ exchange, market?, state }` |
-| `candle` | adapters → `CandleService` | `Candle` |
-| `trade` | `BinanceAdapter` → `TradeService` | `TradeEvent` |
-| `orderBookSnapshot`, `orderBookBbo` | `BinanceAdapter` → `OrderBookService` | book levels / best bid-ask |
-| `arbitrage` | `ArbitrageService` | spread per symbol |
-| `trigger`, `rulesChanged`, `logChanged` | `AlertService` | alert firing / rule & log updates |
-| `symbolRemoved` | `MarketDataService` | symbol |
+| Event                                   | Emitted by                                 | Payload (see `src/types/`)                      |
+| --------------------------------------- | ------------------------------------------ | ----------------------------------------------- |
+| `marketData`                            | adapters → `MarketDataService`             | `GenericMarketData` (price in canonical symbol) |
+| `fundingRate`                           | adapters → `MarketDataService`             | rate (%), next time (ms), interval (s)          |
+| `connectionStatus`                      | adapters; `MarketDataService` (aggregated) | `{ exchange, market?, state }`                  |
+| `candle`                                | adapters → `CandleService`                 | `Candle`                                        |
+| `trade`                                 | `BinanceAdapter` → `TradeService`          | `TradeEvent`                                    |
+| `orderBookSnapshot`, `orderBookBbo`     | `BinanceAdapter` → `OrderBookService`      | book levels / best bid-ask                      |
+| `arbitrage`                             | `ArbitrageService`                         | spread per symbol                               |
+| `trigger`, `rulesChanged`, `logChanged` | `AlertService`                             | alert firing / rule & log updates               |
+| `symbolRemoved`                         | `MarketDataService`                        | symbol                                          |
 
 ## Endpoints used
 

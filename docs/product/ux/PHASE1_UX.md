@@ -11,13 +11,13 @@ switcher, search (Ctrl/⌘ K), the explainer drawer, the risk calculator and ale
    **demand/supply zones** and **key volume levels**.
 3. **Pattern history** for every detected setup: "this occurred N times, moved X%, won Y% of the
    time".
-4. The core idea: *a bullish pattern forming inside a demand zone has a high chance of winning,
-   with confidence from backtested data.* The UI measures exactly that, honestly.
+4. The core idea: _a bullish pattern forming inside a demand zone has a high chance of winning,
+   with confidence from backtested data._ The UI measures exactly that, honestly.
 
 ## Honesty rules for pattern statistics
 
-- A setup is **pattern + location** (e.g. double bottom *in a demand zone*, bull flag *above the
-  point of control*). Each combination is measured separately, because location changes results
+- A setup is **pattern + location** (e.g. double bottom _in a demand zone_, bull flag _above the
+  point of control_). Each combination is measured separately, because location changes results
   (sample: double bottom in a demand zone 61%, in open space 49%).
 - **Win** = target hit before stop. Target is the measured move or the next opposing zone; stop
   sits beyond the pattern. Rules are fixed in code before anything is measured.
@@ -30,14 +30,14 @@ switcher, search (Ctrl/⌘ K), the explainer drawer, the risk calculator and ale
 
 ## Screens
 
-| Screen | What it shows | Backend it needs |
-| --- | --- | --- |
-| **Dashboard** | Scanner headline + KPIs; **setups detected now** (symbol, TF, setup, past n, win rate with range, avg move, verdict, open chart); pipeline from pattern to confirmation; watchlist cards | `/scanner/now`, `/prices` (WS), `/pipeline` |
-| **Chart** | Candles + volume; toggles for EMA 50, Bollinger, zones, volume profile, pattern; detected pattern drawn on the chart with entry/stop/target; side panel: patterns on this chart, **setup card** (win rate across 20 coins and this coin, avg move, expectancy, confluence checklist, last 5 occurrences); key volume levels (POC, VAH, VAL, HVN, LVN); zones with tests and holds | `/candles`, `/indicators`, `/patterns?symbol&tf`, `/zones`, `/volume-profile`, `/setups/{id}/history` |
-| **Pattern stats** | Library of every pattern × location: n, win rate, range, avg win/loss, gross expectancy, verdict; how a setup becomes a confirmation; guards against overfitting | `/setups` |
-| **Risk** | Position-size calculator pre-filled from the selected setup | none (pure maths) |
-| **Alerts** | "Tell me when [coin] prints a [setup] on [TF]" with the setup's record shown before saving; Telegram delivery | `/alerts`, Telegram worker |
-| **Data** | Coverage, quality checks, backfill queue | `/coverage`, `/quality`, `/backfill` |
+| Screen            | What it shows                                                                                                                                                                                                                                                                                                                                                                     | Backend it needs                                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Dashboard**     | Scanner headline + KPIs; **setups detected now** (symbol, TF, setup, past n, win rate with range, avg move, verdict, open chart); pipeline from pattern to confirmation; watchlist cards                                                                                                                                                                                          | `/scanner/now`, `/prices` (WS), `/pipeline`                                                           |
+| **Chart**         | Candles + volume; toggles for EMA 50, Bollinger, zones, volume profile, pattern; detected pattern drawn on the chart with entry/stop/target; side panel: patterns on this chart, **setup card** (win rate across 20 coins and this coin, avg move, expectancy, confluence checklist, last 5 occurrences); key volume levels (POC, VAH, VAL, HVN, LVN); zones with tests and holds | `/candles`, `/indicators`, `/patterns?symbol&tf`, `/zones`, `/volume-profile`, `/setups/{id}/history` |
+| **Pattern stats** | Library of every pattern × location: n, win rate, range, avg win/loss, gross expectancy, verdict; how a setup becomes a confirmation; guards against overfitting                                                                                                                                                                                                                  | `/setups`                                                                                             |
+| **Risk**          | Position-size calculator pre-filled from the selected setup                                                                                                                                                                                                                                                                                                                       | none (pure maths)                                                                                     |
+| **Alerts**        | "Tell me when [coin] prints a [setup] on [TF]" with the setup's record shown before saving; Telegram delivery                                                                                                                                                                                                                                                                     | `/alerts`, Telegram worker                                                                            |
+| **Data**          | Coverage, quality checks, backfill queue                                                                                                                                                                                                                                                                                                                                          | `/coverage`, `/quality`, `/backfill`                                                                  |
 
 ## Screen flow
 
@@ -54,12 +54,12 @@ flowchart LR
 
 ## Detection scope for Phase 1
 
-| Group | Items |
-| --- | --- |
-| Candlestick | Bullish/bearish engulfing, hammer, shooting star, morning/evening star |
-| Chart patterns | Double bottom/top, inverse/head & shoulders, bull/bear flag, triangle breakouts |
-| Locations | Demand/supply zones (origin of a fast move on high volume, with test count), POC, value-area high/low, high/low-volume nodes |
-| Indicators | EMA, SMA, RSI, MACD, VWAP, Bollinger, ATR (already in `src/utils/indicators.ts`) |
+| Group          | Items                                                                                                                        |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Candlestick    | Bullish/bearish engulfing, hammer, shooting star, morning/evening star                                                       |
+| Chart patterns | Double bottom/top, inverse/head & shoulders, bull/bear flag, triangle breakouts                                              |
+| Locations      | Demand/supply zones (origin of a fast move on high volume, with test count), POC, value-area high/low, high/low-volume nodes |
+| Indicators     | EMA, SMA, RSI, MACD, VWAP, Bollinger, ATR (already in `src/utils/indicators.ts`)                                             |
 
 Chart rendering uses TradingView **Lightweight Charts** (Apache-2.0, already a dependency), not
 TradingView's paid Charting Library. Detection and statistics run server-side on stored candles.

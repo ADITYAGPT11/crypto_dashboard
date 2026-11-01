@@ -29,11 +29,13 @@ modern detailing) are in
 [`../ux/phase1-prototype.html`](../ux/phase1-prototype.html).
 
 ## Rules
+
 - The frontend reads from the backend API once Phase 1 lands. Direct exchange sockets in the
   browser stay for the Markets screen only, or are dropped.
 - Charts: TradingView **lightweight-charts** for price; one charting library for stats.
 - Never show a number that isn't backed by data, and label observations vs estimates.
 
 ## Acceptance criteria
+
 - [ ] Confirmations screen shows card, evidence links and status (active/hit/stopped/expired).
 - [ ] System health screen shows per-stream state and last message age.

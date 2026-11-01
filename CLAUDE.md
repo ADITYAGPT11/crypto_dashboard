@@ -10,18 +10,18 @@
 
 ## Context map: read in this order, only as deep as the task needs
 
-| File | Read it when | Keep it updated when |
-| --- | --- | --- |
-| `docs/context/STATUS.md` | always, first | anything ships, breaks, or is found broken |
-| `docs/context/PROJECT_MAP.md` | touching code | files/modules/events are added, moved or removed |
-| `docs/context/ARCHITECTURE.md` | adding a service, folder or package | the target structure or chosen stack changes |
-| `docs/context/ROADMAP.md` | planning new work | a phase starts, finishes or changes scope |
-| `docs/context/DECISIONS.md` | "why is it like this?" | a non-obvious choice is made (append, never rewrite) |
-| `docs/context/MINDMAP.md` | onboarding / big picture | modules or roadmap phases change |
-| `docs/product/README.md` | product questions, principles | product principles or module list change |
-| `docs/product/modules/M*.md` | working on that module (load only the one you need) | its scope, status or acceptance criteria change |
-| `docs/product/ux/PHASE1_UX.md` | building any UI screen | features, screens or visual rules change |
-| `docs/context/TOOLING.md` | adding a dependency, skill or MCP | a tool is adopted, rejected or dropped |
+| File                           | Read it when                                        | Keep it updated when                                 |
+| ------------------------------ | --------------------------------------------------- | ---------------------------------------------------- |
+| `docs/context/STATUS.md`       | always, first                                       | anything ships, breaks, or is found broken           |
+| `docs/context/PROJECT_MAP.md`  | touching code                                       | files/modules/events are added, moved or removed     |
+| `docs/context/ARCHITECTURE.md` | adding a service, folder or package                 | the target structure or chosen stack changes         |
+| `docs/context/ROADMAP.md`      | planning new work                                   | a phase starts, finishes or changes scope            |
+| `docs/context/DECISIONS.md`    | "why is it like this?"                              | a non-obvious choice is made (append, never rewrite) |
+| `docs/context/MINDMAP.md`      | onboarding / big picture                            | modules or roadmap phases change                     |
+| `docs/product/README.md`       | product questions, principles                       | product principles or module list change             |
+| `docs/product/modules/M*.md`   | working on that module (load only the one you need) | its scope, status or acceptance criteria change      |
+| `docs/product/ux/PHASE1_UX.md` | building any UI screen                              | features, screens or visual rules change             |
+| `docs/context/TOOLING.md`      | adding a dependency, skill or MCP                   | a tool is adopted, rejected or dropped               |
 
 Prefer these files over re-reading the whole repo. If a file disagrees with the code, the code
 wins: fix the file in the same change.
@@ -29,15 +29,15 @@ wins: fix the file in the same change.
 ## Commands (Vite+ `vp` is the toolchain, not plain Vite)
 
 ```bash
-npm ci              # install (Node 22.5+, needed for node:sqlite in the backend prototype)
+npm ci              # install (Node 22.5+, needed for node:sqlite in the backend)
 npm run dev         # dev server on http://localhost:3000
-npx vp test         # Vitest unit tests
-npx vp check        # format + lint + typecheck (no fixes); `npx vp check --fix` to fix
-npm run build       # tsc -b + production build
-npm run backend     # frozen Node prototype (fails to start; replaced by Python in Phase 1b)
+npm test            # Vitest unit tests (vp test)
+npm run check       # format + lint + typecheck (vp check); `npx vp check --fix` to fix
+npm run build       # tsc -b (app, node, backend) + production build
+npm run backend     # bundles and starts the Node prototype on :3001 (Python replaces it in 1b)
 ```
 
-**Done means:** `vp check` clean, `vp test` green, `npm run build` passes, and STATUS updated.
+**Done means:** `npm run check` clean, `npm test` green, `npm run build` passes, and STATUS updated.
 
 ## Guardrails (non-negotiable)
 
@@ -57,7 +57,7 @@ npm run backend     # frozen Node prototype (fails to start; replaced by Python 
 - **Canonical symbol** outside adapters is `BASE-QUOTE` (e.g. `BTC-USDT`); adapters convert at
   the boundary and never leak exchange-native fields.
 - **Market type** `"SPOT" | "FUT"`; **exchange id** `"BINANCE" | "OKX" | "DELTA"`.
-- **Funding rate** in *percent*, times in **ms**, intervals in **seconds**.
+- **Funding rate** in _percent_, times in **ms**, intervals in **seconds**.
 - All sockets go through `BaseWebSocketClient`; adapters re-send subscriptions on every `open`,
   and one exchange failing must never block the others.
 - New shared data flow = singleton service (`getInstance()`/`resetInstance()`) with
