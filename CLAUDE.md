@@ -17,6 +17,9 @@
 | `docs/context/ROADMAP.md` | planning new work | a phase starts, finishes or changes scope |
 | `docs/context/DECISIONS.md` | "why is it like this?" | a non-obvious choice is made (append, never rewrite) |
 | `docs/context/MINDMAP.md` | onboarding / big picture | modules or roadmap phases change |
+| `docs/product/README.md` | product questions, architecture | product principles or module list change |
+| `docs/product/modules/M*.md` | working on that module (load only the one you need) | its scope, status or acceptance criteria change |
+| `docs/context/TOOLING.md` | choosing a library/skill/MCP | a tool is adopted or dropped |
 
 Prefer these files over re-reading the whole repo. If a file disagrees with the code, the code wins —
 fix the file in the same change.

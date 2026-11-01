@@ -1,48 +1,77 @@
-# Roadmap — from live dashboard to trade confirmations
+# Roadmap: from live dashboard to trade confirmations
 
-Each phase ends with something **measurable**. A confirmation is only "high-confidence" if the
-edge behind it has been shown in backtest **and** forward test, with costs included.
+Module specs live in `docs/product/modules/`. Each phase ends with something **measurable**.
+Tick boxes as work lands; delete finished phases' detail once they're summarised in `STATUS.md`.
 
-## Phase 0 — Live market data layer ✅ (current)
-Live prices + funding from Binance, OKX, Delta. See `STATUS.md` for open issues.
-**Exit:** known issues 1–5 in `STATUS.md` fixed; data quality is trustworthy.
+```mermaid
+flowchart LR
+  P0["P0 Data layer<br/>M1 🚧"] --> P1["P1 Backend + history<br/>M1 M2"]
+  P1 --> P2["P2 Research + backtest<br/>M3"]
+  P2 --> P3["P3 Signals<br/>M4 · M9"]
+  P3 --> P4["P4 Forward test<br/>M5"]
+  P1 --> P5["P5 News impact<br/>M6"]
+  P4 --> P6["P6 Risk + confirmations<br/>M7 · M8"]
+  P5 --> P6
+```
 
-## Phase 1 — Persistence & history
-- Backend service (Node/TS to share types) that holds exchange connections 24/7 — a browser tab
-  can't be the source of truth for research.
-- Store candles (OHLCV), trades sample, funding history, open interest in a time-series store
-  (start simple: SQLite/DuckDB/Parquet; Postgres+Timescale later if needed).
-- Historical backfill from exchange REST APIs.
-**Exit:** N months of clean, gap-checked history for the target universe.
+## Phase 0 · Finish the live data layer (current)
+- [ ] Fix symbol filter dropping JUP/SUPER etc. (`SymbolService`)
+- [ ] Unsubscribe on symbol removal (all three adapters)
+- [ ] Stale/down detection via heartbeat → `stale`/`down` badge
+- [ ] Label Delta instruments as USD; never mix with USDT silently
+- [ ] Verify Delta funding-rate units against the docs
+- [ ] Add a test runner (Vitest via Vite+) with adapter parsing tests on recorded fixtures
+- [ ] CI: GitHub Action running build + lint + tests on each PR
 
-## Phase 2 — Research & backtesting engine
-- Indicator / feature library (TA, funding, basis, volatility, volume).
-- Event-driven backtester with fees, slippage, funding costs, latency assumptions.
-- Statistics: expectancy, win rate, profit factor, Sharpe/Sortino, max drawdown,
-  out-of-sample + walk-forward validation, guard against overfitting (multiple-testing awareness).
-**Exit:** a strategy report format that every candidate edge must pass.
+**Exit:** `STATUS.md` known issues 1–5 closed; CI is green.
 
-## Phase 3 — Signal engine
-- Strategies emit candidate signals with entry, stop, target, size and a confidence score.
-- Candidates: funding-rate carry, cross-exchange basis/spread (brings back the arbitrage view),
-  trend/mean-reversion setups.
-**Exit:** live signals shown in the UI, each linked to its backtest evidence.
+## Phase 1 · Backend + history (M1, M2)
+- [ ] Decide backend stack (see DECISIONS, *proposed*: Python 3.12 + FastAPI)
+- [ ] Monorepo layout: `apps/web` (this React app), `apps/api`, `packages/research`
+- [ ] Collector service: Binance + OKX (+ Delta) via CCXT; health + gap detection
+- [ ] DuckDB/Parquet store; candles 1m + funding + OI
+- [ ] Backfill job: 2 years of the top 20 USDT pairs
+- [ ] Data quality report (gaps, dupes, outliers)
+- [ ] API: `/candles`, `/funding`, `/health`; UI reads health from the API
 
-## Phase 4 — Forward testing (paper trading)
-- Record every live signal and its outcome; compare to backtest expectation.
-**Exit:** live stats within the backtest's confidence band over a defined sample size.
+**Exit:** 7 days of unattended collection; < 0.1 % gaps after backfill.
 
-## Phase 5 — News & context
-- News/sentiment ingestion, economic calendar, exchange announcements; tag events and measure
-  their historical price impact before using them as a filter.
+## Phase 2 · Research + backtest (M3)
+- [ ] Feature library (TA, funding percentile, basis, OI change, regime)
+- [ ] Vectorised screener + event-driven backtester with the shared cost model
+- [ ] Strategy report generator (HTML) + gate checker
+- [ ] Research journal: every hypothesis and result logged, including failures
+- [ ] First 3 hypotheses tested (funding extremes, breakout+vol, basis reversion)
 
-## Phase 6 — Risk management & confirmation
-- Position sizing (fixed-fractional / capped Kelly), portfolio exposure & correlation limits,
-  daily loss limits, kill switch.
-- **Trade confirmation** = signal + passing evidence + risk check + news check → one card
-  with the reasoning attached.
+**Exit:** ≥ 1 strategy passes the gate in `M3-research-backtest.md`.
+
+## Phase 3 · Signal engine (M4) + UI
+- [ ] Strategy runtime shared with the backtester (parity test)
+- [ ] Signals table + API; Strategies and Confirmations screens (paper only)
+- [ ] Re-introduce a spread/basis view, fed by real calculations
+
+**Exit:** live signals match replayed backtest entries 1:1.
+
+## Phase 4 · Forward test (M5)
+- [ ] Paper ledger for every signal and veto; drift detection + auto-pause
+
+**Exit:** ≥ 30 forward trades per promoted strategy inside the backtest 95 % band.
+
+## Phase 5 · News impact (M6), can run in parallel after P1
+- [ ] Ingest news + calendar + exchange announcements; classify
+- [ ] Event-study per category; impact rules
+
+**Exit:** measured improvement (or none) of news filtering, documented.
+
+## Phase 6 · Risk + confirmations (M7, M8)
+- [ ] Risk manager with all veto paths unit-tested
+- [ ] Calibrated confidence + confirmation cards + alerts (Telegram)
+- [ ] Monthly calibration report
+
+**Exit:** confirmations live; calibration within ± 5 %.
 
 ## Parking lot (ideas, not scheduled)
-- Order-book depth (removed from Binance stream until there's a consumer).
-- Angel One / Indian equities integration (removed in `4350c71`).
-- Alerts (Telegram/push) for confirmations.
+- Order-book depth features (needs snapshot + diff handling).
+- Angel One / Indian equities (removed in `4350c71`).
+- Auto-execution, only after Phase 4/6 evidence justifies it.
+- ML models (gradient boosting on features) as a *filter* on rule-based signals, never a black box.

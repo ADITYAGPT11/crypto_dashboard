@@ -30,6 +30,8 @@ No API keys or `.env` are needed — only public exchange endpoints are used.
 - [`CLAUDE.md`](CLAUDE.md) — entry point for AI-assisted work (conventions, commands, context rules)
 - [`docs/context/STATUS.md`](docs/context/STATUS.md) — what works, what's broken, what was removed
 - [`docs/context/PROJECT_MAP.md`](docs/context/PROJECT_MAP.md) — architecture, data flow, file index
+- [`docs/product/README.md`](docs/product/README.md) — product vision, architecture, module specs with flowcharts
+- [`docs/context/TOOLING.md`](docs/context/TOOLING.md) — recommended libraries, skills, agents and MCP servers
 - [`docs/context/ROADMAP.md`](docs/context/ROADMAP.md) — phases from dashboard to confirmations
 - [`docs/context/MINDMAP.md`](docs/context/MINDMAP.md) — the whole project as a mind map
 - [`docs/context/DECISIONS.md`](docs/context/DECISIONS.md) — why things are the way they are
