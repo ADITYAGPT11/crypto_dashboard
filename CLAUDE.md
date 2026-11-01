@@ -20,6 +20,7 @@
 | `docs/context/MINDMAP.md` | onboarding / big picture | modules or roadmap phases change |
 | `docs/product/README.md` | product questions, principles | product principles or module list change |
 | `docs/product/modules/M*.md` | working on that module (load only the one you need) | its scope, status or acceptance criteria change |
+| `docs/product/ux/PHASE1_UX.md` | building any UI screen | features, screens or visual rules change |
 | `docs/context/TOOLING.md` | adding a dependency, skill or MCP | a tool is adopted, rejected or dropped |
 
 Prefer these files over re-reading the whole repo. If a file disagrees with the code, the code

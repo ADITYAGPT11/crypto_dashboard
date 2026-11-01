@@ -20,6 +20,13 @@ flowchart LR
   CF --> DET["Confirmation detail<br/>evidence · rationale"]
 ```
 
+## Phase 1 UX
+
+Screens, feature choices, self-explaining rules and the visual language (glass on floating
+chrome only, parallax only in the Overview hero) are in
+[`../ux/PHASE1_UX.md`](../ux/PHASE1_UX.md), with a clickable prototype in
+[`../ux/phase1-prototype.html`](../ux/phase1-prototype.html).
+
 ## Rules
 - The frontend reads from the backend API once Phase 1 lands. Direct exchange sockets in the
   browser stay for the Markets screen only, or are dropped.

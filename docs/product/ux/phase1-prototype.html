@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TCS Phase 1</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: glass sidebar + scrolling main; a parallax "aurora" hero over a deep ink ground.
+   Glass is reserved for floating chrome (sidebar, top bar, hero pulse cards, dialogs, drawer);
+   data surfaces stay solid so numbers read cleanly. Deliberately single dark look. */
+:root{
+  color-scheme: dark;
+  --ink: #060A13;          /* page ground */
+  --ink-2: #0C1220;        /* solid data surface */
+  --ink-3: #131B2D;        /* raised / inputs */
+  --line: rgba(160,190,255,.14);
+  --fg: #EAF0FA;
+  --muted: #A3B1C6;        /* 8.4:1 on ink-2 */
+  --faint: #8492A8;        /* 5.6:1 on ink-2 */
+  --tide: #3DDCC4;         /* accent: sea-glass teal */
+  --tide-ink: #04201C;
+  --amber: #F5B54A;        /* warnings, stale */
+  --up: #4ADE80;
+  --down: #FB7185;
+  --glass: rgba(18,28,48,.55);
+  --glass-hi: rgba(255,255,255,.10);
+  --glass-line: rgba(255,255,255,.14);
+  --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r-s: 10px; --r-m: 16px; --r-l: 24px;
+  --side: 232px;
+}
+*{box-sizing:border-box}
+html,body{background:var(--ink);color:var(--fg)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:var(--ink)}
+a{color:var(--tide)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--tide);outline-offset:2px;border-radius:6px}
+.num{font-family:var(--f-data);font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* ---------- glass ---------- */
+.glass{background:linear-gradient(180deg,var(--glass-hi),rgba(255,255,255,.03)) ,var(--glass);
+  border:1px solid var(--glass-line);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 20px 50px -20px rgba(0,0,0,.6)}
+
+/* ---------- app frame ---------- */
+.sidebar{position:fixed;z-index:40;top:calc(12px + env(safe-area-inset-top,0px));bottom:12px;left:calc(12px + env(safe-area-inset-left,0px));width:var(--side);
+  border-radius:var(--r-l);padding:18px 14px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 6px}
+.brand b{font-family:var(--f-display);font-size:20px;font-weight:800}
+.brand small{display:block;color:var(--muted);font-size:11px;line-height:1.2}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav a{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:12px;color:var(--muted);text-decoration:none;font-weight:600}
+.nav a:hover{background:rgba(255,255,255,.06);color:var(--fg)}
+.nav a[aria-current="page"]{background:rgba(61,220,196,.14);color:var(--fg);box-shadow:inset 0 0 0 1px rgba(61,220,196,.35)}
+.nav svg{flex:none}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px;font-size:13px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.pill.ok{background:rgba(74,222,128,.12);color:var(--up)}.pill.ok .dot{background:var(--up);box-shadow:0 0 0 4px rgba(74,222,128,.15)}
+.pill.warn{background:rgba(245,181,74,.12);color:var(--amber)}.pill.warn .dot{background:var(--amber)}
+.pill.bad{background:rgba(251,113,133,.12);color:var(--down)}.pill.bad .dot{background:var(--down)}
+.pill.info{background:rgba(255,255,255,.07);color:var(--muted)}
+
+.main{margin-left:calc(var(--side) + 24px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 64px;min-width:0}
+.topbar{position:sticky;top:calc(12px + env(safe-area-inset-top,0px));z-index:30;border-radius:var(--r-m);display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 12px 10px 18px;margin-bottom:22px}
+.topbar h1{font-size:20px;margin-right:auto}
+.search-btn{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--glass-line);background:rgba(255,255,255,.05);color:var(--muted);cursor:pointer;min-width:min(260px,100%)}
+.search-btn kbd{margin-left:auto;font-family:var(--f-data);font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--glass-line)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--ink-3);color:var(--fg);font-weight:700;cursor:pointer;text-decoration:none}
+.btn:hover{border-color:rgba(160,190,255,.3)}
+.btn.primary{background:var(--tide);color:var(--tide-ink);border-color:transparent}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent}
+.help{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;font-weight:700;font-size:13px;display:inline-grid;place-items:center;flex:none}
+.help:hover{color:var(--fg);border-color:var(--tide)}
+
+.view{display:flex;flex-direction:column;gap:22px}
+.panel{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r-l);padding:20px 22px;min-width:0}
+.panel-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:14px}
+.panel-head h2{font-size:20px}
+.panel-head p{margin:0;color:var(--muted);font-size:14px;flex-basis:100%}
+.row{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+.grow{flex:999 1 560px;min-width:0}
+.side-col{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:22px}
+
+/* ---------- hero with parallax ---------- */
+.hero{position:relative;overflow:hidden;border-radius:28px;min-height:360px;padding:clamp(24px,4vw,44px);isolation:isolate;border:1px solid var(--line);background:#081022}
+.layer{position:absolute;inset:-12%;pointer-events:none;will-change:transform}
+.l-aurora{background:
+  radial-gradient(40% 55% at 18% 30%,rgba(61,220,196,.55),transparent 70%),
+  radial-gradient(35% 50% at 78% 18%,rgba(70,120,255,.45),transparent 70%),
+  radial-gradient(30% 45% at 64% 88%,rgba(245,181,74,.28),transparent 70%);filter:blur(10px);z-index:-3}
+.l-grid{z-index:-2;opacity:.5;background-image:linear-gradient(rgba(160,190,255,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(160,190,255,.09) 1px,transparent 1px);background-size:44px 44px;
+  -webkit-mask-image:radial-gradient(70% 70% at 50% 40%,#000,transparent 80%);mask-image:radial-gradient(70% 70% at 50% 40%,#000,transparent 80%)}
+.l-rings{z-index:-1}
+.l-rings span{position:absolute;border-radius:50%;border:1px solid rgba(61,220,196,.28)}
+.hero-copy{position:relative;max-width:560px;display:flex;flex-direction:column;gap:14px}
+.hero-copy h2{font-size:clamp(32px,4.6vw,56px);line-height:1.02;font-weight:800}
+.hero-copy h2 em{font-style:normal;color:var(--tide)}
+.hero-copy p{margin:0;color:#C6D2E3;font-size:17px;max-width:48ch}
+.hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.pulse{position:absolute;border-radius:var(--r-m);padding:14px 16px;min-width:200px}
+.pulse .eyebrow{font-size:11px}
+.pulse .big{font-family:var(--f-data);font-size:22px;font-weight:600;margin-top:2px}
+.pulse p{margin:4px 0 0;font-size:13px;color:#C6D2E3;max-width:28ch}
+.p1{right:5%;top:12%}.p2{right:24%;bottom:10%}.p3{right:3%;bottom:16%}
+
+/* ---------- watchlist tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.tile{position:relative;display:flex;flex-direction:column;gap:6px;padding:16px;border-radius:var(--r-m);background:var(--ink-3);border:1px solid var(--line);text-align:left;cursor:pointer;color:var(--fg);transition:transform .25s ease,border-color .25s ease}
+.tile:hover{transform:translateY(-3px);border-color:rgba(61,220,196,.45)}
+.tile .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tile .sym{font-weight:800;font-size:16px}
+.tile .px{font-family:var(--f-data);font-size:22px;font-weight:600}
+.tile .meta{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
+.tile svg{width:100%;height:44px;display:block}
+.up{color:var(--up)}.down{color:var(--down)}
+
+.callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.callout{padding:16px;border-radius:var(--r-m);background:var(--ink-3);border:1px solid var(--line);display:flex;gap:12px}
+.callout .ic{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:rgba(61,220,196,.12);color:var(--tide)}
+.callout.warn .ic{background:rgba(245,181,74,.12);color:var(--amber)}
+.callout b{display:block}
+.callout span{color:var(--muted);font-size:14px}
+
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;counter-reset:s}
+.step{padding:14px 16px;border-radius:var(--r-m);border:1px dashed rgba(160,190,255,.25);display:flex;gap:12px;align-items:flex-start}
+.step .n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:rgba(255,255,255,.07)}
+.step.done .n{background:var(--tide);color:var(--tide-ink)}
+.step span{color:var(--muted);font-size:13px;display:block}
+
+/* ---------- symbol view ---------- */
+.sym-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 18px}
+.sym-head h2{font-size:clamp(28px,3.4vw,40px)}
+.sym-head .num{font-size:28px}
+.seg{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:var(--ink-3);border:1px solid var(--line)}
+.seg button{min-height:36px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-weight:700;cursor:pointer}
+.seg button[aria-pressed="true"]{background:rgba(61,220,196,.16);color:var(--fg)}
+.chart{width:100%;height:340px;display:block;border-radius:var(--r-m);background:#091121}
+.chart.small{height:150px}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;margin:0}
+.facts dt{color:var(--muted);font-size:13px}
+.facts dd{margin:0;font-family:var(--f-data);font-size:16px}
+.plain{margin:0;padding:12px 14px;border-radius:12px;background:rgba(61,220,196,.08);border:1px solid rgba(61,220,196,.25);font-size:14px}
+
+/* ---------- history ---------- */
+.cov{width:100%;border-collapse:collapse;min-width:720px}
+.cov th{font-size:12px;color:var(--muted);text-align:left;font-weight:600;padding:8px 10px}
+.cov td{padding:10px;border-top:1px solid var(--line);vertical-align:middle}
+.covbar{position:relative;height:12px;border-radius:6px;background:rgba(255,255,255,.06);min-width:160px}
+.covbar i{position:absolute;inset:0 auto 0 0;border-radius:6px;background:linear-gradient(90deg,rgba(61,220,196,.55),var(--tide))}
+.covbar b{position:absolute;top:-3px;width:3px;height:18px;border-radius:2px;background:var(--amber)}
+.scroll-x{overflow-x:auto}
+.jobs{display:flex;flex-direction:column;gap:12px}
+.job{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center}
+.job .bar{grid-column:1/-1;height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden}
+.job .bar i{display:block;height:100%;background:var(--tide);border-radius:4px;transition:width .6s ease}
+.score{display:flex;align-items:center;gap:18px}
+.ring{--p:0;width:96px;height:96px;border-radius:50%;flex:none;display:grid;place-items:center;background:conic-gradient(var(--tide) calc(var(--p)*1%),rgba(255,255,255,.08) 0)}
+.ring span{width:76px;height:76px;border-radius:50%;background:var(--ink-2);display:grid;place-items:center;font-family:var(--f-data);font-size:20px;font-weight:600}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.checks li{display:flex;gap:10px;align-items:flex-start}
+.checks .m{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800}
+.checks .ok{background:rgba(74,222,128,.15);color:var(--up)}.checks .w{background:rgba(245,181,74,.15);color:var(--amber)}
+
+/* ---------- alerts ---------- */
+.sentence{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:18px;line-height:1.8}
+.sentence select,.sentence input{min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--ink-3);font-weight:700}
+.sentence input{width:140px;font-family:var(--f-data)}
+.alist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.alist li{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px 14px;border-radius:14px;background:var(--ink-3);border:1px solid var(--line)}
+.alist li p{margin:0;flex:1 1 260px;min-width:0}
+.switch{position:relative;width:46px;height:26px;border-radius:13px;border:0;background:rgba(255,255,255,.14);cursor:pointer;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--tide)}
+.switch[aria-checked="true"]::after{transform:translateX(20px)}
+.tg{display:flex;flex-direction:column;gap:10px}
+.tg ol{margin:0;padding-left:20px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+
+/* ---------- health ---------- */
+.ex-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.ex{padding:18px;border-radius:var(--r-m);background:var(--ink-3);border:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.ex h3{font-size:18px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ex ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.ex li{display:flex;justify-content:space-between;gap:10px}
+.ex p{margin:0;font-size:13px;color:var(--muted)}
+
+/* ---------- overlays ---------- */
+.scrim{position:fixed;inset:0;z-index:70;background:rgba(3,6,12,.55);display:grid;place-items:start center;padding:max(10vh,24px) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.dialog{width:min(560px,100%);border-radius:var(--r-l);padding:22px;display:flex;flex-direction:column;gap:14px}
+.palette input{width:100%;min-height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--glass-line);background:rgba(255,255,255,.06);font-size:16px}
+.palette ul{list-style:none;margin:0;padding:0;max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.palette li button{width:100%;display:flex;justify-content:space-between;gap:10px;min-height:44px;padding:0 12px;border-radius:10px;border:0;background:transparent;cursor:pointer;text-align:left}
+.palette li button:hover,.palette li button.sel{background:rgba(61,220,196,.14)}
+.tour-steps{display:flex;gap:6px}
+.tour-steps i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.12)}
+.tour-steps i.on{background:var(--tide)}
+.choice{display:flex;flex-wrap:wrap;gap:8px}
+.choice label{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--glass-line);background:rgba(255,255,255,.05);cursor:pointer;font-weight:600}
+.choice input{accent-color:var(--tide);width:18px;height:18px}
+.drawer{position:fixed;z-index:65;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));bottom:12px;width:min(380px,calc(100% - 24px));border-radius:var(--r-l);padding:22px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.drawer p{margin:0;color:#C6D2E3}
+.toast{position:fixed;z-index:80;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));padding:12px 18px;border-radius:14px;font-weight:700}
+.sample{position:fixed;z-index:35;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+
+/* ---------- phone ---------- */
+@media (max-width: 960px){
+  .sidebar{top:auto;left:calc(8px + env(safe-area-inset-left,0px));right:calc(8px + env(safe-area-inset-right,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));width:auto;padding:6px;flex-direction:row;border-radius:20px}
+  .brand,.side-foot{display:none}
+  .nav{flex-direction:row;flex:1;justify-content:space-around;gap:2px}
+  .nav a{flex-direction:column;gap:2px;min-height:52px;padding:6px 4px;font-size:11px;flex:1;justify-content:center}
+  .main{margin-left:0;padding-bottom:110px}
+  .pulse{position:relative;inset:auto;margin-top:12px;min-width:0}
+  .hero{display:flex;flex-direction:column}
+  .sample{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none!important;animation:none!important}
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar glass" aria-label="App">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--tide)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 4 8-8"/><path d="M14 8h6v6"/></svg>
+    <div><b>TCS</b><small>Trade Confirmation<br>System</small></div>
+  </div>
+  <nav class="nav" aria-label="Main">
+    <a href="#overview" data-nav="overview"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Overview</a>
+    <a href="#symbol" data-nav="symbol"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 2 5-6"/></svg>Markets</a>
+    <a href="#history" data-nav="history"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>History</a>
+    <a href="#alerts" data-nav="alerts"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>Alerts</a>
+    <a href="#health" data-nav="health"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Health</a>
+  </nav>
+  <div class="side-foot">
+    <span class="pill ok"><span class="dot"></span>Collector running</span>
+    <span>Analysis only. You place every trade yourself.</span>
+  </div>
+</aside>
+
+<div class="main">
+  <header class="topbar glass">
+    <h1 id="view-title">Overview</h1>
+    <button class="search-btn" type="button" id="open-palette" aria-haspopup="dialog">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      Find a coin…<kbd>Ctrl K</kbd>
+    </button>
+    <button class="btn ghost" type="button" data-explain="glossary">Glossary</button>
+  </header>
+
+  <!-- ============ OVERVIEW ============ -->
+  <section class="view" id="v-overview" aria-labelledby="view-title">
+    <div class="hero" id="hero">
+      <div class="layer l-aurora" data-depth="0.35"></div>
+      <div class="layer l-grid" data-depth="0.15"></div>
+      <div class="layer l-rings" data-depth="0.6" aria-hidden="true">
+        <span style="width:420px;height:420px;right:-60px;top:-90px"></span>
+        <span style="width:260px;height:260px;right:80px;top:20px"></span>
+        <span style="width:140px;height:140px;right:150px;top:90px"></span>
+      </div>
+      <div class="hero-copy">
+        <span class="eyebrow">Sunday 1 November · 14:32 UTC</span>
+        <h2>Markets are <em>calm</em>, but SOL longs are paying up.</h2>
+        <p>Your 6 coins are streaming live from Binance, OKX and Delta. Two years of history are stored, so every chart and number here can be checked.</p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#symbol">Open SOL-USDT</a>
+          <button class="btn" type="button" id="open-tour">Take the 1-minute tour</button>
+        </div>
+      </div>
+      <div class="pulse glass p1" data-float="0.9">
+        <div class="eyebrow">BTC-USDT</div>
+        <div class="big num">64,212.40 <span class="up" style="font-size:14px">▲ 1.84%</span></div>
+        <p>Steady climb since Asia open.</p>
+      </div>
+      <div class="pulse glass p2" data-float="1.3">
+        <div class="eyebrow">Funding · SOL perp</div>
+        <div class="big num">+0.0410%</div>
+        <p>Longs pay shorts every 8h. 92nd percentile of the last year.</p>
+      </div>
+      <div class="pulse glass p3" data-float="0.6">
+        <div class="eyebrow">Data health</div>
+        <div class="big num">99.97%</div>
+        <p>Minutes stored without gaps today.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Your watchlist</h2>
+        <button class="help" type="button" data-explain="tile" aria-label="What do these cards show?">?</button>
+        <p>Price is the last trade. The small line is the last 24 hours. Tap a card for the full chart.</p>
+      </div>
+      <div class="tiles" id="tiles"></div>
+    </div>
+
+    <div class="row">
+      <div class="panel grow">
+        <div class="panel-head">
+          <h2>Worth a look</h2>
+          <p>Plain-language notes the system writes from live data. They are observations, not trade advice.</p>
+        </div>
+        <div class="callouts">
+          <div class="callout"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M5 10l7-7 7 7"/></svg></div><div><b>SOL funding is unusually high</b><span>+0.041% per 8h, higher than 92% of the past year. Crowded longs often unwind.</span></div></div>
+          <div class="callout"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 12h16M4 6h10M4 18h7"/></svg></div><div><b>BTC: Binance and OKX agree</b><span>Perp prices differ by 0.003%, smaller than the fees to trade it.</span></div></div>
+          <div class="callout warn"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6A2 2 0 0 0 22 18L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div><div><b>Delta feed is slow</b><span>No update for 14 seconds. Delta prices are greyed until it recovers.</span></div></div>
+        </div>
+      </div>
+      <div class="side-col">
+        <div class="panel">
+          <div class="panel-head"><h2>Getting set up</h2><p>3 of 4 done.</p></div>
+          <div class="steps">
+            <div class="step done"><span class="n">✓</span><div><b>Pick exchanges</b><span>Binance, OKX, Delta</span></div></div>
+            <div class="step done"><span class="n">✓</span><div><b>Add coins</b><span>6 on your watchlist</span></div></div>
+            <div class="step done"><span class="n">✓</span><div><b>Load history</b><span>2 years stored</span></div></div>
+            <div class="step"><span class="n">4</span><div><b>Connect Telegram</b><span><a href="#alerts">Get alerts on your phone</a></span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SYMBOL ============ -->
+  <section class="view" id="v-symbol" hidden>
+    <div class="sym-head">
+      <div>
+        <span class="eyebrow">Binance perp · USDT</span>
+        <h2>SOL-USDT</h2>
+      </div>
+      <span class="num">182.41</span>
+      <span class="down num" style="font-size:18px">▼ 2.15%</span>
+      <span class="pill ok" style="margin-left:auto"><span class="dot"></span>Live · updated 0.4s ago</span>
+    </div>
+
+    <div class="row">
+      <div class="panel grow">
+        <div class="panel-head">
+          <h2>Price</h2>
+          <div class="seg" role="group" aria-label="Candle size" id="tf">
+            <button type="button" aria-pressed="false">15m</button><button type="button" aria-pressed="true">1h</button><button type="button" aria-pressed="false">4h</button><button type="button" aria-pressed="false">1d</button>
+          </div>
+          <button class="help" type="button" data-explain="candle" aria-label="How to read candles">?</button>
+        </div>
+        <canvas class="chart" id="c-price" role="img" aria-label="SOL-USDT one hour candles for the last 80 hours, drifting down from 188 to 182"></canvas>
+        <div class="panel-head" style="margin:18px 0 10px">
+          <h2 style="font-size:17px">Funding history</h2>
+          <button class="help" type="button" data-explain="funding" aria-label="What is funding?">?</button>
+        </div>
+        <canvas class="chart small" id="c-funding" role="img" aria-label="Funding rate per 8 hours over 30 days, rising from about 0.01 to 0.041 percent"></canvas>
+      </div>
+      <div class="side-col">
+        <div class="panel">
+          <div class="panel-head"><h2>In plain words</h2></div>
+          <p class="plain">SOL is down 2.15% today, but traders holding long positions are still paying a high fee to keep them open. When that fee stays high, prices have often dropped as those positions close.</p>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Key numbers</h2></div>
+          <dl class="facts">
+            <div><dt>24h volume</dt><dd>$2.41B</dd></div>
+            <div><dt>Funding (8h)</dt><dd class="up">+0.0410%</dd></div>
+            <div><dt>Next funding</dt><dd>in 3h 18m</dd></div>
+            <div><dt>Perp vs spot</dt><dd>+0.30%</dd></div>
+            <div><dt>OKX perp</dt><dd>182.97</dd></div>
+            <div><dt>Delta perp (USD)</dt><dd style="color:var(--faint)">— stale</dd></div>
+          </dl>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Quick alert</h2></div>
+          <a class="btn primary" href="#alerts" style="width:100%">Tell me when SOL moves</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HISTORY ============ -->
+  <section class="view" id="v-history" hidden>
+    <div class="row">
+      <div class="panel grow">
+        <div class="panel-head">
+          <h2>What's stored</h2>
+          <button class="help" type="button" data-explain="coverage" aria-label="How to read coverage">?</button>
+          <p>Each bar is the stored history for one coin on one exchange. Amber ticks are gaps the system is refilling.</p>
+        </div>
+        <div class="scroll-x">
+          <table class="cov">
+            <thead><tr><th>Coin</th><th>Exchange</th><th>From</th><th style="width:40%">Coverage (2 years)</th><th>Gaps</th></tr></thead>
+            <tbody id="cov"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="side-col">
+        <div class="panel">
+          <div class="panel-head"><h2>Data quality</h2><p>Checked every hour.</p></div>
+          <div class="score">
+            <div class="ring" style="--p:99.97"><span>99.97</span></div>
+            <ul class="checks">
+              <li><span class="m ok">✓</span>No duplicate candles</li>
+              <li><span class="m ok">✓</span>Prices within normal range</li>
+              <li><span class="m w">!</span>3 short gaps on Delta, refilling</li>
+            </ul>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Loading now</h2></div>
+          <div class="jobs" id="jobs"></div>
+          <button class="btn" type="button" id="add-history" style="margin-top:14px;width:100%">Load history for another coin</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ALERTS ============ -->
+  <section class="view" id="v-alerts" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>New alert</h2><p>Write it like a sentence. Alerts are checked on the server, so they work with this page closed.</p></div>
+      <form id="alert-form" class="sentence">
+        <span>Tell me when</span>
+        <label class="sr" for="a-sym">Coin</label>
+        <select id="a-sym"><option>SOL-USDT</option><option>BTC-USDT</option><option>ETH-USDT</option><option>XRP-USDT</option><option>JUP-USDT</option><option>DOGE-USDT</option></select>
+        <label class="sr" for="a-cond">Condition</label>
+        <select id="a-cond"><option value="above">goes above</option><option value="below">goes below</option><option value="move">moves more than</option><option value="funding">funding goes above</option></select>
+        <label class="sr" for="a-val">Value</label>
+        <input id="a-val" inputmode="decimal" value="190" aria-describedby="a-hint">
+        <span>on</span>
+        <label class="sr" for="a-ex">Exchange</label>
+        <select id="a-ex"><option>Binance</option><option>OKX</option><option>any exchange</option></select>
+        <button class="btn primary" type="submit">Create alert</button>
+      </form>
+      <p id="a-hint" style="margin:10px 0 0;color:var(--muted);font-size:14px">SOL is at 182.41 now, so 190 is 4.2% higher.</p>
+    </div>
+    <div class="row">
+      <div class="panel grow">
+        <div class="panel-head"><h2>Your alerts</h2></div>
+        <ul class="alist" id="alist"></ul>
+      </div>
+      <div class="side-col">
+        <div class="panel tg">
+          <div class="panel-head"><h2>Get alerts on Telegram</h2><span class="pill info">Not connected</span></div>
+          <ol>
+            <li>Open Telegram and message <span class="num">@BotFather</span>.</li>
+            <li>Send <span class="num">/newbot</span> and copy the token it gives you.</li>
+            <li>Paste it below. It is stored on your server, never in the browser.</li>
+          </ol>
+          <label for="tg-token" style="font-size:13px;color:var(--muted)">Bot token</label>
+          <input id="tg-token" type="password" placeholder="123456:ABC…" style="min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--ink-3)">
+          <button class="btn" type="button" id="tg-test">Send a test message</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HEALTH ============ -->
+  <section class="view" id="v-health" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>Is the data live?</h2><p>Each exchange connects on its own. If one is slow, the others keep working.</p></div>
+      <div class="ex-cards" id="ex-cards"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Collector</h2><p>The always-on service that records prices into the database.</p></div>
+      <dl class="facts" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        <div><dt>Running for</dt><dd>6d 14h</dd></div>
+        <div><dt>Rows written today</dt><dd>1,204,880</dd></div>
+        <div><dt>Write delay</dt><dd>1.2s</dd></div>
+        <div><dt>Disk used</dt><dd>3.8 GB</dd></div>
+      </dl>
+    </div>
+  </section>
+</div>
+
+<span class="sample pill info glass">Sample data</span>
+
+<!-- command palette -->
+<div class="scrim" id="palette" hidden>
+  <div class="dialog glass palette" role="dialog" aria-modal="true" aria-labelledby="pal-title">
+    <h2 id="pal-title" style="font-size:18px">Find a coin</h2>
+    <label class="sr" for="pal-input">Search coins</label>
+    <input id="pal-input" placeholder="Type BTC, SOL, JUP…" autocomplete="off">
+    <ul id="pal-list"></ul>
+    <p style="margin:0;color:var(--muted);font-size:13px">Enter opens the coin. Esc closes.</p>
+  </div>
+</div>
+
+<!-- tour -->
+<div class="scrim" id="tour" hidden>
+  <div class="dialog glass" role="dialog" aria-modal="true" aria-labelledby="tour-title">
+    <div class="tour-steps" id="tour-dots"><i></i><i></i><i></i></div>
+    <h2 id="tour-title" style="font-size:24px"></h2>
+    <p id="tour-body" style="margin:0;color:#C6D2E3"></p>
+    <div id="tour-extra"></div>
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <button class="btn ghost" type="button" id="tour-skip">Skip</button>
+      <button class="btn primary" type="button" id="tour-next">Next</button>
+    </div>
+  </div>
+</div>
+
+<!-- explainer drawer -->
+<aside class="drawer glass" id="drawer" hidden aria-labelledby="drawer-title">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+    <h2 id="drawer-title" style="font-size:22px"></h2>
+    <button class="help" type="button" id="drawer-close" aria-label="Close">×</button>
+  </div>
+  <div id="drawer-body" style="display:flex;flex-direction:column;gap:12px"></div>
+</aside>
+
+<div class="toast glass" id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var $ = function(s){ return document.querySelector(s); };
+  var css = getComputedStyle(document.documentElement);
+  var C = { tide: css.getPropertyValue('--tide').trim(), up: css.getPropertyValue('--up').trim(), down: css.getPropertyValue('--down').trim(), faint: css.getPropertyValue('--faint').trim(), amber: css.getPropertyValue('--amber').trim() };
+
+  /* ---------- sample data ---------- */
+  var seed = 11;
+  function rnd(){ seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+  function series(n, start, drift, vol){ var a=[start]; for (var i=1;i<n;i++) a.push(a[i-1] + drift + (rnd()-.5)*vol); return a; }
+  var coins = [
+    { s:'BTC-USDT', px:'64,212.40', chg:1.84, fr:'+0.0312%', fresh:'live', d: series(48, 63000, 26, 260) },
+    { s:'ETH-USDT', px:'3,412.18', chg:0.62, fr:'+0.0105%', fresh:'live', d: series(48, 3390, .5, 14) },
+    { s:'SOL-USDT', px:'182.41', chg:-2.15, fr:'+0.0410%', fresh:'live', d: series(48, 186.4, -.09, 1.2) },
+    { s:'XRP-USDT', px:'0.6120', chg:0.21, fr:'+0.0081%', fresh:'live', d: series(48, .610, .00003, .003) },
+    { s:'JUP-USDT', px:'0.8231', chg:-0.38, fr:'−0.0052%', fresh:'live', d: series(48, .826, -.00008, .004) },
+    { s:'DOGE-USDT', px:'0.1584', chg:3.10, fr:'+0.0122%', fresh:'stale', d: series(48, .1536, .0001, .0009) }
+  ];
+
+  function spark(d, color){
+    var min=Math.min.apply(null,d), max=Math.max.apply(null,d), w=200, h=44;
+    var pts=d.map(function(v,i){ return (i/(d.length-1)*w).toFixed(1)+','+(h-4-(v-min)/(max-min||1)*(h-8)).toFixed(1); });
+    var last=pts[pts.length-1].split(',');
+    return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" aria-hidden="true">'+
+      '<polygon points="0,'+h+' '+pts.join(' ')+' '+w+','+h+'" fill="'+color+'" fill-opacity=".12"></polygon>'+
+      '<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2" vector-effect="non-scaling-stroke"></polyline>'+
+      '<circle cx="'+last[0]+'" cy="'+last[1]+'" r="3" fill="'+color+'"></circle></svg>';
+  }
+  $('#tiles').innerHTML = coins.map(function(c){
+    var up = c.chg >= 0, col = up ? C.up : C.down;
+    var fresh = c.fresh === 'live' ? '<span class="pill ok"><span class="dot"></span>Live</span>' : '<span class="pill warn"><span class="dot"></span>Slow</span>';
+    return '<button class="tile" type="button" data-sym="'+c.s+'"><div class="top"><span class="sym">'+c.s+'</span>'+fresh+'</div>'+
+      '<span class="px">'+c.px+'</span>'+spark(c.d, col)+
+      '<div class="meta"><span class="'+(up?'up':'down')+' num">'+(up?'▲ ':'▼ ')+Math.abs(c.chg).toFixed(2)+'%</span><span>Funding <span class="num">'+c.fr+'</span></span></div></button>';
+  }).join('');
+  document.querySelectorAll('.tile').forEach(function(t){ t.addEventListener('click', function(){ location.hash = 'symbol'; }); });
+
+  /* ---------- routing ---------- */
+  var titles = { overview:'Overview', symbol:'Markets', history:'History', alerts:'Alerts', health:'Health' };
+  function route(){
+    var v = (location.hash || '#overview').slice(1); if (!titles[v]) v = 'overview';
+    Object.keys(titles).forEach(function(k){ $('#v-'+k).hidden = k !== v; });
+    document.querySelectorAll('[data-nav]').forEach(function(a){ if (a.dataset.nav === v) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
+    $('#view-title').textContent = titles[v];
+    if (v === 'symbol') drawCharts();
+    window.scrollTo(0,0);
+  }
+  window.addEventListener('hashchange', route);
+
+  /* ---------- parallax ---------- */
+  var hero = $('#hero'), layers = hero.querySelectorAll('[data-depth]'), floats = hero.querySelectorAll('[data-float]');
+  var mx = 0, my = 0, ticking = false;
+  function paint(){
+    ticking = false;
+    var y = window.scrollY;
+    layers.forEach(function(l){ var d = +l.dataset.depth; l.style.transform = 'translate3d('+(mx*d*24)+'px,'+(y*d*.5 + my*d*24)+'px,0)'; });
+    floats.forEach(function(f){ var d = +f.dataset.float; f.style.transform = 'translate3d('+(-mx*d*10)+'px,'+(-y*d*.12 - my*d*10)+'px,0)'; });
+  }
+  function req(){ if (!ticking){ ticking = true; requestAnimationFrame(paint); } }
+  if (!reduce){
+    window.addEventListener('scroll', req, { passive:true });
+    hero.addEventListener('pointermove', function(e){ var r = hero.getBoundingClientRect(); mx = (e.clientX - r.left)/r.width - .5; my = (e.clientY - r.top)/r.height - .5; req(); });
+    hero.addEventListener('pointerleave', function(){ mx = 0; my = 0; req(); });
+  }
+
+  /* ---------- charts (canvas) ---------- */
+  function setup(cv){ var dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; cv.width = w*dpr; cv.height = h*dpr; var g = cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); return { g:g, w:w, h:h }; }
+  function drawCharts(){
+    var p = setup($('#c-price')), g = p.g, w = p.w, h = p.h, pad = { l:10, r:58, t:14, b:22 };
+    seed = 5; var n = 80, price = 188, cs = [];
+    for (var i=0;i<n;i++){ var o = price, c = o - .08 + (rnd()-.5)*1.6, hi = Math.max(o,c)+rnd()*.7, lo = Math.min(o,c)-rnd()*.7; cs.push([o,hi,lo,c]); price = c; }
+    var min = Math.min.apply(null, cs.map(function(k){return k[2];})) - .5, max = Math.max.apply(null, cs.map(function(k){return k[1];})) + .5;
+    var Y = function(v){ return pad.t + (max - v)/(max - min)*(h - pad.t - pad.b); };
+    g.font = '11px "IBM Plex Mono", monospace'; g.textBaseline = 'middle';
+    for (var t = Math.ceil(min); t <= max; t += 2){ g.strokeStyle = 'rgba(160,190,255,.08)'; g.beginPath(); g.moveTo(pad.l, Y(t)); g.lineTo(w - pad.r, Y(t)); g.stroke(); g.fillStyle = C.faint; g.fillText(t.toFixed(0), w - pad.r + 8, Y(t)); }
+    var bw = (w - pad.l - pad.r)/n;
+    cs.forEach(function(k,i){ var x = pad.l + i*bw + bw/2, col = k[3] >= k[0] ? C.up : C.down; g.strokeStyle = col; g.fillStyle = col;
+      g.beginPath(); g.moveTo(x, Y(k[1])); g.lineTo(x, Y(k[2])); g.stroke();
+      var y1 = Y(Math.max(k[0],k[3])), y2 = Y(Math.min(k[0],k[3])); g.fillRect(x - bw*.32, y1, bw*.64, Math.max(1, y2 - y1)); });
+    var last = cs[n-1][3]; g.fillStyle = C.tide; g.fillRect(w - pad.r + 2, Y(last) - 9, pad.r - 4, 18); g.fillStyle = '#04201C'; g.fillText(last.toFixed(2), w - pad.r + 6, Y(last));
+
+    var f = setup($('#c-funding')), fg = f.g, fw = f.w, fh = f.h, m = 90, fb = (fw - 70)/m;
+    seed = 9; fg.font = '11px "IBM Plex Mono", monospace'; fg.textBaseline = 'middle';
+    var fy = function(v){ return 12 + (0.05 - v)/0.06*(fh - 30); };
+    [0, .02, .04].forEach(function(v){ fg.strokeStyle = 'rgba(160,190,255,.08)'; fg.beginPath(); fg.moveTo(0, fy(v)); fg.lineTo(fw - 60, fy(v)); fg.stroke(); fg.fillStyle = C.faint; fg.fillText(v.toFixed(2)+'%', fw - 54, fy(v)); });
+    for (var j=0;j<m;j++){ var v = .008 + j/m*.03 + (rnd()-.5)*.01; if (j === m-1) v = .041; fg.fillStyle = v >= 0 ? (j === m-1 ? C.tide : 'rgba(61,220,196,.45)') : C.down;
+      var y0 = fy(0), y = fy(v); fg.fillRect(j*fb + 1, Math.min(y,y0), Math.max(1, fb - 2), Math.abs(y0 - y)); }
+  }
+  window.addEventListener('resize', function(){ if (!$('#v-symbol').hidden) drawCharts(); });
+  $('#tf').addEventListener('click', function(e){ var b = e.target.closest('button'); if (!b) return; this.querySelectorAll('button').forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); }); drawCharts(); });
+
+  /* ---------- history ---------- */
+  var cov = [['BTC-USDT','Binance','Nov 2024',100,[]],['BTC-USDT','OKX','Nov 2024',100,[]],['ETH-USDT','Binance','Nov 2024',100,[]],['SOL-USDT','Binance','Nov 2024',100,[]],['SOL-USDT','Delta','Mar 2025',67,[71,83,92]],['JUP-USDT','Binance','Jan 2025',88,[]]];
+  $('#cov').innerHTML = cov.map(function(r){
+    var gaps = r[4].map(function(g){ return '<b style="left:'+g+'%" title="Gap being refilled"></b>'; }).join('');
+    return '<tr><td><b>'+r[0]+'</b></td><td>'+r[1]+'</td><td class="num">'+r[2]+'</td><td><div class="covbar" role="img" aria-label="'+r[3]+'% of two years stored'+(r[4].length ? ', '+r[4].length+' gaps' : '')+'"><i style="width:'+r[3]+'%;left:'+(100-r[3])+'%"></i>'+gaps+'</div></td><td class="num">'+(r[4].length ? '<span style="color:var(--amber)">'+r[4].length+' refilling</span>' : '0')+'</td></tr>';
+  }).join('');
+  var jobs = [{ name:'DOGE-USDT · Binance', p:64 }, { name:'SOL-USDT · Delta gaps', p:30 }];
+  function renderJobs(){ $('#jobs').innerHTML = jobs.map(function(j){ return '<div class="job"><b>'+j.name+'</b><span class="num">'+(j.p >= 100 ? 'Done' : j.p+'%')+'</span><div class="bar" role="progressbar" aria-valuenow="'+j.p+'" aria-valuemin="0" aria-valuemax="100" aria-label="'+j.name+'"><i style="width:'+j.p+'%"></i></div></div>'; }).join(''); }
+  renderJobs();
+  setInterval(function(){ var ch = false; jobs.forEach(function(j){ if (j.p < 100){ j.p = Math.min(100, j.p + Math.round(1 + Math.random()*3)); ch = true; } }); if (ch) renderJobs(); }, 1500);
+  $('#add-history').addEventListener('click', function(){ jobs.push({ name:'XRP-USDT · OKX', p:0 }); renderJobs(); toast('Queued: XRP-USDT on OKX, about 2 minutes'); });
+
+  /* ---------- alerts ---------- */
+  var alerts = [
+    { text:'BTC-USDT goes above 66,000 on Binance', on:true, last:'Never fired' },
+    { text:'SOL-USDT funding goes above 0.05% on any exchange', on:true, last:'Never fired' },
+    { text:'ETH-USDT moves more than 3% in 1h on OKX', on:false, last:'Fired 2 days ago' }
+  ];
+  function renderAlerts(){
+    $('#alist').innerHTML = alerts.map(function(a,i){
+      return '<li><button class="switch" type="button" role="switch" aria-checked="'+a.on+'" aria-label="Alert on" data-i="'+i+'"></button><p>'+a.text+'</p><span style="color:var(--muted);font-size:13px">'+a.last+'</span><button class="btn ghost" type="button" data-del="'+i+'" style="min-height:36px">Delete</button></li>';
+    }).join('');
+  }
+  renderAlerts();
+  $('#alist').addEventListener('click', function(e){
+    var s = e.target.closest('[data-i]'), d = e.target.closest('[data-del]');
+    if (s){ var a = alerts[+s.dataset.i]; a.on = !a.on; renderAlerts(); toast(a.on ? 'Alert turned on' : 'Alert paused'); }
+    if (d){ alerts.splice(+d.dataset.del, 1); renderAlerts(); toast('Alert deleted'); }
+  });
+  var condText = { above:'goes above', below:'goes below', move:'moves more than', funding:'funding goes above' };
+  function hint(){
+    var c = $('#a-cond').value, v = $('#a-val').value;
+    var msg = c === 'move' ? 'You’ll get one message when it moves '+v+'% within an hour.' : c === 'funding' ? 'Funding is quoted per 8 hours. Today it is +0.041%.' : 'SOL is at 182.41 now.';
+    $('#a-hint').textContent = msg;
+  }
+  $('#a-cond').addEventListener('change', function(){ var c = this.value; $('#a-val').value = c === 'move' ? '3' : c === 'funding' ? '0.05' : '190'; hint(); });
+  $('#alert-form').addEventListener('submit', function(e){
+    e.preventDefault();
+    var c = $('#a-cond').value, v = $('#a-val').value.trim();
+    if (!v || isNaN(+v)){ toast('Enter a number, for example 190'); $('#a-val').focus(); return; }
+    alerts.unshift({ text: $('#a-sym').value+' '+condText[c]+' '+v+(c==='move'?'%':c==='funding'?'%':'')+' on '+$('#a-ex').value, on:true, last:'Just created' });
+    renderAlerts(); toast('Alert created');
+  });
+  $('#tg-test').addEventListener('click', function(){ toast($('#tg-token').value ? 'Test message sent' : 'Paste your bot token first'); });
+
+  /* ---------- health ---------- */
+  var ex = [
+    { n:'Binance', st:'ok', label:'Live', rows:[['Prices','0.2s ago'],['Funding','0.9s ago'],['Order book','0.1s ago']], note:'All streams healthy.' },
+    { n:'OKX', st:'ok', label:'Live', rows:[['Prices','0.4s ago'],['Funding','1.1s ago'],['Candles','12s ago']], note:'All streams healthy.' },
+    { n:'Delta India', st:'warn', label:'Slow', rows:[['Prices','14s ago'],['Funding','2m 10s ago'],['Reconnects today','7']], note:'Delta often drops connections. The system retries on its own; nothing to do.' }
+  ];
+  $('#ex-cards').innerHTML = ex.map(function(e){
+    return '<div class="ex"><h3>'+e.n+'<span class="pill '+e.st+'"><span class="dot"></span>'+e.label+'</span></h3><ul>'+e.rows.map(function(r){ return '<li><span>'+r[0]+'</span><span class="num">'+r[1]+'</span></li>'; }).join('')+'</ul><p>'+e.note+'</p></div>';
+  }).join('');
+
+  /* ---------- toast ---------- */
+  var tt;
+  function toast(msg){ var t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(tt); tt = setTimeout(function(){ t.hidden = true; }, 2400); }
+
+  /* ---------- overlays ---------- */
+  var lastFocus = null;
+  function openOverlay(el, focusSel){ lastFocus = document.activeElement; el.hidden = false; var f = el.querySelector(focusSel); if (f) f.focus(); }
+  function closeOverlay(el){ el.hidden = true; if (lastFocus) lastFocus.focus(); }
+
+  // palette
+  var pal = $('#palette'), sel = 0;
+  function renderPal(){
+    var q = $('#pal-input').value.trim().toUpperCase();
+    var list = coins.filter(function(c){ return c.s.indexOf(q) > -1; });
+    sel = Math.min(sel, Math.max(0, list.length - 1));
+    $('#pal-list').innerHTML = list.length ? list.map(function(c,i){ return '<li><button type="button" data-go="'+c.s+'" class="'+(i===sel?'sel':'')+'"><b>'+c.s+'</b><span class="num">'+c.px+'</span></button></li>'; }).join('') : '<li style="padding:10px 12px;color:var(--muted)">No coin matches “'+q+'”. Add it from the watchlist settings.</li>';
+  }
+  $('#open-palette').addEventListener('click', function(){ $('#pal-input').value=''; sel=0; renderPal(); openOverlay(pal, '#pal-input'); });
+  $('#pal-input').addEventListener('input', function(){ sel = 0; renderPal(); });
+  $('#pal-input').addEventListener('keydown', function(e){
+    var items = $('#pal-list').querySelectorAll('[data-go]');
+    if (e.key === 'ArrowDown'){ sel = Math.min(items.length-1, sel+1); renderPal(); e.preventDefault(); }
+    if (e.key === 'ArrowUp'){ sel = Math.max(0, sel-1); renderPal(); e.preventDefault(); }
+    if (e.key === 'Enter' && items[sel]){ closeOverlay(pal); location.hash = 'symbol'; }
+  });
+  $('#pal-list').addEventListener('click', function(e){ if (e.target.closest('[data-go]')){ closeOverlay(pal); location.hash = 'symbol'; } });
+  pal.addEventListener('click', function(e){ if (e.target === pal) closeOverlay(pal); });
+
+  // tour
+  var tour = $('#tour'), ts = 0;
+  var steps = [
+    { t:'Welcome. This tool watches the market for you.', b:'It streams live prices from three exchanges, stores the history, and tells you in plain words when something unusual happens. It never places trades.', x:'' },
+    { t:'Which exchanges do you use?', b:'You can change this any time in Health.', x:'<div class="choice"><label><input type="checkbox" checked> Binance</label><label><input type="checkbox" checked> OKX</label><label><input type="checkbox" checked> Delta India</label></div>' },
+    { t:'Pick a few coins to follow', b:'We load two years of history for each one, so charts and alerts have context from day one.', x:'<div class="choice"><label><input type="checkbox" checked> BTC</label><label><input type="checkbox" checked> ETH</label><label><input type="checkbox" checked> SOL</label><label><input type="checkbox"> XRP</label><label><input type="checkbox"> JUP</label><label><input type="checkbox"> DOGE</label></div>' }
+  ];
+  function renderTour(){
+    var s = steps[ts]; $('#tour-title').textContent = s.t; $('#tour-body').textContent = s.b; $('#tour-extra').innerHTML = s.x;
+    $('#tour-dots').querySelectorAll('i').forEach(function(d,i){ d.className = i <= ts ? 'on' : ''; });
+    $('#tour-next').textContent = ts === steps.length - 1 ? 'Start watching' : 'Next';
+  }
+  $('#open-tour').addEventListener('click', function(){ ts = 0; renderTour(); openOverlay(tour, '#tour-next'); });
+  $('#tour-next').addEventListener('click', function(){ if (ts < steps.length - 1){ ts++; renderTour(); } else { closeOverlay(tour); toast('All set. Loading history for your coins'); } });
+  $('#tour-skip').addEventListener('click', function(){ closeOverlay(tour); });
+  tour.addEventListener('click', function(e){ if (e.target === tour) closeOverlay(tour); });
+
+  // explainer drawer
+  var EX = {
+    glossary: ['Glossary', [['Perp','A futures contract with no expiry date. Its price is kept close to the coin’s spot price by funding.'],['Funding','A small fee paid every few hours between traders. Positive means buyers (longs) pay sellers (shorts).'],['Spot','Buying the coin itself, settled now.'],['Stale','No new data for a few seconds. The number is greyed so you never act on an old price.'],['Candle','One bar of price: where it opened, its high, its low and where it closed.']]],
+    tile: ['Reading a coin card', [['Big number','The last traded price on Binance.'],['Line','The last 24 hours. The dot is now.'],['Funding','The fee longs pay shorts per 8 hours. High values mean crowded longs.'],['Live / Slow','Slow means no update for 6 seconds or more.']]],
+    candle: ['How to read candles', [['Green','Price closed higher than it opened in that period.'],['Red','Price closed lower.'],['Thin line','The highest and lowest price in that period.'],['Candle size','Pick 15m, 1h, 4h or 1d above the chart.']]],
+    funding: ['What is funding?', [['In one line','Traders holding perps pay each other a small fee to keep the perp price near the real price.'],['Positive','Longs pay shorts. Many people are betting on a rise.'],['Why it matters','Very high funding has often come before sharp drops, as crowded longs close.']]],
+    coverage: ['Reading coverage', [['Bar','How much of the last two years is stored for that coin on that exchange.'],['Amber tick','A gap: minutes the exchange did not send. The system asks for them again automatically.'],['Why it matters','Backtests and alerts are only as good as the history behind them.']]]
+  };
+  var drawer = $('#drawer');
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-explain]'); if (!b) return;
+    var d = EX[b.dataset.explain]; $('#drawer-title').textContent = d[0];
+    $('#drawer-body').innerHTML = d[1].map(function(r){ return '<div><b>'+r[0]+'</b><p>'+r[1]+'</p></div>'; }).join('');
+    openOverlay(drawer, '#drawer-close');
+  });
+  $('#drawer-close').addEventListener('click', function(){ closeOverlay(drawer); });
+
+  document.addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); $('#open-palette').click(); }
+    if (e.key === 'Escape'){ [pal, tour, drawer].forEach(function(o){ if (!o.hidden) closeOverlay(o); }); }
+  });
+
+  route();
+  paint();
+})();
+</script>
+
+</body>
+</html>

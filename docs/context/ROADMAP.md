@@ -43,9 +43,13 @@ flowchart LR
 - [ ] QuestDB tables: candles 1m, funding, OI
 - [ ] Backfill job: 2 years of the top 20 USDT pairs
 - [ ] Data quality report (gaps, dupes, outliers)
-- [ ] API: `/candles`, `/funding`, `/health`; UI reads health from the API
+- [ ] API: `/candles`, `/funding`, `/health`, `/coverage`, `/quality`, `/backfill`, `/alerts`, `/watchlist`
+- [ ] Phase 1 UI per `docs/product/ux/PHASE1_UX.md`: Overview, Markets, History, Alerts, Health,
+      first-run tour, coin search, explainer drawer
+- [ ] Server-side alerts + Telegram delivery (port from `src/backend/telegramService.ts`)
 
-**Exit:** 7 days of unattended collection; < 0.1 % gaps after backfill.
+**Exit:** 7 days of unattended collection; < 0.1 % gaps after backfill; Phase 1 UI acceptance
+criteria met.
 
 ## Phase 2 · Research + backtest (M3)
 - [ ] Feature library (TA, funding percentile, basis, OI change, regime)
