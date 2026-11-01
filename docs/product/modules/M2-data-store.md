@@ -24,8 +24,8 @@ flowchart TB
   RAW --> M4["M4 lookback"]
 ```
 
-## Storage choice (proposed)
-Decided (see `docs/context/DECISIONS.md`):
+## Storage choice
+Decided 2026-11-01 (see `docs/context/DECISIONS.md`):
 - **QuestDB** for market data: `candles`, `funding`, `open_interest`, `news_events`.
   Ingest via the official Python client (InfluxDB Line Protocol); query over the Postgres wire
   protocol (`psycopg`). Use `SAMPLE BY` for higher timeframes, `LATEST ON` for last values and
@@ -40,7 +40,7 @@ Decided (see `docs/context/DECISIONS.md`):
 | `candles` | exchange, symbol, market, interval, ts_open | o, h, l, c, v, trades |
 | `funding` | exchange, symbol, ts | rate_pct, interval_s |
 | `open_interest` | exchange, symbol, ts | oi, oi_usd |
-| `news_events` | id | ts, source, title, symbols[], category, impact_score |
+| `news_events` | id | ts, source, title, symbol (one row per symbol tagged), category, impact_score |
 | `signals` | id | ts, strategy, symbol, side, entry, stop, target, score, status |
 | `paper_trades` | id | signal_id, open_ts, close_ts, entry, exit, pnl_r, fees, reason |
 
