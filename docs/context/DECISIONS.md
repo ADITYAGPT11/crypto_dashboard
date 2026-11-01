@@ -85,11 +85,11 @@ The old notes said "never claim the tool predicts price or guarantees an edge". 
 measured edge with confirmations. Rule now: never *guarantee*; only show edge/confidence that is
 measured out-of-sample and forward-tested, with uncertainty, and a human makes every trade.
 
-### 2026-11-01 · Phase 1 UX: self-explaining screens, glass + parallax used sparingly
-Why: owner asked for a modern look with parallax and glassmorphism, and an easy, self-explaining
-UI. Glass only on floating chrome (sidebar, top bar, dialogs, drawer, toasts) and parallax only in
-the Overview hero, so data stays high-contrast and motion stays optional (off under reduced
-motion). Plain-language notes and "?" explainers replace a manual.
-Consequence: `docs/product/ux/PHASE1_UX.md` + prototype are the reference for Phase 1 UI work;
-the earlier flat "terminal" canvas remains the layout reference for Phase 3–6 screens and should
-adopt this visual language when built.
+### 2026-11-01 · Phase 1 UX: confirmation desk, evidence-first, "research instrument" look
+Why: a first draft (friendly market watcher, aurora hero) did not match the mission. The owner
+chose a redesign organised around the confirmation pipeline even before confirmations exist, where
+every probability shows n and a 95% range, and a dense, precise instrument look. Glass only on
+floating chrome, parallax only in the Desk header, both off under reduced motion.
+Consequence: `docs/product/ux/PHASE1_UX.md` + prototype are the reference for Phase 1 UI. Phase 1
+gains a base-rate study engine (pure statistics on stored data) and a risk calculator. Later
+phases light up pipeline stages in the same shell.
