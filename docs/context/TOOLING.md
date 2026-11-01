@@ -38,5 +38,23 @@ This file keeps AI tooling and the alternatives we considered.
 | NATS / Redis Streams | in-process event bus | backend splits into several processes |
 | CryptoPanic API, FinBERT | — | news sources/classifier choice at P5 |
 
+## 4 · Reuse audit (mandatory before adding a dependency or copying code)
+
+Check licence, recent activity, tests/CI, security and fit. Decisions: **REUSE AS DEPENDENCY** /
+**ADAPT COMPONENT** / **REFERENCE ONLY** / **REJECT**. No licence means reference only.
+Audited 2026-10-24 via the GitHub API (re-verify before adopting).
+
+| Project | Licence | Decision |
+| --- | --- | --- |
+| [voidzero-dev/vite-plus](https://github.com/voidzero-dev/vite-plus) | bundled w/ npm dist | **Reuse**: project toolchain (v1.3.0) |
+| [tradingview/lightweight-charts](https://github.com/tradingview/lightweight-charts) | Apache-2.0 | **Reuse**: charts; TradingView attribution required (README + on-chart logo) |
+| [ccxt/ccxt](https://github.com/ccxt/ccxt) | MIT | Browser: reference only (native WS used). **Python backend: reuse** (P1) |
+| [bennycode/trading-signals](https://github.com/bennycode/trading-signals) | none detected | **Reference only**: indicators written in-house (`src/utils/indicators.ts`) |
+| [nazmiefearmutcu/flowmap](https://github.com/nazmiefearmutcu/flowmap) | Apache-2.0 | **Adapt (candidate)**: WebGL2 heatmap renderer; young repo, review first |
+| [FIQTOR/cryptopulse](https://github.com/FIQTOR/cryptopulse) | MIT | Reference only: too young |
+| [AIUngated/crypto-liquidity-terminal](https://github.com/AIUngated/crypto-liquidity-terminal) | MIT | Reference only: stale, different stack |
+
+Add a row here **before** adding any new dependency.
+
 Reading: *Advances in Financial Machine Learning* (López de Prado) for labelling, purged CV and the
 deflated Sharpe ratio. These are the core anti-overfitting ideas behind the M3 gate.

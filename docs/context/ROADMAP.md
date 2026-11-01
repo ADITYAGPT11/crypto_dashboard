@@ -5,7 +5,7 @@ Tick boxes as work lands; delete finished phases' detail once they're summarised
 
 ```mermaid
 flowchart LR
-  P0["P0 Data layer<br/>M1 🚧"] --> P1["P1 Backend + history<br/>M1 M2"]
+  P0["P0 Stabilise browser app<br/>M1 · M9 🚧"] --> P1["P1 Backend + history<br/>M1 M2"]
   P1 --> P2["P2 Research + backtest<br/>M3"]
   P2 --> P3["P3 Signals<br/>M4 · M9"]
   P3 --> P4["P4 Forward test<br/>M5"]
@@ -14,16 +14,26 @@ flowchart LR
   P5 --> P6
 ```
 
-## Phase 0 · Finish the live data layer (current)
+## Phase 0 · Stabilise the browser app (current)
+- [ ] Fix the runtime crash (`CANDLE_INTERVALS` / `setActiveInterval` undefined in `MainContainer`)
+- [ ] Fix the remaining type errors (missing imports in `AlertService`/`AlertEngine`,
+      `CandleService.fetchCandles` in `ChartPanel`)
+- [ ] Delete dead files + unused `@electric-sql/pglite` (list in STATUS)
+- [ ] Backend prototype: either make it start (`.ts` import extensions) or freeze it until
+      Phase 1 replaces it. The Telegram client is worth porting.
+- [x] Test runner: Vitest via Vite+, 191 tests (master, 2026-10-25)
+- [ ] CI: GitHub Action running `vp check` + `vp test` + `npm run build` on each PR
 - [ ] Fix symbol filter dropping JUP/SUPER etc. (`SymbolService`)
-- [ ] Unsubscribe on symbol removal (all three adapters)
-- [ ] Stale/down detection via heartbeat → `stale`/`down` badge
-- [ ] Label Delta instruments as USD; never mix with USDT silently
+- [ ] Unsubscribe price/funding streams on symbol removal (all three adapters)
+- [ ] Exchange badge: `stale`/`down` instead of endless "Connecting…" (cells already show stale)
+- [ ] Label Delta instruments as USD; never mix with USDT silently (affects spread panel)
 - [ ] Verify Delta funding-rate units against the docs
-- [ ] Add a test runner (Vitest via Vite+) with adapter parsing tests on recorded fixtures
-- [ ] CI: GitHub Action running build + lint + tests on each PR
 
-**Exit:** `STATUS.md` known issues 1–5 closed; CI is green.
+**Exit:** app loads with no errors; `npm run build` and CI green; STATUS issues 1–5 closed.
+
+> The old module roadmap from `agent-docs/projectNotes.txt` (Modules 0–11) is folded in here:
+> 0–6 ≈ done (see STATUS); 7 Telegram → P6 alerts; 8 history/replay → P1 + P2; 9 liquidity
+> heatmap and 10 derivatives stats → Parking lot / P2 features; 11 reliability → every phase's exit.
 
 ## Phase 1 · Backend + history (M1, M2)
 - [x] Decide backend stack: Python 3.12 + FastAPI + QuestDB (see DECISIONS, ARCHITECTURE)
@@ -49,7 +59,7 @@ flowchart LR
 ## Phase 3 · Signal engine (M4) + UI
 - [ ] Strategy runtime shared with the backtester (parity test)
 - [ ] Signals table + API; Strategies and Confirmations screens (paper only)
-- [ ] Re-introduce a spread/basis view, fed by real calculations
+- [ ] Upgrade the spread panel to fee- and USD/USDT-aware basis/spread calculations
 - [ ] Add TanStack Query for API data on the new screens (plain `fetch` until then)
 
 **Exit:** live signals match replayed backtest entries 1:1.
@@ -73,7 +83,10 @@ flowchart LR
 **Exit:** confirmations live; calibration within ± 5 %.
 
 ## Parking lot (ideas, not scheduled)
-- Order-book depth features (needs snapshot + diff handling).
+- Order-book features for research: full depth needs snapshot + diff sync (today: top-20 partial book).
+- Liquidity heatmap (old Module 9); candidate renderer: nazmiefearmutcu/flowmap (see TOOLING).
+- Derivatives stats: OI, basis, liquidations, CVD, volume profile (old Module 10).
+- Chart drawing tools.
 - Angel One / Indian equities (removed in `4350c71`).
 - Auto-execution, only after Phase 4/6 evidence justifies it.
 - ML models (gradient boosting on features) as a *filter* on rule-based signals, never a black box.

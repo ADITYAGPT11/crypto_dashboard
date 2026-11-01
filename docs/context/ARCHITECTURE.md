@@ -173,10 +173,11 @@ in the lockfile.
 ### Frontend (TypeScript), already: React 19, Vite+, react-router, eventemitter3, SCSS
 | Package | Why | Phase |
 | --- | --- | --- |
-| **vitest** (via Vite+) + Testing Library | Tests | P0 |
+| **vitest** (via Vite+) ✅ adopted (191 tests) | Tests | done |
 | openapi-typescript | Types generated from the backend schema | P1 |
 | @tanstack/react-query | Request/response data (reports, history, candles): caching, refetch, retries. *Not* for live ticks; those stay on WebSocket + `LiveMarketDataService` | P3 |
-| **lightweight-charts** (TradingView) | Candles, funding, OI charts | P3 |
+| **lightweight-charts** (TradingView) ✅ adopted (5.2, attribution required) | Candles + indicators | done |
+| express, `@electric-sql/pglite` | Backend prototype only; pglite unused. Removed when the Python backend lands | remove |
 
 ## 5 · Tools
 
@@ -193,12 +194,15 @@ in the lockfile.
 
 ## 6 · Migration path from today
 
-1. **P0:** fix data bugs, add Vitest + CI. Frontend stays at the repo root.
+1. **P0:** fix the broken build/runtime and data bugs, add CI. Frontend stays at the repo root.
+   The TS backend prototype (`src/backend/`: Express, `node:sqlite`, Telegram) is frozen.
 2. **P1 start:** `git mv` the frontend to `apps/web/`; scaffold `backend/` with uv; add
-   `infra/docker-compose.yml` with QuestDB; collector writes candles/funding.
+   `infra/docker-compose.yml` with QuestDB; collector writes candles/funding. Port the Telegram
+   client and replay ideas from `src/backend/` to Python, then delete `src/backend/`.
 3. **P1 end:** UI's connection badges read `/health` from the API; browser WebSockets remain only
    for the live price table until the API streams prices.
 4. **P3:** UI switches fully to the backend API/WS; browser exchange adapters are deleted.
+   Browser-side alert rules (`AlertEngine`) move server-side so alerts fire without an open tab.
 
 ## 7 · Scaling path (only when measured)
 

@@ -1,0 +1,299 @@
+.chartPanel {
+  background-color: var(--background-secondary);
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+  margin-top: 20px;
+  box-shadow: var(--panel-shadow);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.select {
+  background: var(--background-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  outline: none;
+}
+
+.intervals {
+  display: flex;
+  gap: 4px;
+}
+
+.intervalBtn {
+  background: var(--background-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+
+  &.active {
+    background: var(--accent, #2563eb);
+    border-color: var(--accent, #2563eb);
+    color: #fff;
+  }
+}
+
+.indicatorBar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0 8px;
+}
+
+.indicatorb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--background-primary);
+  padding: 3px 4px 3px 8px;
+}
+
+.chipLabel {
+  color: var(--text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+  font-family: "JetBb Mono", "Fira Code", monospace;
+}
+
+.chipRemove {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 5px;
+
+  bhover {
+    color: #ef5350;
+  }
+}
+
+.chipHint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.pickerWrap {
+  position: relative;
+}
+
+.picker {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  min-width: 190px;
+  background: var(--background-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.pickerItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+
+  bhover {
+    background: var(--background-secondary);
+    color: var(--text-primary);
+  }
+
+  &.picked {
+    color: var(--accent, #2563eb);
+  }
+}
+
+.pickerCheck {
+  width: 14px;
+  font-size: 11px;
+}
+
+.pickerDefaults {
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.8;
+  font-family: "JetBb Mono", "Fira Code", monospace;
+}
+
+.loadingOlder {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  z-index: 20;
+  background: var(--background-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 3px 8px;
+  pointer-events: none;
+}
+
+.paramInput,
+.macdParams input {
+  width: 52px;
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 4px;
+  font-family: "JetBb Mono", "Fira Code", monospace;
+}
+
+.macdParams {
+  display: flex;
+  gap: 2px;
+}
+
+.chartArea {
+  position: relative;
+  min-height: 320px;
+}
+
+.chartContainer {
+  width: 100%;
+  height: 460px;
+  position: relative;
+  z-index: 1; // above the watermark, below the legend
+}
+
+.watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  color: var(--text-primary);
+  opacity: 0.055;
+  text-align: center;
+
+  span {
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: 3px;
+  }
+
+  small {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+}
+
+.heatmapCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0; // under the chart's candles, above the watermark
+  pointer-events: none;
+}
+
+/* Legend styling */
+.legend {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono, "JetBb Mono", monospace);
+  font-size: 11px;
+  color: var(--text-secondary);
+
+  b {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+}
+
+.bHead {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.bItem {
+  white-space: nowrap;
+}
+
+.bUp {
+  color: var(--accent-positive);
+  font-weight: 600;
+}
+
+.bDown {
+  color: var(--accent-negative);
+  font-weight: 600;
+}
+
+/* View controls */
+.viewControls {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+  padding: 0 24px;
+  pointer-events: none;
+}
+
+.disclaimer {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+
+  a {
+    color: var(--accent, #2563eb);
+  }
+}

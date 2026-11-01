@@ -1,6 +1,8 @@
 # M9 · Dashboard UI
 
-**Status:** 🚧 Live price/funding table exists (this repo, React 19 + Vite+). Everything else is planned.
+**Status:** 🚧 One dashboard page with re-orderable panels: price table, chart + indicators,
+order book, spread panel, alert rule builder. **Crashes on load right now** (see STATUS).
+Screens for confirmations, strategies, risk and health are planned.
 
 ## Screens
 
@@ -12,7 +14,9 @@ flowchart LR
   NAV --> RS["Research<br/>⬜ charts · event studies"]
   NAV --> RK["Risk<br/>⬜ exposure · limits · kill switch"]
   NAV --> HL["System health<br/>⬜ streams · gaps · lag"]
-  MK --> CH["Symbol chart<br/>⬜ candles + funding + OI"]
+  MK --> CH["Symbol chart<br/>✅ candles + indicators · ⬜ funding + OI"]
+  MK --> OBK["Order book<br/>✅ Binance"]
+  MK --> ALR["Alerts<br/>✅ rule builder · 🚧 Telegram"]
   CF --> DET["Confirmation detail<br/>evidence · rationale"]
 ```
 
@@ -20,7 +24,7 @@ flowchart LR
 - The frontend reads from the backend API once Phase 1 lands. Direct exchange sockets in the
   browser stay for the Markets screen only, or are dropped.
 - Charts: TradingView **lightweight-charts** for price; one charting library for stats.
-- Never show a number that isn't backed by data (see the arbitrage-panel removal in DECISIONS).
+- Never show a number that isn't backed by data, and label observations vs estimates.
 
 ## Acceptance criteria
 - [ ] Confirmations screen shows card, evidence links and status (active/hit/stopped/expired).

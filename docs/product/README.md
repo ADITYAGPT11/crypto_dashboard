@@ -93,7 +93,7 @@ sequenceDiagram
 
 | # | Module | Status | Spec |
 | --- | --- | --- | --- |
-| M1 | Market data | 🚧 browser-only today | [modules/M1-market-data.md](modules/M1-market-data.md) |
+| M1 | Market data | 🚧 browser-only; prices, funding, candles, order book | [modules/M1-market-data.md](modules/M1-market-data.md) |
 | M2 | Data store & history | ⬜ | [modules/M2-data-store.md](modules/M2-data-store.md) |
 | M3 | Research & backtest | ⬜ | [modules/M3-research-backtest.md](modules/M3-research-backtest.md) |
 | M4 | Signal engine | ⬜ | [modules/M4-signal-engine.md](modules/M4-signal-engine.md) |
@@ -101,7 +101,7 @@ sequenceDiagram
 | M6 | News impact | ⬜ | [modules/M6-news-impact.md](modules/M6-news-impact.md) |
 | M7 | Risk manager | ⬜ | [modules/M7-risk.md](modules/M7-risk.md) |
 | M8 | Confirmation composer | ⬜ | [modules/M8-confirmation.md](modules/M8-confirmation.md) |
-| M9 | Dashboard UI | 🚧 live prices only | [modules/M9-ui.md](modules/M9-ui.md) |
+| M9 | Dashboard UI | 🚧 prices, charts, order book, alerts; currently crashes on load | [modules/M9-ui.md](modules/M9-ui.md) |
 
 Delivery order and milestones: [`../context/ROADMAP.md`](../context/ROADMAP.md).
 Recommended libraries and tools: [`../context/TOOLING.md`](../context/TOOLING.md).

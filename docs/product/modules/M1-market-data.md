@@ -1,6 +1,7 @@
 # M1 · Market data
 
-**Status:** 🚧 Works in the browser (`src/adapters`, `src/services`). Must move to an always-on
+**Status:** 🚧 Works in the browser (`src/adapters`, `src/services`): prices, funding, candles with
+REST backfill, Binance top-20 order book and trade prints, 24 h stats. Must move to an always-on
 backend collector in Phase 1, because a browser tab can't record history or run signals 24/7.
 
 ## Responsibilities

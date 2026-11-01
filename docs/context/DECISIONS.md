@@ -60,3 +60,27 @@ Rust) without rewriting module logic. Layout: `apps/web`, `backend/src/tcs`, `re
 ### 2026-11-01 · TanStack Query deferred to Phase 3
 Why: it pays off for request/response data on several screens (reports, history, charts). Phase 1's
 UI only reads `/health`, where plain `fetch` is enough. Live ticks never use it.
+
+### 2026-11-01 · Merged master's "AI code" into PR #1; master's code wins conflicts
+Why: master gained ~12.8k lines (charts, order book, alerts, backend prototype, tests) while this
+PR was open. Owner chose to keep master's code; this PR now only adds docs + the `index.html` fix.
+Consequence: the 2026-11-01 removals of the Arbitrage panel, Binance depth stream and small
+helpers are **reverted**. Those features are now real (`ArbitrageService`, `OrderBookService`).
+The arbitrage panel is an observation (no fees, mixes USD/USDT) until Phase 3 upgrades it.
+
+### 2026-11-01 · One context system: `CLAUDE.md` + `docs/`; `agent-docs/` folded in and deleted
+Why: two sets of agent instructions would contradict each other. Kept from `agent-docs/`:
+guardrails (no execution, free-first, honest numbers, secrets server-side), the reuse-audit rule
+and its table (now in `TOOLING.md`), Vite+ commands, coding conventions, the module roadmap
+(mapped into `ROADMAP.md`). Superseded: "TypeScript end-to-end / Node backend" (see next entry).
+
+### 2026-11-01 · TypeScript backend in `src/backend/` is a prototype; Python remains the target
+Why: owner confirmed Python + FastAPI + QuestDB after master added an Express + `node:sqlite`
+backend. Research and backtesting need Python's libraries.
+Consequence: the TS backend is frozen (fix only to keep the build green); its Telegram client and
+replay ideas get ported to Python in Phase 1/6, then `src/backend/` is deleted.
+
+### 2026-11-01 · "Never claim an edge" guardrail reconciled with the mission
+The old notes said "never claim the tool predicts price or guarantees an edge". The mission is
+measured edge with confirmations. Rule now: never *guarantee*; only show edge/confidence that is
+measured out-of-sample and forward-tested, with uncertainty, and a human makes every trade.

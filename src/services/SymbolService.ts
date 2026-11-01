@@ -148,4 +148,8 @@ export class SymbolService {
       .filter((symbol) => symbol.toLowerCase().includes(searchTerm))
       .slice(0, 20); // Limit to 20 results
   }
+
+  getAllSymbols(): string[] {
+    return this.allSymbols;
+  }
 }

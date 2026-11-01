@@ -6,10 +6,17 @@ interface PriceTableProps {
   symbols: string[];
   types: string[];
   exchanges: string[];
+  hasData: boolean;
   removeSymbol: (symbol: string) => void;
 }
 
-const PriceTable: React.FC<PriceTableProps> = ({ symbols, types, exchanges, removeSymbol }) => {
+const PriceTable: React.FC<PriceTableProps> = ({
+  symbols,
+  types,
+  exchanges,
+  hasData,
+  removeSymbol,
+}) => {
   return (
     <div className="table-container">
       <table className="table">
@@ -23,17 +30,45 @@ const PriceTable: React.FC<PriceTableProps> = ({ symbols, types, exchanges, remo
         </thead>
 
         <tbody>
-          {symbols.map((symbol) =>
-            types.map((type) => (
-              <PriceRow
-                key={`${symbol}-${type}`}
-                symbol={symbol}
-                type={type}
-                exchanges={exchanges}
-                removeSymbol={removeSymbol}
-              />
-            )),
-          )}
+          {hasData
+            ? symbols.map((symbol) =>
+                types.map((type) => (
+                  <PriceRow
+                    key={`${symbol}-${type}`}
+                    symbol={symbol}
+                    type={type}
+                    exchanges={exchanges}
+                    removeSymbol={removeSymbol}
+                  />
+                )),
+              )
+            : // Skeleton rows
+              symbols.map((symbol) =>
+                ["SPOT", "FUT"].map((type) => (
+                  <tr key={`${symbol}-${type}`}>
+                    <td>
+                      <div className="symbol">
+                        <div className="symbol-icon">{symbol.charAt(0).toUpperCase()}</div>
+                        {symbol}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="type">{type}</span>
+                    </td>
+
+                    <td>
+                      <div className="skeleton"></div>
+                    </td>
+                    <td>
+                      <div className="skeleton"></div>
+                    </td>
+
+                    <td>
+                      <div className="skeleton"></div>
+                    </td>
+                  </tr>
+                )),
+              )}
         </tbody>
       </table>
     </div>

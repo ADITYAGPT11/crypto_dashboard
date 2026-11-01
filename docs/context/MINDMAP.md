@@ -15,18 +15,24 @@ mindmap
       Streams
         Last trade price ✅
         Funding rate + countdown ✅
-        Order book ⬜
+        Candles + REST backfill ✅
+        Order book top-20 🚧 Binance only
+        Trade prints 🚧 Binance only
+        24h stats 🚧 no Delta
         Open interest ⬜
       Infra
         BaseWebSocketClient reconnect ✅
-        Connection status 🚧 no down/stale
+        Connection status 🚧 no down
+        Cell freshness / stale ✅
         Symbol search 🚧 filter bug
       Persistence ⬜
-        Backend collector ⬜
+        TS backend prototype 🚧 frozen
+        Python collector ⬜
         QuestDB store ⬜
         Historical backfill ⬜
     Research ⬜
-      Indicators / TA ⬜
+      Indicators / TA 🚧 in browser
+      Alert replay 🚧 TS prototype
       Funding & basis analytics ⬜
       Statistics & probability ⬜
       Backtesting engine ⬜
@@ -50,12 +56,17 @@ mindmap
       Loss limits + kill switch ⬜
     Confirmation output ⬜
       Signal + evidence + risk + news ⬜
-    UI ✅
+    UI 🚧 crashes on load
       Price table ✅
-      Metrics + badges ✅
-      Theme + routing ✅
+      Charts + indicators ✅
+      Order book panel ✅
+      Spread panel 🚧 no fees
+      Alerts rule builder ✅
+      Telegram delivery 🚧
+      Layout + watchlist saved ✅
     Dev workflow ✅
       CLAUDE.md context map ✅
-      Build + lint ✅
-      Tests ⬜
+      Build + typecheck ❌ 65 errors
+      Tests ✅ 191
+      CI ⬜
 ```

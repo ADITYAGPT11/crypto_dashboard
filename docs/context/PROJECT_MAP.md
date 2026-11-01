@@ -1,78 +1,117 @@
 # Project map
 
-What exists in code **today**. The target system is in `ARCHITECTURE.md`.
+What exists in code **today** (after the 2026-11-01 merge of master). The target system is in
+`ARCHITECTURE.md`; the health of each part is in `STATUS.md`.
 
-Stack: React 19 · TypeScript (strict) · Vite+ (`vite-plus`: Vite + oxlint + oxfmt) · SCSS ·
-react-router 7 · eventemitter3. Browser-only, no backend.
+Stack: React 19 · TypeScript (strict) · Vite+ (`vp`: Vite, Vitest, oxlint, oxfmt) · SCSS ·
+react-router 7 · eventemitter3 · lightweight-charts 5. Backend prototype: Node + Express +
+`node:sqlite`.
 
-## Data flow
+## Data flow (browser)
 
 ```mermaid
 flowchart LR
-  subgraph Exchanges
-    BS[Binance spot WS]
-    BF[Binance futures WS]
-    OK[OKX public WS]
-    DE[Delta India WS]
-    REST[Binance + OKX REST<br/>symbol lists]
+  subgraph EX[Exchanges]
+    WS["WebSockets<br/>Binance · OKX · Delta"]
+    REST["REST<br/>symbols · 24h stats · candle history"]
   end
 
-  BS & BF --> BA[BinanceAdapter]
-  OK --> OA[OkxAdapter]
-  DE --> DA[DeltaExchangeAdapter]
-  BA & OA & DA -. uses .-> WSC[BaseWebSocketClient<br/>reconnect · queue · heartbeat]
+  WS --> AD["Adapters<br/>Binance · Okx · Delta"]
+  AD -. uses .-> WSC["BaseWebSocketClient"]
+  AD --> MDS["MarketDataService<br/>composition root"]
 
-  BA & OA & DA -- marketData / fundingRate / connectionStatus --> MDS[MarketDataService<br/>singleton orchestrator]
-  MDS -- update / updateFundingRate --> LIVE[LiveMarketDataService<br/>price + FR store, per-key pub/sub]
-  MDS -- connectionStatus --> MC[MainContainer]
-  LIVE --> HOOKS[useLivePrice<br/>useLiveFundingRate]
-  HOOKS --> CELL[PriceCell]
-  REST --> SS[SymbolService] --> SEARCH[SymbolSearch] --> MC
-  MC -- startMarketData symbols --> MDS
+  MDS --> LIVE["LiveMarketDataService<br/>price + funding"]
+  MDS --> ARB["ArbitrageService"]
+  MDS --> OB["OrderBookService"]
+  MDS --> TR["TradeService"]
+  AD --> CS["CandleService"]
+  REST --> CS
+  REST --> TS["TickerStatsService"]
+  REST --> SS["SymbolService"]
+  OB --> LH["LiquidityHistoryService"]
+
+  LIVE & CS & OB --> AL["AlertService<br/>2 s timer → AlertEngine"]
+
+  LIVE --> H1["useLivePrice · useLiveFundingRate<br/>useDataFreshness"] --> PT["PriceTable"]
+  TS --> H2["useTickerStats"] --> PT
+  CS --> CH["ChartPanel"]
+  OB --> H3["useOrderBook"] --> OBP["OrderBookPanel"]
+  TR --> H4["useTrades"] --> OBP
+  ARB --> AP["ArbitragePanel"]
+  AL --> ALP["AlertsPanel"]
+  SS --> SRCH["SymbolSearch"]
 ```
 
-## Files (one line each — keep in sync)
+`MainContainer` renders the panels in a user-ordered layout: metrics, connection status, chart,
+price table, spread (arbitrage), order book, alerts.
+
+## Files
 
 **Entry / shell**
-- `index.html` → `src/main.tsx` (BrowserRouter) → `src/App.tsx` (Header + routes `/`, `/about`)
-- `src/App.scss` — global theme variables (`.light` / `.dark` on `<html>`)
+- `index.html` → `src/main.tsx` → `src/App.tsx` (Header + routes `/`, `/about`)
+- `src/components/MainContainer/`: dashboard; watchlist + panel layout state (persisted),
+  starts streaming, renders panels in "Edit layout" order
 
-**Data layer**
-- `src/websocket/BaseWebSocketClient.ts` — generic WS: JSON parse, send-queue until open,
-  exponential backoff reconnect, optional heartbeat (unused)
-- `src/adapters/BinanceAdapter.ts` — 2 sockets (spot, futures); `aggTrade` → price,
-  `markPrice` → funding (futures only)
-- `src/adapters/OkxAdapter.ts` — 1 socket; `tickers` (spot + `-SWAP`), `funding-rate`
-- `src/adapters/DeltaExchangeAdapter.ts` — 1 socket; `trades`, `funding_rate`; USDT↔USD mapping
-- `src/services/MarketDataService.ts` — owns adapters, connects them, routes events into
-  `LiveMarketDataService`, aggregates per-market connection state per exchange
-- `src/services/LiveMarketDataService.ts` — in-memory latest price/FR keyed `EXCHANGE|SYMBOL|TYPE`
-- `src/services/SymbolService.ts` — REST symbol lists (Binance, OKX), search, popular list
-- `src/custom-hooks/useLivePrice.ts`, `useLiveFundingRate.ts` — subscribe a component to one key
-- `src/utils/symbolUtils.ts` — `parseOkxSymbol`, `formatCanonicalSymbol`
-- `src/types/marketData.ts` (`GenericMarketData`, `CanonicalSymbol`),
-  `src/types/connection.ts` (`ConnectionState`, `ConnectionStatusPayload`)
+**Exchange connectivity**
+- `src/websocket/BaseWebSocketClient.ts`: reconnect/backoff/jitter, send queue, optional heartbeat
+- `src/adapters/BinanceAdapter.ts`: combined streams; aggTrade (price + trade prints), bookTicker,
+  depth20@100ms, klines + REST candle history, markPrice (funding)
+- `src/adapters/OkxAdapter.ts`: tickers, funding-rate, candles + REST history
+- `src/adapters/DeltaExchangeAdapter.ts`: trades, funding_rate (USD instruments mapped to `-USDT`)
 
-**UI**
-- `src/components/MainContainer/` — dashboard page: symbol list state, starts streaming,
-  renders search, metrics, connection badges, price table
-- `src/components/dashboard/` — `PriceTable` → `PriceRow` → `PriceCell` (price + funding),
-  `Metrics`, `ConnectionStatus` (global `.scss`, older style)
-- `src/common-components/SymbolSearch/`, `RealTimeClock/`
-- `src/components/Header/` (`Header`, `NavList`), `ThemeToggle/`, `AboutUs/`
+**Services (singletons, `getInstance()` / `resetInstance()`)**
+- `MarketDataService`: wires adapters → stores; `startMarketData`, `removeSymbol`
+- `LiveMarketDataService`: latest price/funding keyed `EXCHANGE|SYMBOL|TYPE`, per-key pub/sub
+- `CandleService`: refcounted candle subscriptions, backfill, `loadMoreHistory` (scroll-back)
+- `OrderBookService`, `LiquidityHistoryService`, `TradeService`: book snapshots, churn history,
+  rolling trade prints
+- `TickerStatsService`: 24 h change/volume via REST every 60 s
+- `ArbitrageService`: cross-exchange last-price spread → `arbitrage` events
+- `AlertEngine` (pure evaluation) + `AlertService` (live wiring, trigger log)
+- `SymbolService`: REST symbol lists, search, popular list
 
-## Event contracts
+**Hooks**: `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
+`useOrderBook`, `useTrades` (`useCandles` is unused)
 
-| Event | Emitted by | Payload |
+**Pure utils (unit-tested in `src/utils/__tests__/`)**: `indicators`, `candleUtils`,
+`orderBookUtils`, `symbolUtils`, `tickerStats`, `priceUtils`, `watchlistStorage`,
+`layoutStorage`, `alertRulesStorage`. Adapter parsing tests: `src/adapters/__tests__/`.
+
+**Types**: `src/types/marketData.ts` (market data, candles, trades, order book, exchange/market
+names), `connection.ts`, `alertRules.ts`
+
+**UI components**: `ChartPanel/`, `dashboard/` (`PriceTable` → `PriceRow` → `PriceCell`,
+`OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`, `Header/`,
+`ThemeToggle/`, `AboutUs/`, `common-components/` (`SymbolSearch`, `RealTimeClock`)
+
+**Backend prototype** (`src/backend/`, run with `npm run backend`, port 3001; doesn't start yet)
+- `index.ts`: Express: `/health`, Telegram config, alert send, history storage + replay endpoints
+- `telegramService.ts`: rate-limited Telegram Bot API client
+- `storage/database.ts` (`node:sqlite`, retention limits), `storage/replay.ts` (replay + rule tests)
+
+**Dead (see STATUS)**: `src/components/OrderBookPanel.tsx` (+ scss), `src/utils/ators.ts`,
+`src/custom-hooks/useCandles.ts`
+
+## Events
+
+| Event | Emitted by | Payload (see `src/types/`) |
 | --- | --- | --- |
-| `marketData` | adapters → `MarketDataService` | `GenericMarketData { exchange, symbol, type, currentPrice, timeStamp(ms) }` |
-| `fundingRate` | adapters → `MarketDataService` | `{ exchange, symbol, fundingRate(%), nextFundingTime(ms), fundingInterval?(s), nextFundingRate? }` |
-| `connectionStatus` | adapters | `ConnectionStatusPayload { exchange, market, state }` |
-| `connectionStatus` | `MarketDataService` | `{ exchange, state }` aggregated (any live ⇒ live) |
+| `marketData` | adapters → `MarketDataService` | `GenericMarketData` (price in canonical symbol) |
+| `fundingRate` | adapters → `MarketDataService` | rate (%), next time (ms), interval (s) |
+| `connectionStatus` | adapters; `MarketDataService` (aggregated) | `{ exchange, market?, state }` |
+| `candle` | adapters → `CandleService` | `Candle` |
+| `trade` | `BinanceAdapter` → `TradeService` | `TradeEvent` |
+| `orderBookSnapshot`, `orderBookBbo` | `BinanceAdapter` → `OrderBookService` | book levels / best bid-ask |
+| `arbitrage` | `ArbitrageService` | spread per symbol |
+| `trigger`, `rulesChanged`, `logChanged` | `AlertService` | alert firing / rule & log updates |
+| `symbolRemoved` | `MarketDataService` | symbol |
 
-## Endpoints
+## Endpoints used
 
-- Binance: `wss://stream.binance.com/ws`, `wss://fstream.binance.com/market/ws`,
-  `https://api.binance.com/api/v3/exchangeInfo`
-- OKX: `wss://ws.okx.com:8443/ws/v5/public`, `https://www.okx.com/api/v5/public/instruments`
-- Delta India: `wss://public-socket.india.delta.exchange`
+- Binance WS: `wss://stream.binance.com:9443/stream`, `wss://fstream.binance.com/stream`
+- Binance REST: `api.binance.com/api/v3/{exchangeInfo,klines,ticker/24hr}`,
+  `fapi.binance.com/fapi/v1/{klines,ticker/24hr}`
+- OKX WS: `wss://ws.okx.com:8443/ws/v5/public` (tickers, funding-rate, `candle*` channels)
+- OKX REST: `www.okx.com/api/v5/{public/instruments,market/candles,market/ticker}`
+- Delta India WS: `wss://public-socket.india.delta.exchange`
+- Telegram Bot API `api.telegram.org` (backend prototype only)
