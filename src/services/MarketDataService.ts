@@ -41,10 +41,6 @@ export class MarketDataService extends EventEmitter {
     return MarketDataService.instance;
   }
 
-  static resetInstance() {
-    MarketDataService.instance = null;
-  }
-
   /**
    * Start streaming for the given symbols.
    * Each exchange connects independently: subscriptions are issued immediately
@@ -61,7 +57,7 @@ export class MarketDataService extends EventEmitter {
       void this.connectExchanges();
     }
 
-    this.binance.subscribe(symbols, ["aggTrade", "depth"]);
+    this.binance.subscribe(symbols, ["aggTrade"]);
     this.binance.subscribeFundingRate(symbols);
     this.okx.subscribe(symbols, "SPOT");
     this.okx.subscribe(symbols, "SWAP");

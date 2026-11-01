@@ -1,9 +1,7 @@
 import { useEffect, useState, useRef, useCallback, memo } from "react";
 import { MarketDataService } from "../../services/MarketDataService";
-import type { ArbitrageOpportunity } from "../../types/marketData";
 import type { ConnectionState } from "../../types/connection";
 
-import ArbitragePanel from "../ArbitragePanel/ArbitragePanel";
 import Metrics from "../dashboard/Metrics";
 import PriceTable from "../dashboard/PriceTable";
 import ConnectionStatus from "../dashboard/ConnectionStatus";
@@ -18,13 +16,11 @@ const MainContainer: React.FC = () => {
 
   const [symbolList, setSymbolList] = useState<string[]>(["BTC-USDT", "ETH-USDT"]);
 
-  const [arbitrageOpportunities, setArbitrageOpportunities] = useState<ArbitrageOpportunity[]>([]);
-
-  const [connectionStatuses, setConnectionStatuses] = useState<
-    Record<string, ConnectionState>
-  >({ BINANCE: "connecting", DELTA: "connecting", OKX: "connecting" });
-
-  // const ARBITRAGE_THRESHOLD_PERCENT = 0.1;
+  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionState>>({
+    BINANCE: "connecting",
+    DELTA: "connecting",
+    OKX: "connecting",
+  });
 
   const addSymbol = useCallback((symbol: string) => {
     setSymbolList((prev) => (prev.includes(symbol) ? prev : [...prev, symbol]));
@@ -41,20 +37,6 @@ const MainContainer: React.FC = () => {
 
     const service = marketDataService.current;
 
-    const arbHandler = (opportunity: ArbitrageOpportunity) => {
-      setArbitrageOpportunities((prev) => {
-        const idx = prev.findIndex((o) => o.symbol === opportunity.symbol);
-        if (idx !== -1) {
-          const copy = [...prev];
-          copy[idx] = opportunity;
-          return copy;
-        }
-        return [...prev, opportunity];
-      });
-    };
-
-    service.on("arbitrage", arbHandler);
-
     const statusHandler = (s: { exchange: string; state: ConnectionState }) => {
       setConnectionStatuses((prev) =>
         prev[s.exchange] === s.state ? prev : { ...prev, [s.exchange]: s.state },
@@ -63,7 +45,6 @@ const MainContainer: React.FC = () => {
     service.on("connectionStatus", statusHandler);
 
     return () => {
-      service.off("arbitrage", arbHandler);
       service.off("connectionStatus", statusHandler);
     };
   }, []);
@@ -93,11 +74,8 @@ const MainContainer: React.FC = () => {
           symbols={symbolList}
           types={TYPES}
           exchanges={EXCHANGES}
-          hasData={true}
           removeSymbol={removeSymbol}
         />
-
-        <ArbitragePanel opportunities={arbitrageOpportunities} />
       </div>
     </div>
   );

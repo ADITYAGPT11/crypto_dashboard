@@ -119,10 +119,13 @@ export class OkxAdapter extends EventEmitter {
   }
 
   private sendAllSubscriptions() {
-    const args = Array.from(this.trackedArgs).map((key) => JSON.parse(key) as {
-      channel: string;
-      instId: string;
-    });
+    const args = Array.from(this.trackedArgs).map(
+      (key) =>
+        JSON.parse(key) as {
+          channel: string;
+          instId: string;
+        },
+    );
     if (args.length === 0) return;
     this.ws.send({ op: "subscribe", args });
   }

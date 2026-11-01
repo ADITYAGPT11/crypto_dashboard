@@ -59,8 +59,6 @@ export class BinanceAdapter extends EventEmitter {
           timeStamp: msg.T,
         };
         this.emit("marketData", transformedData);
-      } else if (msg.e === "depth") {
-        // Handle depth data if needed
       } else if (msg.e === "markPriceUpdate" && marketType === "futures") {
         // Binance: r = funding rate, T = next funding time (futures only)
         if (msg.r !== undefined && msg.T !== undefined) {
@@ -134,25 +132,16 @@ export class BinanceAdapter extends EventEmitter {
     return `${s.replace("-USDT", "USDT").toLowerCase()}@${stream}`;
   }
 
-  subscribe(
-    symbols: string[] | string,
-    streams: ("bookTicker" | "aggTrade" | "depth")[] = ["bookTicker"],
-  ) {
+  subscribe(symbols: string[] | string, streams: ("bookTicker" | "aggTrade")[] = ["bookTicker"]) {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
     const params = arr.flatMap((s) =>
       streams.map((stream) => BinanceAdapter.toBinanceStream(s, stream)),
     );
 
     // spot gets the market-data streams of every subscribed symbol
-    this.subscribedStreams.spot = new Set([
-      ...this.subscribedStreams.spot,
-      ...params,
-    ]);
+    this.subscribedStreams.spot = new Set([...this.subscribedStreams.spot, ...params]);
     // futures mirrors the same streams (plus mark price via subscribeFundingRate)
-    this.subscribedStreams.futures = new Set([
-      ...this.subscribedStreams.futures,
-      ...params,
-    ]);
+    this.subscribedStreams.futures = new Set([...this.subscribedStreams.futures, ...params]);
 
     this.sendSubscribe("spot");
     this.sendSubscribe("futures");
@@ -163,10 +152,7 @@ export class BinanceAdapter extends EventEmitter {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
     const params = arr.map((s) => BinanceAdapter.toBinanceStream(s, "markPrice"));
 
-    this.subscribedStreams.futures = new Set([
-      ...this.subscribedStreams.futures,
-      ...params,
-    ]);
+    this.subscribedStreams.futures = new Set([...this.subscribedStreams.futures, ...params]);
     this.sendSubscribe("futures");
   }
 }
