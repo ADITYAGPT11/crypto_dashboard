@@ -62,23 +62,27 @@ flowchart LR
 7. State is shown in words and shape, not colour alone (chips with text, ▲▼, +/−).
 8. Locked features are visible, labelled with the phase that unlocks them, never hidden.
 
-## Visual language: research instrument
+## Visual language: the first design's terminal style
+
+Matches the first UX canvas (Confirmations, Detail, Markets, Strategies, Risk & Health), so Phase 1
+and later screens share one look.
 
 | Token | Value | Use |
 | --- | --- | --- |
-| Ground / surface / well | `#07090D` / `#0D1218` / `#0A0E14` | page, cards (solid), chart wells |
-| Signal | `#7CC4FF` ice blue | primary action, probability marks, active nav |
-| Amber | `#F2B544` | warnings, gaps, EMA line |
-| Up / down | `#46D18C` / `#FF6B7A` | always with ▲▼ or +/− |
-| UI face | Instrument Sans | labels, text |
-| Data face | JetBrains Mono, tabular numbers | every figure |
+| Ground / header / card / raised | `#0B0F14` / `#0E131A` / `#121821` / `#19212C` | page, top nav, cards (solid), active nav and inputs |
+| Borders | `#263041` (inner rows `#1E2733`) | card and table lines |
+| Accent | `#4C9AFF` blue (soft `#2B4A75`) | primary buttons, probability marks, focus |
+| Up / down | `#56D364` on `#12261A` / `#F47067` on `#2D1517` | always with ▲▼ or +/− |
+| Warning | `#F0A35E` on `#2A1F12` | stale data, gaps, low-n |
+| Text / muted | `#E6EDF3` / `#9AA7B4` | body / labels |
+| Faces | Inter (UI), JetBrains Mono (every figure, tabular) | |
 
-- **Dense and precise:** 14 px base, 12-column grid, hairline borders, uppercase micro-labels,
-  confidence-range bars and percentile ticks as the core visual devices.
-- **Glassmorphism only on floating chrome:** side rail (bottom bar on phones), sticky command
-  bar, search dialog, explainer drawer, toasts. Evidence cards stay solid for contrast.
-- **Parallax only in the Desk header:** contour field, dot grid and a price trace move at three
-  depths on scroll and pointer; off under `prefers-reduced-motion`; complete at rest.
+- Top navigation bar (brand · tabs · status pills · UTC clock), a centred 1360 px column, a page
+  title with a one-line description, solid bordered cards with 12 px radius, pill badges.
+- Confidence-range bars and percentile ticks are the core evidence visuals.
+- **Glass** is limited to the sticky top bar (frosted when content scrolls under it), dialogs and
+  the explainer drawer. **Parallax** is limited to a faint three-layer Desk header (contour field,
+  dot grid, price trace), off under `prefers-reduced-motion`.
 
 ## Acceptance criteria (real implementation)
 

@@ -88,8 +88,10 @@ measured out-of-sample and forward-tested, with uncertainty, and a human makes e
 ### 2026-11-01 · Phase 1 UX: confirmation desk, evidence-first, "research instrument" look
 Why: a first draft (friendly market watcher, aurora hero) did not match the mission. The owner
 chose a redesign organised around the confirmation pipeline even before confirmations exist, where
-every probability shows n and a 95% range, and a dense, precise instrument look. Glass only on
-floating chrome, parallax only in the Desk header, both off under reduced motion.
+every probability shows n and a 95% range, styled like the first UX canvas (flat dark terminal:
+Inter + JetBrains Mono, blue accent, solid bordered cards, top nav) so all phases share one look.
+Glass only on the sticky top bar and overlays; parallax only as a faint Desk header, off under
+reduced motion.
 Consequence: `docs/product/ux/PHASE1_UX.md` + prototype are the reference for Phase 1 UI. Phase 1
 gains a base-rate study engine (pure statistics on stored data) and a risk calculator. Later
 phases light up pipeline stages in the same shell.

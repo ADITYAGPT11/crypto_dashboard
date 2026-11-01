@@ -22,8 +22,8 @@ flowchart LR
 
 ## Phase 1 UX
 
-Confirmation-desk shell, evidence-first screens, rules and the "research instrument" visual
-language (glass on floating chrome only, parallax only in the Desk header) are in
+Confirmation-desk shell, evidence-first screens, rules and the visual language (the first
+canvas's terminal style; subtle glass and parallax) are in
 [`../ux/PHASE1_UX.md`](../ux/PHASE1_UX.md), with a clickable prototype in
 [`../ux/phase1-prototype.html`](../ux/phase1-prototype.html).
 
