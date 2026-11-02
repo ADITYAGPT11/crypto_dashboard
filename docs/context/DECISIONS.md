@@ -170,3 +170,14 @@ USDT/USD rate. `GenericMarketData.quote` carries the quote; the price cell shows
 
 Why: traders size positions on the distance to the stop; fees are shown on top ("loss at stop incl.
 fees") and in the break-even win rate rather than silently shrinking the size.
+
+### 2026-11-02 · Dashboard sentiment shows separate gauges, never one combined score
+
+Why: honest numbers. A blended "sentiment 72/100" would imply predictive value nobody has measured.
+Each gauge (Fear & Greed, funding, long/short, OI change, breadth, BTC dominance) is shown with
+its source and time. A combined score can come later only with a backtest behind it.
+
+### 2026-11-02 · Dashboard overview limited to the 10 research coins
+
+Why: the owner asked for 10 coins. It keeps REST usage small (2 bulk calls every 30 s, 20
+per-coin calls every 5 min) and matches the coins the setup statistics pool across.

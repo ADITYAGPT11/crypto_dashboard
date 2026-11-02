@@ -138,6 +138,11 @@ export class SymbolService {
       .slice(0, 20); // Limit to 20 results
   }
 
+  /** Exchanges whose spot list includes the symbol (empty until lists are fetched). */
+  listedOn(symbol: string): { binance: boolean; okx: boolean } {
+    return { binance: this.binanceSymbols.includes(symbol), okx: this.okxSymbols.includes(symbol) };
+  }
+
   getAllSymbols(): string[] {
     return this.allSymbols;
   }

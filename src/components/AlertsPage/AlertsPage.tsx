@@ -19,6 +19,7 @@ import { pct, price } from "../../utils/format";
 import type { PatternType, SetupLocation } from "../../types/analysis";
 import type { CandleInterval } from "../../types/marketData";
 import { Chip, CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
+import { BRAND } from "../../brand";
 import styles from "./AlertsPage.module.scss";
 
 const PATTERNS = Object.keys(PATTERN_LABELS) as PatternType[];
@@ -111,8 +112,8 @@ const AlertsPage: React.FC = () => {
       </div>
 
       <p className={styles.banner} role="note">
-        Until the Phase 1b backend ships, alerts are checked only while a TCS tab is open (every
-        minute; new candles are fetched as they close). {TELEGRAM_TEXT[alerts.telegram]}
+        Until the Phase 1b backend ships, alerts are checked only while a {BRAND.name} tab is open
+        (every minute; new candles are fetched as they close). {TELEGRAM_TEXT[alerts.telegram]}
       </p>
 
       <div className={styles.layout}>

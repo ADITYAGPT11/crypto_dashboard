@@ -10,7 +10,8 @@ are next; detection and statistics move server-side there. No confirmations yet 
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-1. Owner review of the new screens; fold their ideas back into the design canvas and build.
+1. Owner picks the product name (one constant in `src/brand.ts` + `index.html` title) and reviews
+   Dashboard v2; check Fear & Greed and CoinGecko load on the owner's machine.
 2. More detectors: bull flag, inverse head & shoulders, morning star; HVN/VAL as locations.
 3. Keep CI green: `.github/workflows/ci.yml` runs on every PR.
 4. Phase 1b backend: Python collector + QuestDB, so history is stored and pooled across 20+ coins,
@@ -23,15 +24,23 @@ Verified 2026-11-02 from a clean `npm ci`:
 
 | Check                                                      | State                                                                                                                                                                                                                |
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check` (`vp check`: format + lint + types)        | ✅ 162 files formatted; 0 errors or warnings in 113 files (backend included)                                                                                                                                         |
-| `npm test`                                                 | ✅ 255 tests, 19 files                                                                                                                                                                                               |
+| `npm run check` (`vp check`: format + lint + types)        | ✅ 187 files formatted; 0 errors or warnings in 137 files (backend included)                                                                                                                                         |
+| `npm test`                                                 | ✅ 284 tests, 23 files                                                                                                                                                                                               |
 | `npm run build` (`tsc -b` app + node + backend, then Vite) | ✅ chart code in its own chunk                                                                                                                                                                                       |
 | `npm run dev`                                              | ✅ <http://localhost:3000>; Dashboard, Chart, Pattern stats, Risk, Alerts load with no page errors or sideways scroll (browser test at 1440 px and 400 px, mocked Binance history); `/api` proxy reaches the backend |
 | `npm run backend`                                          | ✅ bundles `src/backend` and starts on :3001; `/health` OK, SQLite file created under `./data/`                                                                                                                      |
 
 ## What exists
 
-- **Dashboard** (`/`): scanner over watchlist + 10 liquid coins on 4h. Shows setups confirmed on
+- **Dashboard** (`/`), top: market overview for the 10 research coins (`components/MarketOverview/`):
+  ticker strip; ⌘K coin search with per-exchange price and listing; exchange connection chips;
+  floating bubbles (size = 24h volume, colour = 24h / 7d change); sentiment (Fear & Greed gauge,
+  avg funding, long/short ratio, OI 24h, breadth, BTC dominance; no combined score); market
+  monitor table (price, 24h/7d, volume, 7d volatility, ATR, trend 4h/1d, funding, OI, corr. BTC,
+  sortable); 30-day correlation matrix; liquidations (Binance stream since page open); BTC
+  volatility regime + trading sessions; gainers/losers; data health. Each source fails on its
+  own and shows "unavailable".
+- **Dashboard** (`/`), below: scanner over watchlist + 10 liquid coins on 4h. Shows setups confirmed on
   the last 3 closed candles with pooled win rate, n, Wilson 95% range, break-even marker and
   verdict; a table of how every setup has performed; the pattern-to-confirmation pipeline;
   watchlist cards with a live price and 7-day sparkline.
@@ -71,9 +80,16 @@ Verified 2026-11-02 from a clean `npm ci`:
 4. **Pooled stats take a few seconds** on first load (≈24 REST requests); no progress bar yet.
 5. Order book and trade prints: Binance only. Delta: no candles, no 24 h stats.
 6. `.idx/dev.nix` lists Svelte/Vue extensions.
-7. The Markets page's older price-rule alerts are separate from setup alerts and still browser-only.
+7. **Dashboard v2 live sources unverified**: Binance REST shapes are tested with fixtures; Fear &
+   Greed (alternative.me) and BTC dominance (CoinGecko) are unchecked against the live APIs and
+   CORS. Liquidation totals start from page open and undercount (Binance sends ≤1/coin/s).
+8. The Markets page's older price-rule alerts are separate from setup alerts and still browser-only.
 
 ## History
+
+- 2026-11-02: Dashboard v2 market overview built from the canvas design (all sources mocked in the
+  browser test; live sources not reachable from the sandbox). Product name moved to `src/brand.ts`.
+  Fixed `useSyncExternalStore` re-subscribing every render (would restart polling).
 
 - 2026-11-02: Pattern stats, Risk calculator and Alerts built from the reference designs; Chart
   setup card links to both; Delta tagged USD and excluded from spreads; `HistoryService` refetches

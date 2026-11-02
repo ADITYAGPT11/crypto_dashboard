@@ -14,6 +14,7 @@ import {
 import { pct } from "../../utils/format";
 import type { CandleInterval } from "../../types/marketData";
 import { Chip, Explain, VerdictChip } from "../../common-components/Evidence";
+import { BRAND } from "../../brand";
 import styles from "./RiskPage.module.scss";
 
 const INTERVALS: readonly CandleInterval[] = ["1h", "4h", "1d"];
@@ -269,7 +270,9 @@ const RiskPage: React.FC = () => {
         </section>
       </div>
 
-      <p className={styles.mute}>TCS never places orders. You decide and trade on your exchange.</p>
+      <p className={styles.mute}>
+        {BRAND.name} never places orders. You decide and trade on your exchange.
+      </p>
     </main>
   );
 };

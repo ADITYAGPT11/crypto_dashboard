@@ -43,6 +43,9 @@ flowchart LR
 - [x] Dashboard (setup scanner, setup performance table, pipeline, watchlist)
 - [x] Chart workspace (Lightweight Charts, overlays, setup card, volume levels, zones)
 - [x] Pattern stats, Risk calculator, Alerts screens (designs in `docs/product/ux/reference/`)
+- [x] Dashboard v2 market overview (bubbles, sentiment, monitor, correlation, liquidations,
+      volatility regime, sessions, movers, data health)
+- [ ] Product name + logo (owner choosing; `src/brand.ts`)
 - [ ] More detectors
 
 ## Phase 1 · Backend + history (M1, M2)
@@ -116,5 +119,6 @@ criteria met.
 - Chart drawing tools.
 - Angel One / Indian equities (removed in `4350c71`).
 - Auto-execution, only after Phase 4/6 evidence justifies it.
+- Top news panel (needs a source: backend-fetched RSS or a free CryptoPanic key, owner to approve).
 - Browser push notifications and quiet hours for setup alerts.
 - ML models (gradient boosting on features) as a _filter_ on rule-based signals, never a black box.

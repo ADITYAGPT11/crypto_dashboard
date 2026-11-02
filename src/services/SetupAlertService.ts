@@ -17,6 +17,7 @@ import {
   type SetupAlertRule,
 } from "../utils/setupAlerts";
 import { loadWatchlist } from "../utils/watchlistStorage";
+import { BRAND } from "../brand";
 import { HistoryService, RESEARCH_UNIVERSE } from "./HistoryService";
 
 export type TelegramStatus = "unknown" | "configured" | "notConfigured" | "offline";
@@ -183,7 +184,7 @@ export class SetupAlertService {
       ruleName: "Test message",
       firedAt: now,
       values: {},
-      reason: "TCS can reach this chat. Setup alerts will arrive here with their track record.",
+      reason: `${BRAND.name} can reach this chat. Setup alerts will arrive here with their track record.`,
     });
   }
 

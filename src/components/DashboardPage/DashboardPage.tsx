@@ -11,6 +11,7 @@ import { pct, price, signedPct, signedR } from "../../utils/format";
 import type { Candle } from "../../types/marketData";
 import type { SetupStats } from "../../types/analysis";
 import { Chip, CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
+import MarketOverview from "../MarketOverview";
 import styles from "./DashboardPage.module.scss";
 
 const INTERVAL = "4h" as const;
@@ -154,9 +155,11 @@ const DashboardPage: React.FC = () => {
       <div className={styles.pagehead}>
         <div>
           <h1>Dashboard</h1>
-          <p>Setups detected now, with how they performed in the past.</p>
+          <p>Market overview for the 10 research coins, then setups detected now.</p>
         </div>
       </div>
+
+      <MarketOverview candles={candles} />
 
       <Band>
         <span className={styles.lbl}>

@@ -74,10 +74,14 @@ price table, spread (arbitrage), order book, alerts.
 - `ArbitrageService`: cross-exchange last-price spread → `arbitrage` events
 - `AlertEngine` (pure evaluation) + `AlertService` (live wiring, trigger log)
 - `SymbolService`: REST symbol lists, search, popular list
+- `MarketOverviewService`: Dashboard market data for the 10 research coins (Binance tickers,
+  funding, OI, long/short; Fear & Greed; BTC dominance; liquidation stream); polls only while
+  subscribed; each source `loading | ok | unavailable`
 - `SetupAlertService`: setup-alert rules + firings (localStorage), 60 s check over the research
   universe, outcome tracking, Telegram via backend `/api/alerts/send` (injectable deps for tests)
 
-**Hooks**: `useScan` (+ `useResearchScan`, `researchUniverse`), `useSetupAlerts`, `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
+**Hooks**: `useScan` (+ `useResearchScan`, `researchUniverse`), `useSetupAlerts`,
+`useMarketOverview`, `useNow`, `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
 `useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
 
 **Analysis engine (pure, unit-tested in `src/utils/__tests__/setupAnalysis.test.ts`)**:
@@ -90,14 +94,20 @@ stats, `buildScan`), `stats` (Wilson interval), `format`. Types in `src/types/an
 `orderBookUtils`, `symbolUtils` (parsing, leveraged-token filter, quote currency), `connectionState`
 (close → connecting/down), `setupLibrary` (filter/sort/per-coin, setup-key parsing), `riskCalc`
 (position sizing + remembered prefs), `setupAlerts` (rule matching, storage parsing, Telegram
-payload), `tickerStats`, `priceUtils`, `watchlistStorage`,
+payload), `marketStats` (volatility, ATR, trend, correlation, vol regime, sessions, movers,
+bubble layout), `marketOverview` (source parsers, liquidation sums), `marketRows` (per-coin
+rows), `tickerStats`, `priceUtils`, `watchlistStorage`,
 `layoutStorage`, `alertRulesStorage`. Adapter parsing and unsubscribe tests:
 `src/adapters/__tests__/`.
 
 **Types**: `src/types/marketData.ts` (market data, candles, trades, order book, exchange/market
 names), `connection.ts`, `alertRules.ts`
 
-**UI components**: `TopNav/`, `DashboardPage/`, `StatsPage/`, `RiskPage/`, `AlertsPage/`,
+**Brand**: `src/brand.ts` (product name and tagline in one place).
+
+**UI components**: `TopNav/`, `DashboardPage/` (+ `MarketOverview/`: strip, `CoinSearch`,
+`Connections`, `BubbleMap`, `Sentiment`, `MarketMonitor`, `Correlation`, `Liquidations`,
+`Regime`, `Movers`, `DataHealth`), `StatsPage/`, `RiskPage/`, `AlertsPage/`,
 `AlertToast/`, `ChartPage/` (`PriceChart`: Lightweight Charts +
 overlay canvas; `SetupCard`), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
@@ -132,6 +142,9 @@ overlay canvas; `SetupCard`), `MainContainer/` (Markets), `dashboard/` (`PriceTa
 - OKX WS: `wss://ws.okx.com:8443/ws/v5/public` (tickers, funding-rate, `candle*` channels)
 - OKX REST: `www.okx.com/api/v5/{public/instruments,market/candles,market/ticker}`
 - Delta India WS: `wss://public-socket.india.delta.exchange`
+- Binance futures REST: `fapi.binance.com/fapi/v1/{ticker/24hr,premiumIndex}`,
+  `/futures/data/{openInterestHist,globalLongShortAccountRatio}`; WS `fstream…/ws/!forceOrder@arr`
+- `api.alternative.me/fng/?limit=8` (Fear & Greed), `api.coingecko.com/api/v3/global` (dominance)
 - Telegram Bot API `api.telegram.org` (backend prototype only)
 - Backend from the browser: `/api/*` → `http://localhost:3001/*` via the Vite dev proxy
   (`vite.config.ts`), dev only
