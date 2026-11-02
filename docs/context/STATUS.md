@@ -61,6 +61,9 @@ Verified 2026-11-02 from a clean `npm ci`:
 
 ## History
 
+- 2026-11-02: Designs for Pattern stats, Risk calculator and Alerts drawn on a design canvas;
+  reference images saved in `docs/product/ux/reference/`.
+
 - 2026-11-02: Data bugs fixed: symbol search keeps JUP/SUPER (leveraged-token rule replaces the
   substring filter), removing a symbol unsubscribes its streams on all three exchanges and clears
   its book/trade data, exchange badge shows "down" after 3 failed reconnects; popular list uses

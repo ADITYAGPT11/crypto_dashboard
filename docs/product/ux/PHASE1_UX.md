@@ -4,6 +4,10 @@
 self-contained and uses sample data. Every screen, the chart layer toggles, the pattern
 switcher, search (Ctrl/⌘ K), the explainer drawer, the risk calculator and alert previews work.
 
+**Reference designs:** [`reference/`](reference/README.md) holds images of the next planned
+screens (Pattern stats, Risk calculator, Alerts), rendered from the design canvas where the owner
+adds ideas. Build against those images; update them when the canvas changes.
+
 ## What the owner wants first
 
 1. **Dashboard**: what is setting up right now, and how did that setup do before.
