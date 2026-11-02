@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { HistoryService } from "../services/HistoryService";
+import { HistoryService, RESEARCH_UNIVERSE } from "../services/HistoryService";
+import { loadWatchlist } from "../utils/watchlistStorage";
 import type { Candle, CandleInterval } from "../types/marketData";
 import { buildScan, type Scan } from "../utils/setupAnalysis";
 
@@ -55,4 +56,15 @@ export function useScan(symbols: string[], interval: CandleInterval, attempt = 0
     candles: loaded?.candles ?? NO_CANDLES,
     failed: loaded?.key === key ? loaded.failed : [],
   };
+}
+
+/** The coins every setup is pooled across: the watchlist plus the research universe. */
+export function researchUniverse(): string[] {
+  return [...new Set([...loadWatchlist(), ...RESEARCH_UNIVERSE])];
+}
+
+/** `useScan` over the research universe (read once per mount). */
+export function useResearchScan(interval: CandleInterval, attempt = 0, enabled = true) {
+  const [universe] = useState(researchUniverse);
+  return { universe, ...useScan(enabled ? universe : [], interval, attempt) };
 }

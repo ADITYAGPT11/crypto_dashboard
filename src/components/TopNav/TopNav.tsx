@@ -6,6 +6,9 @@ import styles from "./TopNav.module.scss";
 const LINKS = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/chart", label: "Chart", end: false },
+  { to: "/stats", label: "Pattern stats", end: false },
+  { to: "/risk", label: "Risk", end: false },
+  { to: "/alerts", label: "Alerts", end: false },
   { to: "/markets", label: "Markets", end: false },
   { to: "/about", label: "About", end: false },
 ];

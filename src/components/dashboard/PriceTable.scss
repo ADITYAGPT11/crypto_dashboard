@@ -285,3 +285,20 @@
     }
   }
 }
+
+.quote-tag {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--t-line-2, #334155);
+  color: var(--t-amber, #f0a35e);
+  font-size: 10px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.fr-unverified {
+  margin-left: 6px;
+  color: var(--t-amber, #f0a35e);
+  font-size: 10px;
+  text-decoration: underline dotted;
+}

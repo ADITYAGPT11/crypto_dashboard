@@ -74,9 +74,11 @@ price table, spread (arbitrage), order book, alerts.
 - `ArbitrageService`: cross-exchange last-price spread → `arbitrage` events
 - `AlertEngine` (pure evaluation) + `AlertService` (live wiring, trigger log)
 - `SymbolService`: REST symbol lists, search, popular list
+- `SetupAlertService`: setup-alert rules + firings (localStorage), 60 s check over the research
+  universe, outcome tracking, Telegram via backend `/api/alerts/send` (injectable deps for tests)
 
-**Hooks**: `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
-`useOrderBook`, `useTrades`, `useHistory`, `useScan` (multi-coin analysis), `useConnectionSummary`
+**Hooks**: `useScan` (+ `useResearchScan`, `researchUniverse`), `useSetupAlerts`, `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
+`useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
 
 **Analysis engine (pure, unit-tested in `src/utils/__tests__/setupAnalysis.test.ts`)**:
 `volumeProfile` (POC, value area, HVN/LVN), `zones` (demand/supply, tests/held/break), `patterns`
@@ -85,15 +87,18 @@ stats, `buildScan`), `stats` (Wilson interval), `format`. Types in `src/types/an
 `src/services/HistoryService.ts`: deep closed-candle history from Binance REST + `RESEARCH_UNIVERSE`.
 
 **Pure utils (unit-tested in `src/utils/__tests__/`)**: `indicators`, `candleUtils`,
-`orderBookUtils`, `symbolUtils` (parsing + leveraged-token filter), `connectionState`
-(close → connecting/down), `tickerStats`, `priceUtils`, `watchlistStorage`,
+`orderBookUtils`, `symbolUtils` (parsing, leveraged-token filter, quote currency), `connectionState`
+(close → connecting/down), `setupLibrary` (filter/sort/per-coin, setup-key parsing), `riskCalc`
+(position sizing + remembered prefs), `setupAlerts` (rule matching, storage parsing, Telegram
+payload), `tickerStats`, `priceUtils`, `watchlistStorage`,
 `layoutStorage`, `alertRulesStorage`. Adapter parsing and unsubscribe tests:
 `src/adapters/__tests__/`.
 
 **Types**: `src/types/marketData.ts` (market data, candles, trades, order book, exchange/market
 names), `connection.ts`, `alertRules.ts`
 
-**UI components**: `TopNav/`, `DashboardPage/`, `ChartPage/` (`PriceChart`: Lightweight Charts +
+**UI components**: `TopNav/`, `DashboardPage/`, `StatsPage/`, `RiskPage/`, `AlertsPage/`,
+`AlertToast/`, `ChartPage/` (`PriceChart`: Lightweight Charts +
 overlay canvas; `SetupCard`), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
 `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
@@ -128,3 +133,5 @@ overlay canvas; `SetupCard`), `MainContainer/` (Markets), `dashboard/` (`PriceTa
 - OKX REST: `www.okx.com/api/v5/{public/instruments,market/candles,market/ticker}`
 - Delta India WS: `wss://public-socket.india.delta.exchange`
 - Telegram Bot API `api.telegram.org` (backend prototype only)
+- Backend from the browser: `/api/*` → `http://localhost:3001/*` via the Vite dev proxy
+  (`vite.config.ts`), dev only

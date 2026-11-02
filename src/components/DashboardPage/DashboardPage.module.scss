@@ -35,6 +35,8 @@
   text-align: right !important;
 }
 .xs {
+  // relative: keeps absolutely positioned sr-only labels inside the scroll box
+  position: relative;
   overflow-x: auto;
 }
 .tbl {

@@ -1,0 +1,36 @@
+@use "../../styles/page" as *;
+
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  max-width: min(460px, calc(100vw - 32px));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--t-radius);
+  border: 1px solid var(--t-signal-soft);
+  background: var(--t-raised);
+  color: var(--t-fg);
+  font-family: var(--t-font-ui);
+  font-size: 13px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+.body {
+  flex: 1 1 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  span {
+    color: var(--t-muted);
+  }
+}
+.btn {
+  @include btn;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}

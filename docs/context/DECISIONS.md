@@ -149,3 +149,24 @@ Why: the owner asked for every type and lint issue fixed. `tsconfig.backend.json
 part of `tsc -b`, and lint covers `src/backend`. Node can't run the extensionless imports the
 backend shares with the app, so `npm run backend` bundles it with `vp build --ssr` into
 `dist-backend/` (express stays external) and runs that. No new dependencies.
+
+### 2026-11-02 · Setup alerts run in the browser until Phase 1b
+
+Why: the owner wanted the Alerts screen now and the Python backend isn't built. Rules and firings
+live in localStorage; `SetupAlertService` checks every minute while a tab is open and fires only
+on candles closing after a rule was saved, once per occurrence, carrying the pooled record.
+Telegram goes through the existing Node prototype via a dev-only Vite `/api` proxy (no CORS, no
+secrets in the browser). Consequence: no alerts with the browser closed; Phase 1b moves rules and
+checking server-side.
+
+### 2026-11-02 · Delta prices stay on the asset's row, tagged USD, and are left out of spreads
+
+Why: Delta India perpetuals are USD-quoted (BTCUSD). Splitting them into BTC-USD rows would hide
+them from the watchlist rows people use; comparing them with USDT prices would mix in the
+USDT/USD rate. `GenericMarketData.quote` carries the quote; the price cell shows "USD" and
+`ArbitrageService` compares USDT prices only.
+
+### 2026-11-02 · Risk calculator sizes on the stop before fees, then states fees
+
+Why: traders size positions on the distance to the stop; fees are shown on top ("loss at stop incl.
+fees") and in the break-even win rate rather than silently shrinking the size.

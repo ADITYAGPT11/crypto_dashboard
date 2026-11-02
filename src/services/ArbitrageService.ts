@@ -31,6 +31,8 @@ export class ArbitrageService extends EventEmitter {
   }
 
   onPriceUpdate(msg: GenericMarketData) {
+    // Only like-for-like quotes: a USD price vs a USDT price is partly the USDT/USD rate.
+    if ((msg.quote ?? "USDT") !== "USDT") return;
     const key = ArbitrageService.key(msg.type, msg.symbol);
 
     let byExchange = this.latest.get(key);

@@ -31,7 +31,7 @@ interface DeltaSubscribeMsg {
 }
 
 function normalizeDeltaSymbol(symbolKey: string): string {
-  // Normalize Delta format → canonical BTC-USDT
+  // Delta India BTCUSD → the BTC-USDT row key; the price stays USD-quoted (see `quote`).
   if (symbolKey.endsWith("USDT") && !symbolKey.includes("-")) {
     return symbolKey.slice(0, -4) + "-USDT";
   }
@@ -63,6 +63,7 @@ export class DeltaExchangeAdapter extends EventEmitter {
           exchange: "DELTA",
           type: "FUT",
           symbol: normalizeDeltaSymbol(msg.sy),
+          quote: "USD",
           currentPrice: parseFloat(msg.p),
           timeStamp: msg.ts / 1000, // microseconds → ms
         };

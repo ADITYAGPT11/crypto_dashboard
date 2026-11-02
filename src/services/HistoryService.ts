@@ -45,6 +45,7 @@ export function toBinanceSymbol(symbol: string): string {
 export class HistoryService {
   private static instance: HistoryService | null = null;
   private cache = new Map<string, Promise<History>>();
+  private fetchedAt = new Map<string, number>();
 
   constructor(
     private fetcher: Fetcher = defaultFetcher,
@@ -60,15 +61,27 @@ export class HistoryService {
     HistoryService.instance = null;
   }
 
-  /** Cached; a failed load is evicted so the next call retries. */
+  /**
+   * Cached until a newer candle has closed, then fetched again so scans and
+   * alerts see it. A failed load is evicted so the next call retries.
+   */
   load(symbol: string, interval: CandleInterval, pages = DEFAULT_PAGES): Promise<History> {
     const key = `${symbol}|${interval}|${pages}`;
     const hit = this.cache.get(key);
-    if (hit) return hit;
-    const p = this.fetchPages(symbol, interval, pages).catch((err: unknown) => {
-      this.cache.delete(key);
-      throw err;
-    });
+    const fetchedAt = this.fetchedAt.get(key);
+    const stale = fetchedAt != null && nextClose(fetchedAt, interval) <= this.now();
+    if (hit && !stale) return hit;
+    this.fetchedAt.delete(key);
+    const p = this.fetchPages(symbol, interval, pages).then(
+      (h) => {
+        this.fetchedAt.set(key, h.fetchedAt);
+        return h;
+      },
+      (err: unknown) => {
+        this.cache.delete(key);
+        throw err;
+      },
+    );
     this.cache.set(key, p);
     return p;
   }
@@ -107,6 +120,12 @@ export class HistoryService {
     const closed = all.filter((c) => c.openTime + INTERVAL_MS[interval] <= cutoff);
     return { symbol, interval, candles: closed, fetchedAt: cutoff };
   }
+}
+
+/** Close time of the candle that was forming at `time` (the next close after it). */
+export function nextClose(time: number, interval: CandleInterval): number {
+  const ms = INTERVAL_MS[interval];
+  return Math.floor(time / ms) * ms + ms;
 }
 
 /** Merge two ascending candle lists, dropping duplicate open times. */

@@ -1,0 +1,244 @@
+@use "../../styles/page" as *;
+
+.page {
+  @include page;
+}
+.pagehead {
+  @include pagehead;
+  p {
+    max-width: 760px;
+  }
+}
+.card {
+  @include card;
+}
+.feature {
+  @include feature;
+}
+.cardHead {
+  @include card-head;
+}
+.lbl {
+  @include lbl;
+}
+.note {
+  @include note;
+}
+.btn {
+  @include btn;
+}
+.btnSm {
+  @include btn;
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.mute {
+  color: var(--t-muted);
+}
+.num {
+  font-family: var(--t-font-data);
+  font-variant-numeric: tabular-nums;
+}
+.up {
+  color: var(--t-up);
+}
+.down {
+  color: var(--t-down);
+}
+.warn {
+  color: var(--t-amber);
+}
+.r {
+  text-align: right !important;
+}
+.xs {
+  // relative: keeps absolutely positioned sr-only labels inside the scroll box
+  position: relative;
+  overflow-x: auto;
+}
+.tbl {
+  @include tbl;
+  min-width: 1040px;
+}
+.inner {
+  @include tbl;
+  min-width: 720px;
+}
+.ciCol {
+  width: 22%;
+}
+.sub {
+  display: block;
+  color: var(--t-muted);
+  font-size: 11.5px;
+  font-family: var(--t-font-data);
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pill {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--t-line);
+  background: var(--t-surface);
+  color: var(--t-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  &:hover {
+    border-color: var(--t-line-2);
+  }
+  &[aria-pressed="true"] {
+    border-color: var(--t-signal);
+    background: var(--t-info-bg);
+    color: var(--t-fg);
+  }
+}
+.controls {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--t-muted);
+  font-size: 13px;
+  select {
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 10px;
+    border: 1px solid var(--t-line-2);
+    background: var(--t-well);
+    color: var(--t-fg);
+    font: inherit;
+  }
+}
+
+.alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--t-line);
+  background: var(--t-warn-bg);
+  color: var(--t-amber);
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.big {
+  font-family: var(--t-font-data);
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.rowBtn {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--t-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.caret {
+  color: var(--t-muted);
+  width: 12px;
+}
+.detail > td {
+  background: var(--t-well);
+  padding: 12px 16px 16px;
+  p {
+    margin: 0 0 8px;
+    font-size: 13px;
+  }
+}
+
+.two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  @media (max-width: 900px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+}
+%step {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--t-font-data);
+  font-size: 12px;
+}
+.stepOn {
+  @extend %step;
+  background: var(--t-info-bg);
+  color: var(--t-signal);
+}
+.stepUp {
+  @extend %step;
+  background: var(--t-up-bg);
+  color: var(--t-up);
+}
+.stepOff {
+  @extend %step;
+  background: var(--t-raised);
+  color: var(--t-muted);
+}
+.guards {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--t-muted);
+  b {
+    color: var(--t-fg);
+    font-weight: 600;
+  }
+}

@@ -51,3 +51,17 @@ export function toCanonicalSymbols(bases: readonly string[], quote: string): str
   const kept = [...listed].filter((base) => !isLeveragedToken(base, listed));
   return kept.map((base) => `${base}-${quote}`).sort();
 }
+
+/**
+ * Quote currency of each exchange's instruments as streamed here. Delta India
+ * perpetuals (BTCUSD) are USD-quoted, so their prices are not directly comparable
+ * with USDT prices: USDT can trade slightly away from 1 USD.
+ */
+export function quoteCurrency(exchange: string): "USDT" | "USD" {
+  return exchange === "DELTA" ? "USD" : "USDT";
+}
+
+/** Exchanges whose funding-rate units have not been checked against their API docs. */
+export function fundingUnitsVerified(exchange: string): boolean {
+  return exchange !== "DELTA";
+}

@@ -1,7 +1,8 @@
 import type { SetupOccurrence, SetupStats } from "../../types/analysis";
 import { CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
 import { PATTERN_LABELS } from "../../utils/patterns";
-import { LOCATION_LABELS, MAX_HOLD_BARS, MIN_SAMPLE } from "../../utils/setupAnalysis";
+import { Link } from "react-router-dom";
+import { LOCATION_LABELS, MAX_HOLD_BARS, MIN_SAMPLE, setupKey } from "../../utils/setupAnalysis";
 import { pct, price, shortDate, signedPct, signedR } from "../../utils/format";
 import styles from "./ChartPage.module.scss";
 
@@ -203,6 +204,32 @@ const SetupCard: React.FC<Props> = ({
           </table>
         </>
       )}
+
+      <div className={styles.actions}>
+        <Link
+          className={styles.btn}
+          to={`/risk?${new URLSearchParams({
+            symbol: occurrence.symbol,
+            setup: setupKey(hit.type, location),
+            tf: interval,
+            entry: String(Number(hit.entry.toPrecision(8))),
+            stop: String(Number(hit.stop.toPrecision(8))),
+            target: String(Number(hit.target.toPrecision(8))),
+          }).toString()}`}
+        >
+          Size this trade
+        </Link>
+        <Link
+          className={styles.btn}
+          to={`/alerts?${new URLSearchParams({
+            symbol: occurrence.symbol,
+            setup: setupKey(hit.type, location),
+            tf: interval,
+          }).toString()}`}
+        >
+          Alert me next time
+        </Link>
+      </div>
 
       <p className={styles.note}>
         Pattern history before fees and slippage. It becomes a confirmation only after a costed,
