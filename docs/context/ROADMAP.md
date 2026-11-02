@@ -23,9 +23,9 @@ flowchart LR
 - [x] Backend prototype starts (`npm run backend` bundles it) and passes type-check + lint
 - [x] Test runner: Vitest via Vite+, 191 tests (master, 2026-10-25)
 - [x] CI: GitHub Action (`.github/workflows/ci.yml`) runs check, tests, build and the backend bundle on each PR
-- [ ] Fix symbol filter dropping JUP/SUPER etc. (`SymbolService`)
-- [ ] Unsubscribe price/funding streams on symbol removal (all three adapters)
-- [ ] Exchange badge: `stale`/`down` instead of endless "Connecting…" (cells already show stale)
+- [x] Fix symbol filter dropping JUP/SUPER etc. (`toCanonicalSymbols` in `symbolUtils`)
+- [x] Unsubscribe price/funding streams on symbol removal (all three adapters)
+- [x] Exchange badge shows `down` after 3 failed reconnects in a row (`utils/connectionState`)
 - [ ] Label Delta instruments as USD; never mix with USDT silently (affects spread panel)
 - [ ] Verify Delta funding-rate units against the docs
 

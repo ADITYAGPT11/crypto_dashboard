@@ -64,7 +64,8 @@ price table, spread (arbitrage), order book, alerts.
 
 **Services (singletons, `getInstance()` / `resetInstance()`)**
 
-- `MarketDataService`: wires adapters → stores; `startMarketData`, `removeSymbol`
+- `MarketDataService`: wires adapters → stores; `startMarketData`, `removeSymbol` (unsubscribes
+  price/book/funding on all adapters and clears book/trade buckets)
 - `LiveMarketDataService`: latest price/funding keyed `EXCHANGE|SYMBOL|TYPE`, per-key pub/sub
 - `CandleService`: refcounted candle subscriptions, backfill, `loadMoreHistory` (scroll-back)
 - `OrderBookService`, `LiquidityHistoryService`, `TradeService`: book snapshots, churn history,
@@ -84,8 +85,10 @@ stats, `buildScan`), `stats` (Wilson interval), `format`. Types in `src/types/an
 `src/services/HistoryService.ts`: deep closed-candle history from Binance REST + `RESEARCH_UNIVERSE`.
 
 **Pure utils (unit-tested in `src/utils/__tests__/`)**: `indicators`, `candleUtils`,
-`orderBookUtils`, `symbolUtils`, `tickerStats`, `priceUtils`, `watchlistStorage`,
-`layoutStorage`, `alertRulesStorage`. Adapter parsing tests: `src/adapters/__tests__/`.
+`orderBookUtils`, `symbolUtils` (parsing + leveraged-token filter), `connectionState`
+(close → connecting/down), `tickerStats`, `priceUtils`, `watchlistStorage`,
+`layoutStorage`, `alertRulesStorage`. Adapter parsing and unsubscribe tests:
+`src/adapters/__tests__/`.
 
 **Types**: `src/types/marketData.ts` (market data, candles, trades, order book, exchange/market
 names), `connection.ts`, `alertRules.ts`

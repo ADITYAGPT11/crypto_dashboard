@@ -158,10 +158,23 @@ export class MarketDataService extends EventEmitter {
   }
 
   /**
-   * Called by the UI when a symbol is dropped from the watchlist. Stops the
-   * arbitrage engine from tracking it so no stale spread row survives removal.
+   * Called by the UI when a symbol is dropped from the watchlist. Unsubscribes its
+   * price, book and funding streams on every exchange (chart candle streams are
+   * refcounted separately by CandleService), clears its stored book/trade data and
+   * stops the arbitrage engine tracking it so no stale spread row survives removal.
    */
   removeSymbol(symbol: string) {
+    this.binance.unsubscribe(symbol, ["aggTrade", "depth", "bookTicker"]);
+    this.binance.unsubscribeFundingRate(symbol);
+    this.okx.unsubscribe(symbol, "SPOT");
+    this.okx.unsubscribe(symbol, "SWAP");
+    this.okx.unsubscribeFundingRate(symbol);
+    this.delta.unsubscribe(symbol);
+    for (const type of ["SPOT", "FUT"] as const) {
+      this.orderBookService.removeSymbol("BINANCE", type, symbol);
+      this.tradeService.removeSymbol("BINANCE", type, symbol);
+      this.liquidityHistory.removeSymbol("BINANCE", type, symbol);
+    }
     this.arbitrage.forgetSymbol(symbol);
     this.emit("symbolRemoved", symbol);
   }

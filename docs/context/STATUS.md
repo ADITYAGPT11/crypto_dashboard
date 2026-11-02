@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-01 · branch `claude/amazing-gauss-eyr3t5`_
+_Last verified: 2026-11-02 · branch `claude/ecstatic-gauss-sqnz3z`_
 
 ## Phase
 
@@ -14,17 +14,16 @@ are next; detection and statistics move server-side there. No confirmations yet 
 2. More detectors: bull flag, inverse head & shoulders, morning star; HVN/VAL as locations.
 3. Keep CI green: `.github/workflows/ci.yml` runs on every PR.
 4. Phase 1b backend: Python collector + QuestDB, so history is stored and pooled across 20+ coins.
-5. Data bugs: symbol filter (issue 3), unsubscribe on removal (4), exchange "down" state (5),
-   Delta USD labelling + funding units (1, 2).
+5. Data bugs: Delta USD labelling + funding units (issues 1, 2).
 
 ## Health
 
-Verified 2026-11-01 from a clean `npm ci`:
+Verified 2026-11-02 from a clean `npm ci`:
 
 | Check                                                      | State                                                                                                                                              |
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check` (`vp check`: format + lint + types)        | ✅ 134 files formatted; 0 errors or warnings in 91 files (backend included)                                                                        |
-| `npm test`                                                 | ✅ 215 tests, 11 files                                                                                                                             |
+| `npm run check` (`vp check`: format + lint + types)        | ✅ 139 files formatted; 0 errors or warnings in 95 files (backend included)                                                                        |
+| `npm test`                                                 | ✅ 226 tests, 14 files                                                                                                                             |
 | `npm run build` (`tsc -b` app + node + backend, then Vite) | ✅ chart code in its own chunk                                                                                                                     |
 | `npm run dev`                                              | ✅ <http://localhost:3000>; Dashboard, Chart, Markets, About load with no page errors (browser test at 1440 px and 400 px, mocked Binance history) |
 | `npm run backend`                                          | ✅ bundles `src/backend` and starts on :3001; `/health` OK, SQLite file created under `./data/`                                                    |
@@ -53,18 +52,20 @@ Verified 2026-11-01 from a clean `npm ci`:
 
 1. **Delta is USD-quoted, shown as USDT** (`DeltaExchangeAdapter`); spread panel mixes them.
 2. **Delta funding-rate units unverified.**
-3. **Symbol filter drops real coins** (`SymbolService` substring filter hides JUP, SUPER).
-4. **Price subscriptions only grow**: removing a symbol never unsubscribes price/funding streams.
-5. **Exchange badge never shows "down"** (sockets retry forever).
-6. **Statistics are gross and browser-side**: before fees; limited to ~500 days × 10–12 coins on
+3. **Statistics are gross and browser-side**: before fees; limited to ~500 days × 10–12 coins on
    4h, so several setups show "too few cases". Phase 1b stores more history; Phase 2 adds costs.
-7. **Pooled stats take a few seconds** on first load (≈24 REST requests); no progress bar yet.
-8. Order book and trade prints: Binance only. Delta: no candles, no 24 h stats.
-9. `getPopularSymbols()` lists rebranded coins (`MATIC`, `FTM`); `.idx/dev.nix` lists Svelte/Vue
-   extensions.
-10. The backend is not called by the UI yet (alerts still evaluate in the browser).
+4. **Pooled stats take a few seconds** on first load (≈24 REST requests); no progress bar yet.
+5. Order book and trade prints: Binance only. Delta: no candles, no 24 h stats.
+6. `.idx/dev.nix` lists Svelte/Vue extensions.
+7. The backend is not called by the UI yet (alerts still evaluate in the browser).
 
 ## History
+
+- 2026-11-02: Data bugs fixed: symbol search keeps JUP/SUPER (leveraged-token rule replaces the
+  substring filter), removing a symbol unsubscribes its streams on all three exchanges and clears
+  its book/trade data, exchange badge shows "down" after 3 failed reconnects; popular list uses
+  POL and S instead of MATIC and FTM. Live streams not exercised (exchange hosts blocked in the
+  test sandbox); covered by adapter unit tests.
 
 - 2026-11-01: All checks green incl. the backend: 35 backend type errors fixed, replay crash
   (`engineState` undefined) and cooldown fixed, database folder bug fixed, `npm run backend` starts;
