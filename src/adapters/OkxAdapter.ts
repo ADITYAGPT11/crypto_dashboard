@@ -25,8 +25,9 @@ interface OkxTickerRow {
 }
 
 /** Our interval → OKX bar suffix (OKX spells hours/days in upper case). */
+/** OKX bar names: minutes stay lowercase, hours/days/weeks are uppercase (1H, 1D, 1W). */
 function toOkxBar(interval: CandleInterval): string {
-  return interval.replace("1h", "1H").replace("4h", "4H").replace("1d", "1D");
+  return interval.replace(/[hdw]$/, (u) => u.toUpperCase());
 }
 
 export class OkxAdapter extends EventEmitter {

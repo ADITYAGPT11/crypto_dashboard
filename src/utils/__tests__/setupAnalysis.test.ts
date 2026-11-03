@@ -4,12 +4,7 @@ import type { PatternHit, SetupOccurrence } from "../../types/analysis";
 import { wilson, median } from "../stats";
 import { computeVolumeProfile } from "../volumeProfile";
 import { detectZones, activeZonesAt } from "../zones";
-import {
-  detectBullishEngulfing,
-  detectDoubleBottoms,
-  detectHammers,
-  PIVOT_BARS,
-} from "../patterns";
+import { detectDoubleBottoms, detectCandlestickPatterns, PIVOT_BARS } from "../patterns";
 import { evaluateOutcome, locate, summarize, verdictFor, MIN_SAMPLE } from "../setupAnalysis";
 
 const H = 3_600_000;
@@ -177,13 +172,17 @@ describe("detectDoubleBottoms", () => {
   });
 });
 
-describe("candle patterns", () => {
+describe("candle patterns (candlestick package + our context)", () => {
   const base = walk(0, 20, 110, 100); // 20 candles of decline to build ATR
+  const at = (hits: { index: number; type: string }[], type: string) =>
+    hits.filter((h) => h.type === type).map((h) => h.index);
 
-  it("detects a bullish engulfing candle", () => {
+  it("detects a bullish engulfing on its second candle with a 1.5R plan", () => {
     const red = c(20, 100.5, 100.8, 98.9, 99.0);
     const green = c(21, 98.9, 101.2, 98.7, 101.0);
-    const hits = detectBullishEngulfing([...base, red, green]);
+    const hits = detectCandlestickPatterns([...base, red, green]).filter(
+      (h) => h.type === "bullishEngulfing",
+    );
     const last = hits[hits.length - 1];
     expect(last.index).toBe(21);
     expect(last.stop).toBeLessThan(98.7);
@@ -192,14 +191,46 @@ describe("candle patterns", () => {
 
   it("detects a hammer after a decline", () => {
     const hammer = c(20, 99.6, 99.9, 97.0, 99.8);
-    const hits = detectHammers([...base, hammer]);
-    expect(hits.map((h) => h.index)).toContain(20);
+    expect(at(detectCandlestickPatterns([...base, hammer]), "hammer")).toContain(20);
   });
 
   it("rejects a hammer shape without a prior decline", () => {
     const rising = walk(0, 20, 90, 100);
     const shape = c(20, 100.6, 100.9, 98.0, 100.8);
-    expect(detectHammers([...rising, shape]).map((h) => h.index)).not.toContain(20);
+    expect(at(detectCandlestickPatterns([...rising, shape]), "hammer")).not.toContain(20);
+  });
+
+  it("rejects a hammer shape too small to matter", () => {
+    const dust = c(20, 99.96, 99.99, 99.7, 99.98);
+    expect(at(detectCandlestickPatterns([...base, dust]), "hammer")).not.toContain(20);
+  });
+
+  it("signals three white soldiers on the third candle", () => {
+    const soldiers = [
+      c(20, 100, 101.6, 99.95, 101.5),
+      c(21, 101, 102.6, 100.95, 102.5),
+      c(22, 102, 103.6, 101.95, 103.5),
+    ];
+    expect(at(detectCandlestickPatterns([...base, ...soldiers]), "threeWhiteSoldiers")).toContain(
+      22,
+    );
+  });
+
+  it("never looks ahead: a signal on candle k is the same with or without later candles", () => {
+    const series = [
+      ...walk(0, 30, 110, 100),
+      c(30, 99.6, 99.9, 97.0, 99.8),
+      ...walk(31, 10, 99.8, 104),
+      c(41, 104.5, 104.8, 102.9, 103.0),
+      c(42, 102.9, 105.2, 102.7, 105.0),
+      ...walk(43, 20, 105, 98),
+    ];
+    const full = detectCandlestickPatterns(series);
+    expect(full.length).toBeGreaterThan(0);
+    for (const h of full) {
+      const prefix = detectCandlestickPatterns(series.slice(0, h.index + 1));
+      expect(prefix.some((p) => p.type === h.type && p.index === h.index)).toBe(true);
+    }
   });
 });
 

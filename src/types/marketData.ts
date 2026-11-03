@@ -56,10 +56,38 @@ export interface ArbitrageOpportunity {
  * Supported candle intervals in this scope. Textual form (lowercase, numeral)
  * is our canonical representation; adapters map to their native spelling.
  */
-export type CandleInterval = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
-export const CANDLE_INTERVALS: readonly CandleInterval[] = ["1m", "5m", "15m", "1h", "4h", "1d"];
-
-export const CANDLEBVALS = ["1m", "5m", "15m", "1h", "4h", "1d"];
+export type CandleInterval =
+  | "1m"
+  | "3m"
+  | "5m"
+  | "15m"
+  | "30m"
+  | "1h"
+  | "2h"
+  | "4h"
+  | "6h"
+  | "8h"
+  | "12h"
+  | "1d"
+  | "3d"
+  | "1w";
+/** Every Binance USDⓈ-M kline interval except monthly (variable length). */
+export const CANDLE_INTERVALS: readonly CandleInterval[] = [
+  "1m",
+  "3m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "2h",
+  "4h",
+  "6h",
+  "8h",
+  "12h",
+  "1d",
+  "3d",
+  "1w",
+];
 
 /**
  * One OHLCV candle, always open-high-low-close ascending by openTime.

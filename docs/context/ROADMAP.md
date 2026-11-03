@@ -46,7 +46,13 @@ flowchart LR
 - [x] Dashboard v2 market overview (bubbles, sentiment, monitor, correlation, liquidations,
       volatility regime, sessions, movers, data health)
 - [ ] Product name + logo (owner choosing; `src/brand.ts`)
-- [ ] More detectors
+- [x] Chart detection settings: pattern timeframes + zone source per user, multi-timeframe overlay,
+      background stats per context
+- [ ] Apply detection settings to Dashboard, Pattern stats and Alerts
+- [ ] Versioned rule presets (v2 editing, labelled exploratory until tested out-of-sample)
+- [x] TradingView-style chart: timeframes, chart types, indicators + panes, drawing tools
+- [x] Candlestick patterns from the `candlestick` package (6 bullish)
+- [ ] More chart patterns in-house (bull flag, inverse head and shoulders)
 
 ## Phase 1 · Backend + history (M1, M2)
 

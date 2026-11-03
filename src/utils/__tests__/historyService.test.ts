@@ -76,21 +76,33 @@ describe("HistoryService refresh", () => {
     expect(nextClose(0, "4h")).toBe(H4);
     expect(nextClose(H4 + 5, "4h")).toBe(2 * H4);
   });
+
+  it("closes weekly candles on Monday 00:00 UTC", () => {
+    const wed = Date.UTC(2026, 10, 4, 12); // Wednesday 4 Nov 2026
+    expect(new Date(nextClose(wed, "1w")).toISOString()).toBe("2026-11-09T00:00:00.000Z");
+    const monday = Date.UTC(2026, 10, 9);
+    expect(new Date(nextClose(monday, "1w")).toISOString()).toBe("2026-11-16T00:00:00.000Z");
+  });
 });
 
 describe("buildScan", () => {
   it("pools occurrences across symbols and keeps per-symbol stats", () => {
+    // Waves plus a strong high-volume up candle every 40 bars: yields patterns and zones.
     const series = (seed: number) =>
       Array.from({ length: 400 }, (_, i) => {
-        const p = 100 + 8 * Math.sin((i + seed) / 9) + 3 * Math.sin((i + seed) / 2.3);
-        return {
+        const j = i + seed;
+        const p = 100 + 8 * Math.sin(j / 9) + 3 * Math.sin(j / 2.3);
+        const c = {
           openTime: i * H4,
-          open: p - 0.4,
-          high: p + 1.2,
-          low: p - 1.6,
-          close: p + 0.3,
-          volume: 100 + ((i * 7) % 50),
+          open: p - 0.3,
+          high: p + 1 + (j % 5) * 0.4,
+          low: p - 1 - (j % 7) * 0.3,
+          close: p,
+          volume: 100 + ((j * 37) % 200),
         };
+        if (j % 40 === 21)
+          Object.assign(c, { open: p - 7, low: p - 7.2, high: p + 0.2, volume: 900 });
+        return c;
       });
     const scan = buildScan([
       { symbol: "AAA-USDT", candles: series(0) },
@@ -103,6 +115,7 @@ describe("buildScan", () => {
     for (const a of scan.analyses.values()) {
       total += a.occurrences.filter((o) => o.outcome.result !== "open").length;
     }
+    expect(total).toBeGreaterThan(0); // the fixture must actually produce patterns
     expect(pooledN).toBe(total);
     for (const c of scan.current) {
       expect(c.pooled.n).toBeGreaterThanOrEqual(c.own.n);

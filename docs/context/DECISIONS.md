@@ -181,3 +181,37 @@ its source and time. A combined score can come later only with a backtest behind
 
 Why: the owner asked for 10 coins. It keeps REST usage small (2 bulk calls every 30 s, 20
 per-coin calls every 5 min) and matches the coins the setup statistics pool across.
+
+### 2026-11-03 · Detection timeframes are separate from the chart's view timeframe
+
+Why: the owner asked for it, and a pattern is defined by the candles it is found on, not by what
+is on screen. Each (pattern timeframe, zone timeframe) pair is its own setup with its own
+statistics, so choosing them never tunes a rule; the rules stay preset v1. Higher-timeframe zones
+count only if their impulse candle had closed before the pattern began and their break (if any)
+closed after the pattern confirmed. On a lower view the signal is drawn at the higher candle's
+close, never earlier. Editable rule versions (v2) come later, labelled exploratory.
+
+### 2026-11-03 · Candlestick patterns: TA-Lib in the backend, not talib-web in the browser
+
+Why: the owner approved `talib-web`, but the audit found it unusable: its wrapper misreads integer
+outputs and its wasm never runs `TA_Initialize`, so most candlestick functions can't fire. It was
+uninstalled before any code shipped. Our two browser detectors stay until Phase 1b, when the
+official TA-Lib (`ta-lib-python`) and `smart-money-concepts` run server-side. Chart patterns
+(double bottom, H&S, flags) stay in-house: no maintained permissive library exists; GPL code is
+reference only.
+
+### 2026-11-03 · TradingView-style chart: Lightweight Charts + free packages, not a chart rewrite
+
+Why: the owner wants TradingView's features and usability with free tools only. Lightweight
+Charts (TradingView's open-source library) stays, so our multi-timeframe pattern and zone overlay
+keeps working; indicators come from `indicatorts` (MIT), drawings from
+`lightweight-charts-drawing` (MIT), both audited and pinned. KLineChart was the alternative but
+meant rewriting the chart and overlay. Indicator values use closed candles only.
+
+### 2026-11-03 · Candlestick shapes from the `candlestick` package, context and plan stay ours
+
+Why: reuse over maintenance. The package (MIT) checks each shape; we add what it leaves out and
+what makes a setup measurable: the signal on the pattern's last candle (no look-ahead; tested by
+prefix invariance), a minimum size in ATR, a prior decline for reversal patterns, and the
+stop/target. Piercing line and morning star are left out: both need price gaps, which 24/7 crypto
+rarely has.

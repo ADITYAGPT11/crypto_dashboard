@@ -2,6 +2,8 @@ import type { SetupOccurrence, SetupStats } from "../../types/analysis";
 import { CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
 import { PATTERN_LABELS } from "../../utils/patterns";
 import { Link } from "react-router-dom";
+import { PRESET } from "../../utils/detectionConfig";
+import { TfBadge } from "./TfBadge";
 import { LOCATION_LABELS, MAX_HOLD_BARS, MIN_SAMPLE, setupKey } from "../../utils/setupAnalysis";
 import { pct, price, shortDate, signedPct, signedR } from "../../utils/format";
 import styles from "./ChartPage.module.scss";
@@ -13,7 +15,11 @@ export interface Check {
 
 interface Props {
   occurrence: SetupOccurrence;
+  /** Timeframe the pattern was detected on, and where its zones came from. */
   interval: string;
+  zoneTf: string;
+  /** Coins measured so far (pooling runs in the background). */
+  measured?: { done: number; total: number };
   isCurrent: boolean;
   pooled: SetupStats | null;
   own: SetupStats | null;
@@ -25,6 +31,8 @@ interface Props {
 const SetupCard: React.FC<Props> = ({
   occurrence,
   interval,
+  zoneTf,
+  measured,
   isCurrent,
   pooled,
   own,
@@ -48,12 +56,20 @@ const SetupCard: React.FC<Props> = ({
       <div className={styles.setupHead}>
         <div>
           <span className={styles.lbl}>
-            {isCurrent ? "Setup on a recent candle" : `Setup on ${shortDate(occurrence.time)}`} ·{" "}
-            {interval}
+            {isCurrent ? "Setup on a recent candle" : `Setup on ${shortDate(occurrence.time)}`} ·
+            preset {PRESET.id}
           </span>
           <h2 id="setup-title">
-            {PATTERN_LABELS[hit.type]}{" "}
-            <span className={styles.mute}>{LOCATION_LABELS[location]}</span>
+            <TfBadge tf={interval} /> {PATTERN_LABELS[hit.type]}{" "}
+            <span className={styles.mute}>
+              {location === "demandZone" ? (
+                <>
+                  in a <TfBadge tf={zoneTf} /> demand zone
+                </>
+              ) : (
+                LOCATION_LABELS[location]
+              )}
+            </span>
           </h2>
         </div>
         {pooled && <VerdictChip verdict={pooled.verdict} />}
@@ -83,7 +99,13 @@ const SetupCard: React.FC<Props> = ({
               <CiBar stats={pooled} />
             </>
           ) : (
-            <small>{pooling ? `Pooling across ${coins} coins…` : "No pooled cases yet"}</small>
+            <small>
+              {pooling
+                ? measured
+                  ? `Measuring in the background: ${measured.done}/${measured.total} coins…`
+                  : `Pooling across ${coins} coins…`
+                : "No pooled cases yet"}
+            </small>
           )}
         </div>
         <div>

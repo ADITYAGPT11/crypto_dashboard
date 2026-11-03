@@ -4,7 +4,14 @@
  * can be unit-tested on fixtures and later ported to the Python backend.
  */
 
-export type PatternType = "doubleBottom" | "bullishEngulfing" | "hammer";
+export type PatternType =
+  | "doubleBottom"
+  | "bullishEngulfing"
+  | "hammer"
+  | "invertedHammer"
+  | "bullishHarami"
+  | "tweezersBottom"
+  | "threeWhiteSoldiers";
 export type SetupLocation = "demandZone" | "openSpace";
 export type OutcomeResult = "win" | "loss" | "expired" | "open";
 export type Verdict = "edge" | "noEdge" | "tooFew";

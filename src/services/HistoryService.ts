@@ -1,5 +1,5 @@
 import type { Candle, CandleInterval } from "../types/marketData";
-import { normalizeHistory } from "../utils/candleUtils";
+import { INTERVAL_TO_MS, normalizeHistory } from "../utils/candleUtils";
 
 /**
  * Deep candle history for analysis (patterns, zones, setup statistics).
@@ -9,14 +9,7 @@ import { normalizeHistory } from "../utils/candleUtils";
  * Phase 1b replaces this with the backend's stored history (QuestDB).
  */
 
-export const INTERVAL_MS: Record<CandleInterval, number> = {
-  "1m": 60_000,
-  "5m": 300_000,
-  "15m": 900_000,
-  "1h": 3_600_000,
-  "4h": 14_400_000,
-  "1d": 86_400_000,
-};
+export const INTERVAL_MS: Record<CandleInterval, number> = INTERVAL_TO_MS;
 
 const PAGE_LIMIT = 1500; // Binance futures maximum per request
 const DEFAULT_PAGES = 2; // ≈ 3000 candles: ~500 days of 4h
@@ -122,10 +115,14 @@ export class HistoryService {
   }
 }
 
+/** Weekly candles open on Monday 00:00 UTC; the Unix epoch was a Thursday. */
+const WEEK_OFFSET_MS = 4 * 86_400_000;
+
 /** Close time of the candle that was forming at `time` (the next close after it). */
 export function nextClose(time: number, interval: CandleInterval): number {
   const ms = INTERVAL_MS[interval];
-  return Math.floor(time / ms) * ms + ms;
+  const off = interval === "1w" ? WEEK_OFFSET_MS : 0;
+  return Math.floor((time - off) / ms) * ms + ms + off;
 }
 
 /** Merge two ascending candle lists, dropping duplicate open times. */

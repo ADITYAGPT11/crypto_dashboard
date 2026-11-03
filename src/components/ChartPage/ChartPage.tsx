@@ -1,124 +1,322 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DrawingKind } from "lightweight-charts-drawing";
 import { useNavigate, useParams } from "react-router-dom";
-import type { CandleInterval } from "../../types/marketData";
+import { CANDLE_INTERVALS, type Candle, type CandleInterval } from "../../types/marketData";
 import type { SetupOccurrence } from "../../types/analysis";
-import { RESEARCH_UNIVERSE } from "../../services/HistoryService";
-import { useHistory } from "../../custom-hooks/useHistory";
-import { useScan } from "../../custom-hooks/useScan";
-import { loadWatchlist } from "../../utils/watchlistStorage";
-import { analyzeSymbol, LOCATION_LABELS, setupKey, summarizeAll } from "../../utils/setupAnalysis";
+import { useHistories } from "../../custom-hooks/useHistories";
+import { useSetupStats } from "../../custom-hooks/useSetupStats";
+import { researchUniverse } from "../../custom-hooks/useScan";
+import { analyzeSymbol, LOCATION_LABELS, setupKey, summarize } from "../../utils/setupAnalysis";
 import { PATTERN_LABELS } from "../../utils/patterns";
 import { computeVolumeProfile } from "../../utils/volumeProfile";
 import { ema, sma } from "../../utils/indicators";
 import { pct, price, shortDate } from "../../utils/format";
+import {
+  activeTfs,
+  DETECTION_TFS,
+  loadDetection,
+  saveDetection,
+  zoneTfFor,
+  type DetectionConfig,
+} from "../../utils/detectionConfig";
+import {
+  TF_MS,
+  toViewPattern,
+  toViewZones,
+  viewBarTimeForClose,
+  type ViewPattern,
+} from "../../utils/timeframeMapping";
 import { Chip, Explain } from "../../common-components/Evidence";
-import PriceChart, { type Layers } from "./PriceChart";
+import PriceChart, {
+  type ChartHandle,
+  type IndicatorAction,
+  type Layers,
+  type ViewMarker,
+} from "./PriceChart";
+import ChartToolbar from "./ChartToolbar";
+import DrawingToolbar from "./DrawingToolbar";
+import IndicatorsDialog from "./IndicatorsDialog";
+import IndicatorSettings from "./IndicatorSettings";
+import { useLiveCandle } from "../../custom-hooks/useLiveCandle";
+import {
+  CHART_PREFS_STORAGE_KEY,
+  loadJson,
+  parseChartPrefs,
+  saveJson,
+  type ChartPrefs,
+} from "../../utils/chartDisplay";
+import {
+  INDICATORS_STORAGE_KEY,
+  newInstance,
+  parseInstances,
+  type IndicatorId,
+  type IndicatorInstance,
+} from "../../utils/indicatorRegistry";
 import SetupCard, { type Check } from "./SetupCard";
+import DetectionSettings from "./DetectionSettings";
+import { TfBadge } from "./TfBadge";
 import styles from "./ChartPage.module.scss";
 
-const INTERVALS: CandleInterval[] = ["1h", "4h", "1d"];
-const LAYER_LABELS: [keyof Layers, string, string][] = [
-  ["ema", "EMA 50", "#F0A35E"],
-  ["bb", "Bollinger", "#7DB4FF"],
-  ["zones", "Zones", "#56D364"],
-  ["vp", "Volume profile", "#4C9AFF"],
-  ["pattern", "Pattern", "#E6EDF3"],
-];
-const occId = (o: SetupOccurrence) => `${o.hit.type}-${o.hit.index}`;
+/** An occurrence plus the timeframe it was detected on and its zone source. */
+interface Found {
+  occ: SetupOccurrence;
+  tf: CandleInterval;
+  zoneTf: CandleInterval;
+  /** Close time of the confirmation candle (when the signal existed). */
+  closeTime: number;
+}
+const foundId = (f: Found) => `${f.tf}-${f.occ.hit.type}-${f.occ.hit.index}`;
+const NO_CANDLES: Candle[] = [];
 
 const ChartPage: React.FC = () => {
   const params = useParams();
   const navigate = useNavigate();
-  const watchlist = useMemo(() => loadWatchlist(), []);
-  const universe = useMemo(() => [...new Set([...watchlist, ...RESEARCH_UNIVERSE])], [watchlist]);
-  const symbol = (params.symbol ?? watchlist[0] ?? "BTC-USDT").toUpperCase();
-  const scanSymbols = useMemo(
+  const universe = useMemo(() => researchUniverse(), []);
+  const symbol = (params.symbol ?? universe[0] ?? "BTC-USDT").toUpperCase();
+  const symbols = useMemo(
     () => (universe.includes(symbol) ? universe : [...universe, symbol]),
     [universe, symbol],
   );
 
-  const [interval, setIntervalState] = useState<CandleInterval>("4h");
-  const [attempt, setAttempt] = useState(0);
-  const [layers, setLayers] = useState<Layers>({
-    ema: true,
-    bb: false,
-    zones: true,
-    vp: true,
-    pattern: true,
+  const [viewTf, setViewTf] = useState<CandleInterval>("4h");
+  const [config, setConfigState] = useState<DetectionConfig>(() => loadDetection());
+  const setConfig = (cfg: DetectionConfig) => {
+    setConfigState(cfg);
+    saveDetection(cfg);
+  };
+  const [showTf, setShowTf] = useState<Record<string, boolean>>({
+    "1h": true,
+    "4h": true,
+    "1d": true,
   });
+  const [attempt, setAttempt] = useState(0);
+  const [layers, setLayers] = useState<Layers>({ zones: true, vp: true, pattern: true });
+  const [prefs, setPrefsState] = useState<ChartPrefs>(() =>
+    loadJson(CHART_PREFS_STORAGE_KEY, parseChartPrefs),
+  );
+  const setPrefs = (next: ChartPrefs) => {
+    setPrefsState(next);
+    saveJson(CHART_PREFS_STORAGE_KEY, next);
+  };
+  const [indicators, setIndicatorsState] = useState<IndicatorInstance[]>(() =>
+    loadJson(INDICATORS_STORAGE_KEY, parseInstances),
+  );
+  const setIndicators = (next: IndicatorInstance[]) => {
+    setIndicatorsState(next);
+    saveJson(INDICATORS_STORAGE_KEY, next);
+  };
+  const [dialog, setDialog] = useState<
+    { kind: "indicators" } | { kind: "settings"; uid: string } | null
+  >(null);
+  const [tool, setTool] = useState<DrawingKind | null>(null);
+  const [magnet, setMagnet] = useState(false);
+  const [drawingsVisible, setDrawingsVisible] = useState(true);
+  const chartHandle = useRef<ChartHandle | null>(null);
+  const chartCardRef = useRef<HTMLDivElement>(null);
+  const onIndicator = (uid: string, action: IndicatorAction) => {
+    if (action === "settings") setDialog({ kind: "settings", uid });
+    else if (action === "remove") setIndicators(indicators.filter((i) => i.uid !== uid));
+    else setIndicators(indicators.map((i) => (i.uid === uid ? { ...i, visible: !i.visible } : i)));
+  };
+  const addIndicator = (id: IndicatorId) =>
+    setIndicators([...indicators, newInstance(id, `${id}-${Date.now().toString(36)}`)]);
+  const screenshot = () => {
+    const url = chartHandle.current?.screenshot();
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${symbol}-${viewTf}-${new Date().toISOString().slice(0, 16).replace(":", "")}.png`;
+    a.click();
+  };
+
   const [selId, setSelId] = useState<string | null>(null);
 
-  const hist = useHistory(symbol, interval, attempt);
-  const scan = useScan(scanSymbols, interval, attempt);
-  const candles = hist.candles;
+  // Every timeframe needed: the view, each pattern timeframe and its zone source.
+  const patternTfs = useMemo(() => activeTfs(config), [config]);
+  const needed = useMemo(() => {
+    const set = new Set<CandleInterval>([viewTf]);
+    for (const tf of patternTfs) {
+      set.add(tf);
+      set.add(zoneTfFor(tf, config.zones));
+    }
+    return CANDLE_INTERVALS.filter((tf) => set.has(tf));
+  }, [viewTf, patternTfs, config.zones]);
+  const hist = useHistories(symbol, needed, attempt);
+  const view = hist.get(viewTf)!;
+  const live = useLiveCandle(symbol, viewTf);
+  const candles = view.candles;
+  const candlesOf = useCallback(
+    (tf: CandleInterval) => hist.get(tf)?.candles ?? NO_CANDLES,
+    [hist],
+  );
 
-  const analysis = useMemo(
-    () => (candles.length ? analyzeSymbol(symbol, candles) : null),
-    [symbol, candles],
+  // Detect on each pattern timeframe, with zones from its configured source.
+  const analyses = useMemo(() => {
+    const out = new Map<CandleInterval, ReturnType<typeof analyzeSymbol>>();
+    for (const tf of patternTfs) {
+      const zoneTf = zoneTfFor(tf, config.zones);
+      const pc = candlesOf(tf);
+      const zc = candlesOf(zoneTf);
+      if (pc.length === 0 || zc.length === 0) continue;
+      out.set(
+        tf,
+        analyzeSymbol(
+          symbol,
+          pc,
+          zoneTf === tf ? undefined : { candles: zc, patternMs: TF_MS[tf], zoneMs: TF_MS[zoneTf] },
+        ),
+      );
+    }
+    return out;
+  }, [symbol, patternTfs, config.zones, candlesOf]);
+
+  const found: Found[] = useMemo(() => {
+    const out: Found[] = [];
+    for (const [tf, a] of analyses) {
+      const pc = candlesOf(tf);
+      for (const occ of a.occurrences) {
+        if (!config.patterns[occ.hit.type].includes(tf)) continue;
+        out.push({
+          occ,
+          tf,
+          zoneTf: zoneTfFor(tf, config.zones),
+          closeTime: pc[occ.hit.index].openTime + TF_MS[tf],
+        });
+      }
+    }
+    return out.sort((x, y) => y.closeTime - x.closeTime);
+  }, [analyses, config, candlesOf]);
+
+  const recent = useMemo(() => found.filter((f) => showTf[f.tf]).slice(0, 10), [found, showTf]);
+  const selected = recent.find((f) => foundId(f) === selId) ?? recent[0] ?? null;
+  const selTf = selected?.tf ?? viewTf;
+  const selCandles = candlesOf(selTf);
+  const key = selected ? setupKey(selected.occ.hit.type, selected.occ.location) : null;
+
+  // Pooled statistics: the selected setup's context first, every other one in the background.
+  const stats = useSetupStats();
+  const selPatternTf = selected?.tf;
+  const selZoneTf = selected?.zoneTf;
+  const ctx = useMemo(
+    () => (selPatternTf && selZoneTf ? { patternTf: selPatternTf, zoneTf: selZoneTf } : null),
+    [selPatternTf, selZoneTf],
   );
-  const own = useMemo(() => (analysis ? summarizeAll(analysis.occurrences) : null), [analysis]);
-  const recent = useMemo(
-    () =>
-      analysis
-        ? [...analysis.occurrences].sort((a, b) => b.hit.index - a.hit.index).slice(0, 8)
-        : [],
-    [analysis],
-  );
-  const selected = recent.find((o) => occId(o) === selId) ?? recent[0] ?? null;
-  const key = selected ? setupKey(selected.hit.type, selected.location) : null;
+  useEffect(() => {
+    if (ctx) stats.request(ctx, true);
+    for (const tf of DETECTION_TFS)
+      stats.request({ patternTf: tf, zoneTf: zoneTfFor(tf, config.zones) });
+  }, [stats, ctx, config.zones]);
+  const ctxStats = ctx ? stats.get(ctx) : null;
+  const pooled = key && ctxStats ? (ctxStats.pooled.get(key) ?? null) : null;
+
+  // This coin only, same setup and timeframe; and its past cases for the chart markers.
   const history = useMemo(
     () =>
-      analysis && selected
-        ? analysis.occurrences.filter(
-            (o) => o.hit.type === selected.hit.type && o.location === selected.location,
+      selected
+        ? (analyses.get(selected.tf)?.occurrences ?? []).filter(
+            (o) => o.hit.type === selected.occ.hit.type && o.location === selected.occ.location,
           )
         : [],
-    [analysis, selected],
+    [analyses, selected],
   );
-  const pooled = key && scan.scan ? (scan.scan.pooled.get(key) ?? null) : null;
-  const ownStats = key && own ? (own.get(key) ?? null) : null;
+  const ownStats = useMemo(
+    () =>
+      selected && history.length
+        ? summarize(selected.occ.hit.type, selected.occ.location, history)
+        : null,
+    [selected, history],
+  );
+
+  // Everything drawn on the chart, mapped onto the view timeframe.
+  const viewSelected: ViewPattern | null = useMemo(
+    () =>
+      selected && candles.length && selCandles.length
+        ? toViewPattern(selected.occ, selected.tf, selCandles, candles, viewTf)
+        : null,
+    [selected, selCandles, candles, viewTf],
+  );
+  const viewOthers = useMemo(
+    () =>
+      candles.length
+        ? recent
+            .filter((f) => f !== selected)
+            .map((f) => toViewPattern(f.occ, f.tf, candlesOf(f.tf), candles, viewTf))
+        : [],
+    [recent, selected, candles, viewTf, candlesOf],
+  );
+  const markers: ViewMarker[] = useMemo(() => {
+    if (!selected || !candles.length) return [];
+    return history.flatMap((o) => {
+      const time = viewBarTimeForClose(
+        candles,
+        selCandles[o.hit.index].openTime,
+        TF_MS[selected.tf],
+      );
+      return time === null ? [] : [{ time, result: o.outcome.result, current: o === selected.occ }];
+    });
+  }, [history, selected, selCandles, candles]);
+
+  // Zones shown: those the selected setup was located with (else the view's own source).
+  const zoneTf = selected?.zoneTf ?? zoneTfFor(viewTf, config.zones);
+  const zoneCandles = candlesOf(zoneTf);
+  const zoneList = useMemo(
+    () =>
+      analyses.get(selTf)?.zones ??
+      (zoneCandles.length ? analyzeSymbol(symbol, zoneCandles).zones : []),
+    [analyses, selTf, zoneCandles, symbol],
+  );
+  const viewZones = useMemo(
+    () =>
+      candles.length && zoneCandles.length
+        ? toViewZones(zoneList, zoneTf, zoneCandles, candles, viewTf)
+        : [],
+    [zoneList, zoneTf, zoneCandles, candles, viewTf],
+  );
 
   const profile = useMemo(() => computeVolumeProfile(candles.slice(-200), 48), [candles]);
-  const indicators = useMemo(() => {
-    const closes = candles.map((c) => c.close);
+  // EMA 50 and 20-candle volume on the pattern's timeframe, for the confluence checks.
+  const context = useMemo(() => {
+    const closes = selCandles.map((c) => c.close);
     return {
       ema50: ema(closes, 50),
       vol20: sma(
-        candles.map((c) => c.volume),
+        selCandles.map((c) => c.volume),
         20,
       ),
     };
-  }, [candles]);
+  }, [selCandles]);
 
+  // Confluence checks on the pattern's own timeframe.
   const checks: Check[] = useMemo(() => {
-    if (!selected || candles.length === 0) return [];
-    const i = selected.hit.index;
+    if (!selected || selCandles.length === 0) return [];
+    const i = selected.occ.hit.index;
+    const cs = selCandles;
     const out: Check[] = [];
     out.push(
-      selected.location === "demandZone"
-        ? { ok: true, text: "Pattern low sits inside an intact demand zone" }
-        : { ok: false, text: "Not at a demand zone (open space)" },
+      selected.occ.location === "demandZone"
+        ? { ok: true, text: `Pattern low sits inside an intact ${selected.zoneTf} demand zone` }
+        : { ok: false, text: `Not at a ${selected.zoneTf} demand zone (open space)` },
     );
-    const avgVol = indicators.vol20[i - 1];
+    const avgVol = context.vol20[i - 1];
     if (Number.isFinite(avgVol) && avgVol > 0) {
-      const ratio = candles[i].volume / avgVol;
+      const ratio = cs[i].volume / avgVol;
       out.push({
         ok: ratio >= 1.2,
         text: `Confirmation candle on ${ratio.toFixed(1)}× the 20-candle average volume`,
       });
     }
-    const e = indicators.ema50[i];
+    const e = context.ema50[i];
     if (Number.isFinite(e)) {
       out.push(
-        candles[i].close > e
-          ? { ok: true, text: "Above EMA 50: with the trend" }
-          : { ok: false, text: "Below EMA 50: against the trend" },
+        cs[i].close > e
+          ? { ok: true, text: `Above EMA 50 (${selected.tf}): with the trend` }
+          : { ok: false, text: `Below EMA 50 (${selected.tf}): against the trend` },
       );
     }
-    const prior = computeVolumeProfile(candles.slice(Math.max(0, i - 200), i + 1), 48);
+    const prior = computeVolumeProfile(cs.slice(Math.max(0, i - 200), i + 1), 48);
     if (prior) {
       out.push(
-        selected.hit.entry > prior.pocPrice
+        selected.occ.hit.entry > prior.pocPrice
           ? { ok: true, text: `Entry above the point of control (${price(prior.pocPrice)})` }
           : {
               ok: false,
@@ -127,21 +325,24 @@ const ChartPage: React.FC = () => {
       );
     }
     return out;
-  }, [selected, candles, indicators]);
+  }, [selected, selCandles, context]);
 
   // Intact zones nearest to the current price first, then the most recently broken.
   const zonesShown = useMemo(() => {
-    if (!analysis || candles.length === 0) return [];
-    const px = candles[candles.length - 1].close;
+    if (zoneCandles.length === 0) return [];
+    const px = zoneCandles[zoneCandles.length - 1].close;
     const dist = (z: { low: number; high: number }) => Math.abs((z.low + z.high) / 2 - px);
-    const intact = analysis.zones
-      .filter((z) => z.endIndex === null)
-      .sort((a, b) => dist(a) - dist(b));
-    const broken = analysis.zones
+    const intact = zoneList.filter((z) => z.endIndex === null).sort((a, b) => dist(a) - dist(b));
+    const broken = zoneList
       .filter((z) => z.endIndex !== null)
       .sort((a, b) => (b.endIndex ?? 0) - (a.endIndex ?? 0));
     return [...intact.slice(0, 5), ...broken.slice(0, 2)];
-  }, [analysis, candles]);
+  }, [zoneList, zoneCandles]);
+
+  const progress = DETECTION_TFS.map((tf) => {
+    const c = { patternTf: tf, zoneTf: zoneTfFor(tf, config.zones) };
+    return { label: `${tf} patterns · ${c.zoneTf} zones`, stats: stats.get(c) };
+  });
 
   const levels = profile
     ? [
@@ -190,11 +391,14 @@ const ChartPage: React.FC = () => {
       <div className={styles.pagehead}>
         <div>
           <h1>Chart</h1>
-          <p>Indicators, patterns, zones and volume levels, with the history of every setup.</p>
+          <p>
+            Patterns found on every timeframe you pick in Detection settings, drawn on the timeframe
+            you view, with the history of every setup.
+          </p>
         </div>
         {candles.length > 0 && (
           <p className={styles.meta}>
-            {candles.length.toLocaleString("en-US")} closed {interval} candles · {days} days ·
+            Viewing {candles.length.toLocaleString("en-US")} closed {viewTf} candles · {days} days ·
             Binance perp
           </p>
         )}
@@ -202,58 +406,42 @@ const ChartPage: React.FC = () => {
 
       <div className={styles.ws}>
         <div className={styles.col}>
-          <div className={styles.chartCard}>
-            <div className={styles.toolbar} role="toolbar" aria-label="Chart controls">
-              <label className="sr-only" htmlFor="chart-symbol">
-                Symbol
-              </label>
-              <select
-                id="chart-symbol"
-                className={styles.symbol}
-                value={symbol}
-                onChange={(e) => navigate(`/chart/${e.target.value}`)}
-              >
-                {scanSymbols.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              {last && <span className={styles.lastPx}>{price(last.close)}</span>}
-              <div className={styles.seg} role="group" aria-label="Candle size">
-                {INTERVALS.map((iv) => (
-                  <button
-                    key={iv}
-                    type="button"
-                    aria-pressed={iv === interval}
-                    onClick={() => setIntervalState(iv)}
-                  >
-                    {iv}
-                  </button>
-                ))}
-              </div>
-              {LAYER_LABELS.map(([k, label, color]) => (
-                <button
-                  key={k}
-                  type="button"
-                  className={styles.tog}
-                  aria-pressed={layers[k]}
-                  onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))}
-                >
-                  <i style={{ background: color }} aria-hidden="true" />
-                  {label}
-                </button>
-              ))}
-            </div>
-            {hist.loading && (
+          <div className={styles.chartCard} ref={chartCardRef}>
+            <ChartToolbar
+              symbol={symbol}
+              symbols={symbols}
+              onSymbol={(sym) => navigate(`/chart/${sym}`)}
+              lastPrice={live ? price(live.close) : last ? price(last.close) : null}
+              viewTf={viewTf}
+              onTf={setViewTf}
+              favorites={prefs.favorites}
+              onToggleFavorite={(tf) =>
+                setPrefs({
+                  ...prefs,
+                  favorites: prefs.favorites.includes(tf)
+                    ? prefs.favorites.filter((f) => f !== tf)
+                    : [...prefs.favorites, tf],
+                })
+              }
+              chartType={prefs.chartType}
+              onChartType={(chartType) => setPrefs({ ...prefs, chartType })}
+              onIndicators={() => setDialog({ kind: "indicators" })}
+              layers={layers}
+              onLayer={(k) => setLayers((l) => ({ ...l, [k]: !l[k] }))}
+              scale={prefs.scale}
+              onScale={(scale) => setPrefs({ ...prefs, scale })}
+              onScreenshot={screenshot}
+              onFullscreen={() => void chartCardRef.current?.requestFullscreen?.()}
+            />
+            {view.loading && (
               <div className={styles.state}>
-                Loading {interval} history for {symbol} from Binance…
+                Loading {viewTf} history for {symbol} from Binance…
               </div>
             )}
-            {hist.error && (
+            {view.error && (
               <div className={styles.state} role="alert">
                 <span>
-                  Couldn't load {symbol} history: {hist.error}. Check your connection; Binance's
+                  Couldn't load {symbol} history: {view.error}. Check your connection; Binance's
                   public API must be reachable from this browser.
                 </span>
                 <button type="button" className={styles.btn} onClick={retry}>
@@ -261,13 +449,38 @@ const ChartPage: React.FC = () => {
                 </button>
               </div>
             )}
-            <PriceChart
-              candles={candles}
-              zones={analysis?.zones ?? []}
-              selected={selected}
-              history={history}
-              layers={layers}
-            />
+            <div className={styles.chartWithTools}>
+              <DrawingToolbar
+                tool={tool}
+                onTool={setTool}
+                magnet={magnet}
+                onMagnet={() => setMagnet((m) => !m)}
+                visible={drawingsVisible}
+                onVisible={() => setDrawingsVisible((v) => !v)}
+                onClear={() => chartHandle.current?.clearDrawings()}
+              />
+              <PriceChart
+                symbol={symbol}
+                candles={candles}
+                viewTf={viewTf}
+                live={live}
+                chartType={prefs.chartType}
+                scale={prefs.scale}
+                indicators={indicators}
+                onIndicator={onIndicator}
+                zones={viewZones}
+                selected={viewSelected}
+                plan={selected ? selected.occ.hit : null}
+                others={viewOthers}
+                markers={markers}
+                layers={layers}
+                tool={tool}
+                onToolChange={setTool}
+                magnet={magnet}
+                drawingsVisible={drawingsVisible}
+                handleRef={chartHandle}
+              />
+            </div>
             <div className={styles.legend} aria-hidden="true">
               <span>
                 <i style={{ background: "rgba(86,211,100,.35)" }} />
@@ -281,6 +494,7 @@ const ChartPage: React.FC = () => {
                 <i style={{ background: "rgba(76,154,255,.5)" }} />
                 Volume by price
               </span>
+              <span>Shaded blocks = the higher-timeframe candles of the selected pattern</span>
               <span>▲ W / L = past outcomes of the selected setup</span>
             </div>
           </div>
@@ -308,7 +522,9 @@ const ChartPage: React.FC = () => {
             </section>
             <section className={styles.card} aria-labelledby="zones-title">
               <div className={styles.cardHead}>
-                <h2 id="zones-title">Zones</h2>
+                <h2 id="zones-title">
+                  <TfBadge tf={zoneTf} /> Zones
+                </h2>
                 <Explain title="Supply and demand zones">
                   The base candle right before a large, high-volume move. A test is price returning
                   into the zone; it holds when price closes back out on the original side, and
@@ -343,7 +559,7 @@ const ChartPage: React.FC = () => {
                         <td className={styles.mute}>
                           {z.endIndex === null
                             ? "intact"
-                            : `broke ${shortDate(candles[z.endIndex].openTime)}`}
+                            : `broke ${shortDate(zoneCandles[z.endIndex].openTime)}`}
                         </td>
                       </tr>
                     ))}
@@ -362,42 +578,71 @@ const ChartPage: React.FC = () => {
         </div>
 
         <aside className={styles.col} aria-label="Setups">
+          <DetectionSettings config={config} onChange={setConfig} progress={progress} />
           <section className={styles.card} aria-labelledby="pat-title">
             <div className={styles.cardHead}>
               <h2 id="pat-title">Patterns on this chart</h2>
               <p>Most recent first. Pick one to see its history.</p>
+              <span className={styles.toolGroup} role="group" aria-label="Show patterns found on">
+                Found on
+                {DETECTION_TFS.map((tf) => (
+                  <button
+                    key={tf}
+                    type="button"
+                    className={styles.tog}
+                    aria-pressed={showTf[tf]}
+                    aria-label={`Show patterns found on ${tf}`}
+                    onClick={() => setShowTf((m) => ({ ...m, [tf]: !m[tf] }))}
+                  >
+                    <TfBadge tf={tf} />
+                  </button>
+                ))}
+              </span>
             </div>
             <ul className={styles.patList}>
-              {recent.map((o) => {
-                const st = scan.scan?.pooled.get(setupKey(o.hit.type, o.location));
-                const isNow = o.hit.index >= candles.length - 3;
+              {recent.map((f) => {
+                const st = stats
+                  .get({ patternTf: f.tf, zoneTf: f.zoneTf })
+                  ?.pooled.get(setupKey(f.occ.hit.type, f.occ.location));
+                const isNow = f.occ.hit.index >= candlesOf(f.tf).length - 3;
                 return (
-                  <li key={occId(o)}>
+                  <li key={foundId(f)}>
                     <button
                       type="button"
-                      aria-pressed={selected !== null && occId(o) === occId(selected)}
-                      onClick={() => setSelId(occId(o))}
+                      aria-pressed={selected !== null && foundId(f) === foundId(selected)}
+                      onClick={() => setSelId(foundId(f))}
                     >
                       <b>
-                        {PATTERN_LABELS[o.hit.type]}{" "}
-                        <span className={styles.mute}>{LOCATION_LABELS[o.location]}</span>
+                        <TfBadge tf={f.tf} /> {PATTERN_LABELS[f.occ.hit.type]}{" "}
+                        <span className={styles.mute}>
+                          {f.occ.location === "demandZone"
+                            ? `in ${f.zoneTf} demand zone`
+                            : LOCATION_LABELS[f.occ.location]}
+                        </span>
                       </b>
                       <span className={styles.num}>{st ? pct(st.winRate) : "…"}</span>
                       <small>
-                        {isNow ? "Now" : shortDate(o.time)} ·{" "}
-                        {st ? `${st.n} past cases` : "pooling…"}
+                        {isNow ? "Now" : shortDate(f.closeTime - 1)} ·{" "}
+                        {st ? `${st.n} past cases` : "measuring…"}
                       </small>
                     </button>
                   </li>
                 );
               })}
-              {analysis && recent.length === 0 && (
-                <li className={styles.mute}>No patterns detected in this history.</li>
+              {analyses.size > 0 && recent.length === 0 && (
+                <li className={styles.mute}>
+                  No patterns found on the selected timeframes in this history.
+                </li>
+              )}
+              {patternTfs.length === 0 && (
+                <li className={styles.mute}>
+                  Every pattern is switched off in Detection settings.
+                </li>
               )}
             </ul>
-            {scan.failed.length > 0 && (
+            {ctxStats && ctxStats.failed.length > 0 && (
               <p className={styles.note}>
-                Pooled without {scan.failed.join(", ")} (history failed to load).{" "}
+                Pooled without {ctxStats.failed.join(", ")} (history failed to load).{" "}
                 <button type="button" className={styles.link} onClick={retry}>
                   Retry
                 </button>
@@ -406,18 +651,43 @@ const ChartPage: React.FC = () => {
           </section>
           {selected && (
             <SetupCard
-              occurrence={selected}
-              interval={interval}
-              isCurrent={selected.hit.index >= candles.length - 3}
+              occurrence={selected.occ}
+              interval={selected.tf}
+              zoneTf={selected.zoneTf}
+              isCurrent={selected.occ.hit.index >= selCandles.length - 3}
               pooled={pooled}
               own={ownStats}
-              coins={scan.candles.size || scanSymbols.length}
-              pooling={scan.loading}
+              coins={ctxStats ? ctxStats.total - ctxStats.failed.length : universe.length}
+              pooling={!ctxStats || ctxStats.state !== "done"}
+              measured={ctxStats ? { done: ctxStats.done, total: ctxStats.total } : undefined}
               checks={checks}
             />
           )}
         </aside>
       </div>
+      {dialog?.kind === "indicators" && (
+        <IndicatorsDialog
+          onAdd={addIndicator}
+          onClose={() => setDialog(null)}
+          counts={indicators.reduce<Record<string, number>>(
+            (m, i) => ({ ...m, [i.id]: (m[i.id] ?? 0) + 1 }),
+            {},
+          )}
+        />
+      )}
+      {dialog?.kind === "settings" &&
+        (() => {
+          const inst = indicators.find((i) => i.uid === dialog.uid);
+          return inst ? (
+            <IndicatorSettings
+              inst={inst}
+              onSave={(next) =>
+                setIndicators(indicators.map((i) => (i.uid === next.uid ? next : i)))
+              }
+              onClose={() => setDialog(null)}
+            />
+          ) : null;
+        })()}
     </main>
   );
 };
