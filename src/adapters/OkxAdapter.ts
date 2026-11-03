@@ -1,4 +1,5 @@
 import EventEmitter from "eventemitter3";
+import { stateAfterClose } from "../utils/connectionState";
 import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
 import type { CandleData, CandleInterval, GenericMarketData } from "../types/marketData";
 import { normalizeHistory, toCanonicalInterval, toCandle } from "../utils/candleUtils";
@@ -124,11 +125,11 @@ export class OkxAdapter extends EventEmitter {
     });
 
     this.ws.on("close", () => {
-      // autoReconnect will retry; report as reconnecting
+      // autoReconnect keeps retrying; "down" once several reconnects in a row fail
       this.emit("connectionStatus", {
         exchange: "OKX",
         market: "public",
-        state: "connecting",
+        state: stateAfterClose(this.ws.failedReconnects),
       } satisfies ConnectionStatusPayload);
     });
 
@@ -156,6 +157,13 @@ export class OkxAdapter extends EventEmitter {
     this.ws.send({ op: "subscribe", args: fresh });
   }
 
+  /** Remove args from the tracked set and unsubscribe those that were tracked. */
+  private untrackAndUnsubscribe(args: Array<{ channel: string; instId: string }>) {
+    const gone = args.filter((a) => this.trackedArgs.delete(JSON.stringify(a)));
+    if (gone.length === 0) return;
+    this.ws.send({ op: "unsubscribe", args: gone });
+  }
+
   private sendAllSubscriptions() {
     const args = Array.from(this.trackedArgs).map(
       (key) =>
@@ -175,6 +183,20 @@ export class OkxAdapter extends EventEmitter {
       instId: type === "SPOT" ? s : `${s}-SWAP`,
     }));
     this.trackAndSubscribe(args);
+  }
+
+  /** Stop ticker updates (the reverse of `subscribe`). */
+  unsubscribe(symbols: string | string[], type: "SPOT" | "SWAP") {
+    const arr = Array.isArray(symbols) ? symbols : [symbols];
+    this.untrackAndUnsubscribe(
+      arr.map((s) => ({ channel: "tickers", instId: type === "SPOT" ? s : `${s}-SWAP` })),
+    );
+  }
+
+  /** Stop funding-rate updates (the reverse of `subscribeFundingRate`). */
+  unsubscribeFundingRate(symbols: string | string[]) {
+    const arr = Array.isArray(symbols) ? symbols : [symbols];
+    this.untrackAndUnsubscribe(arr.map((s) => ({ channel: "funding-rate", instId: `${s}-SWAP` })));
   }
 
   /** Subscribe to funding rate updates for SWAP instruments */
@@ -206,17 +228,7 @@ export class OkxAdapter extends EventEmitter {
       channel: `candle${toOkxBar(interval)}`,
       instId: type === "SPOT" ? s : `${s}-SWAP`,
     }));
-    const stillTracked: typeof args = [];
-    for (const a of args) {
-      const key = JSON.stringify(a);
-      if (this.trackedArgs.has(key)) {
-        this.trackedArgs.delete(key);
-        stillTracked.push(a);
-      }
-    }
-    if (stillTracked.length > 0) {
-      this.ws.send({ op: "unsubscribe", args: stillTracked });
-    }
+    this.untrackAndUnsubscribe(args);
   }
 
   /**

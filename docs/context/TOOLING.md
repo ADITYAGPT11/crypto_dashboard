@@ -56,5 +56,14 @@ Audited 2026-10-24 via the GitHub API (re-verify before adopting).
 
 Add a row here **before** adding any new dependency.
 
+### Free data sources (no key, no dependency)
+
+| Source                                                                                 | Used for                                                                               | Terms / limits                                                | Notes                                                                                  |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Binance USDⓈ-M public REST (`fapi.binance.com`)                                        | 24h tickers, funding (`premiumIndex`), open interest history, long/short ratio, klines | Public endpoints, IP weight limits                            | Polled every 30 s / 5 min for 10 coins only                                            |
+| Binance `!forceOrder@arr` stream                                                       | Liquidations                                                                           | At most one order per symbol per second, so totals undercount | Labelled as an undercount in the UI                                                    |
+| [alternative.me Fear & Greed API](https://alternative.me/crypto/fear-and-greed-index/) | Fear & Greed Index                                                                     | Free, no key; attribution asked for                           | Polled every 30 min; source named next to the gauge. Not verified from the dev sandbox |
+| CoinGecko `/api/v3/global` (free tier)                                                 | BTC dominance                                                                          | Public tier, tight rate limit                                 | Polled every 10 min. Not verified from the dev sandbox                                 |
+
 Reading: _Advances in Financial Machine Learning_ (López de Prado) for labelling, purged CV and the
 deflated Sharpe ratio. These are the core anti-overfitting ideas behind the M3 gate.

@@ -55,6 +55,15 @@ export class LiveMarketDataService {
    * Epoch ms of the most recent tick received for this key, or null.
    * Stale-data UI checks compare this against Date.now().
    */
+  /** Most recent tick time across every symbol of one exchange, or null if none yet. */
+  getLatestUpdateForExchange(exchange: string): number | null {
+    let latest: number | null = null;
+    for (const [key, t] of this.lastUpdatedAt) {
+      if (key.startsWith(`${exchange}|`) && (latest === null || t > latest)) latest = t;
+    }
+    return latest;
+  }
+
   getLastUpdatedAt(exchange: string, symbol: string, type: string): number | null {
     return this.lastUpdatedAt.get(this.makeKey(exchange, symbol, type)) ?? null;
   }

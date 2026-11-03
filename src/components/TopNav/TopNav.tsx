@@ -1,11 +1,15 @@
 import { NavLink } from "react-router-dom";
 import RealTimeClock from "../../common-components/RealTimeClock";
 import { useConnectionSummary } from "../../custom-hooks/useConnectionSummary";
+import { BRAND } from "../../brand";
 import styles from "./TopNav.module.scss";
 
 const LINKS = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/chart", label: "Chart", end: false },
+  { to: "/stats", label: "Pattern stats", end: false },
+  { to: "/risk", label: "Risk", end: false },
+  { to: "/alerts", label: "Alerts", end: false },
   { to: "/markets", label: "Markets", end: false },
   { to: "/about", label: "About", end: false },
 ];
@@ -31,8 +35,8 @@ const TopNav: React.FC = () => {
             <path d="M3 17l5-5 4 4 8-8" />
             <path d="M14 8h6v6" />
           </svg>
-          <b>TCS</b>
-          <small>Trade Confirmation System</small>
+          <b>{BRAND.name}</b>
+          <small>{BRAND.tagline}</small>
         </div>
         <nav className={styles.nav} aria-label="Main">
           {LINKS.map((l) => (

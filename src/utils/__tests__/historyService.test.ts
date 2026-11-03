@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
-import { HistoryService, INTERVAL_MS, toBinanceSymbol } from "../../services/HistoryService";
+import {
+  HistoryService,
+  INTERVAL_MS,
+  nextClose,
+  toBinanceSymbol,
+} from "../../services/HistoryService";
 import { buildScan } from "../setupAnalysis";
 
 const H4 = INTERVAL_MS["4h"];
@@ -46,6 +51,30 @@ describe("HistoryService", () => {
     const b = await svc.load("ETH-USDT", "4h", 1);
     expect(a).toBe(b);
     expect(calls).toBe(2);
+  });
+});
+
+describe("HistoryService refresh", () => {
+  it("refetches once a newer candle has closed, not before", async () => {
+    let calls = 0;
+    let now = 10 * H4 + 60_000;
+    const fetcher = async () => {
+      calls++;
+      return [row(0, 100)];
+    };
+    const svc = new HistoryService(fetcher, () => now);
+    await svc.load("BTC-USDT", "4h", 1);
+    now = 11 * H4 - 1; // same candle still forming
+    await svc.load("BTC-USDT", "4h", 1);
+    expect(calls).toBe(1);
+    now = 11 * H4; // candle 10 just closed
+    await svc.load("BTC-USDT", "4h", 1);
+    expect(calls).toBe(2);
+  });
+
+  it("computes the next close time", () => {
+    expect(nextClose(0, "4h")).toBe(H4);
+    expect(nextClose(H4 + 5, "4h")).toBe(2 * H4);
   });
 });
 

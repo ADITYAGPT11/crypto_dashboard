@@ -5,6 +5,7 @@ import { useLiveFundingRate } from "../../custom-hooks/useLiveFundingRate";
 import { useTickerStats } from "../../custom-hooks/useTickerStats";
 import { formatCompactQty, formatSignedPercent } from "../../utils/priceUtils";
 import type { ExchangeName, MarketType } from "../../types/marketData";
+import { fundingUnitsVerified, quoteCurrency } from "../../utils/symbolUtils";
 
 interface Props {
   exchange: string;
@@ -45,6 +46,7 @@ const PriceCell: React.FC<Props> = ({ exchange, symbol, type }) => {
   // 24h rollups (change%, base volume) — polled REST, not real-time.
   const stats = useTickerStats(exchange as ExchangeName, symbol, type as MarketType);
   const isFut = type === "FUT";
+  const quote = quoteCurrency(exchange);
 
   return (
     <div className="price-cell">
@@ -52,6 +54,14 @@ const PriceCell: React.FC<Props> = ({ exchange, symbol, type }) => {
         {price != null
           ? price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
           : "-"}
+        {price != null && quote !== "USDT" && (
+          <span
+            className="quote-tag"
+            title={`${exchange} instruments are ${quote}-quoted. Not directly comparable with USDT prices, and left out of the spread panel.`}
+          >
+            {quote}
+          </span>
+        )}
         {freshness.hasData && (
           <span
             className={`freshness-badge ${freshness.fresh ? "badge-fresh" : "badge-stale"}`}
@@ -85,6 +95,14 @@ const PriceCell: React.FC<Props> = ({ exchange, symbol, type }) => {
       {isFut && fr && (
         <span className={`funding-info ${fr.rate >= 0 ? "positive" : "negative"}`}>
           <span className="fr-rate">{fr.rate.toFixed(6)}%</span>
+          {!fundingUnitsVerified(exchange) && (
+            <span
+              className="fr-unverified"
+              title={`${exchange} funding-rate units have not been checked against the exchange's API docs yet: the value may be a fraction rather than a percent.`}
+            >
+              units unverified
+            </span>
+          )}
           {fr.fundingInterval != null && (
             <>
               <span className="fr-sep">|</span>

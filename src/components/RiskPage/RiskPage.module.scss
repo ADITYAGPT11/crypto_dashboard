@@ -1,0 +1,142 @@
+@use "../../styles/page" as *;
+
+.page {
+  @include page;
+}
+.pagehead {
+  @include pagehead;
+}
+.card {
+  @include card;
+}
+.feature {
+  @include feature;
+}
+.cardHead {
+  @include card-head;
+}
+.lbl {
+  @include lbl;
+  display: block;
+}
+.mute {
+  color: var(--t-muted);
+}
+.num {
+  font-family: var(--t-font-data);
+  font-variant-numeric: tabular-nums;
+}
+.up {
+  color: var(--t-up);
+}
+.down {
+  color: var(--t-down);
+}
+.hint {
+  @include note;
+  margin: 0;
+}
+
+.setup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+  > div {
+    display: flex;
+    flex-direction: column;
+  }
+}
+.link {
+  margin-left: auto;
+  color: var(--t-signal);
+}
+
+.two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+  @media (max-width: 900px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  @media (max-width: 480px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--t-muted);
+  input {
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid var(--t-line-2);
+    background: var(--t-well);
+    color: var(--t-fg);
+    font-family: var(--t-font-data);
+    font-size: 15px;
+    min-width: 0;
+  }
+}
+.warnNote {
+  @include note;
+  background: var(--t-warn-bg);
+  color: var(--t-amber);
+}
+.errNote {
+  @include note;
+  background: var(--t-down-bg);
+  color: var(--t-down);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 16px;
+}
+.big {
+  font-family: var(--t-font-data);
+  font-size: 30px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  dt {
+    color: var(--t-muted);
+    font-size: 12px;
+  }
+  dd {
+    margin: 0;
+    font-family: var(--t-font-data);
+  }
+}
+.ev {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--t-well);
+  border: 1px solid var(--t-inner);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.evNum {
+  font-family: var(--t-font-data);
+  font-size: 18px;
+}

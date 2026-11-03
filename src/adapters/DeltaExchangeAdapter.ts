@@ -1,4 +1,5 @@
 import EventEmitter from "eventemitter3";
+import { stateAfterClose } from "../utils/connectionState";
 import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
 import type { GenericMarketData } from "../types/marketData";
 import type { ConnectionStatusPayload } from "../types/connection";
@@ -20,7 +21,7 @@ interface DeltaFundingRateMessage {
 }
 
 interface DeltaSubscribeMsg {
-  type: "subscribe";
+  type: "subscribe" | "unsubscribe";
   payload: {
     channels: Array<{
       name: string;
@@ -30,7 +31,7 @@ interface DeltaSubscribeMsg {
 }
 
 function normalizeDeltaSymbol(symbolKey: string): string {
-  // Normalize Delta format → canonical BTC-USDT
+  // Delta India BTCUSD → the BTC-USDT row key; the price stays USD-quoted (see `quote`).
   if (symbolKey.endsWith("USDT") && !symbolKey.includes("-")) {
     return symbolKey.slice(0, -4) + "-USDT";
   }
@@ -62,6 +63,7 @@ export class DeltaExchangeAdapter extends EventEmitter {
           exchange: "DELTA",
           type: "FUT",
           symbol: normalizeDeltaSymbol(msg.sy),
+          quote: "USD",
           currentPrice: parseFloat(msg.p),
           timeStamp: msg.ts / 1000, // microseconds → ms
         };
@@ -93,11 +95,11 @@ export class DeltaExchangeAdapter extends EventEmitter {
     });
 
     this.ws.on("close", () => {
-      // autoReconnect will retry; report as reconnecting
+      // autoReconnect keeps retrying; "down" once several reconnects in a row fail
       this.emit("connectionStatus", {
         exchange: "DELTA",
         market: "fut",
-        state: "connecting",
+        state: stateAfterClose(this.ws.failedReconnects),
       } satisfies ConnectionStatusPayload);
     });
 
@@ -110,11 +112,13 @@ export class DeltaExchangeAdapter extends EventEmitter {
     await this.ws.connect();
   }
 
-  private sendSubscribe() {
-    const symbols = Array.from(this.subscribedSymbols);
+  private sendSubscribe(
+    type: DeltaSubscribeMsg["type"] = "subscribe",
+    symbols: Array<number | string> = Array.from(this.subscribedSymbols),
+  ) {
     if (symbols.length === 0) return;
     const payload: DeltaSubscribeMsg = {
-      type: "subscribe",
+      type,
       payload: {
         channels: [
           { name: "trades", symbols },
@@ -136,5 +140,14 @@ export class DeltaExchangeAdapter extends EventEmitter {
 
     symbols.forEach((s) => this.subscribedSymbols.add(s.replace("-USDT", "USD")));
     this.sendSubscribe();
+  }
+
+  /** Stop trades + funding for canonical symbol(s) (the reverse of `subscribe`). */
+  unsubscribe(symbolOrSymbols: string | string[]): void {
+    const symbols = Array.isArray(symbolOrSymbols) ? symbolOrSymbols : [symbolOrSymbols];
+    const gone = symbols
+      .map((s) => s.replace("-USDT", "USD"))
+      .filter((s) => this.subscribedSymbols.delete(s));
+    this.sendSubscribe("unsubscribe", gone);
   }
 }

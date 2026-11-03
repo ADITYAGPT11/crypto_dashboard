@@ -1,37 +1,46 @@
 # Project status
 
-_Last verified: 2026-11-01 · branch `claude/amazing-gauss-eyr3t5`_
+_Last verified: 2026-11-02 · branch `claude/ecstatic-gauss-sqnz3z`_
 
 ## Phase
 
-**Phase 1a: Dashboard + Chart workspace built (browser-side analysis).** The owner's priority
+**Phase 1a: Dashboard, Chart, Pattern stats, Risk and Alerts built (browser-side analysis).** The owner's priority
 features run on real Binance history in the browser. The Python backend and QuestDB (Phase 1b)
 are next; detection and statistics move server-side there. No confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-1. Pattern stats, Risk calculator and Alerts screens from `docs/product/ux/PHASE1_UX.md`.
+1. Owner picks the product name (one constant in `src/brand.ts` + `index.html` title) and reviews
+   Dashboard v2; check Fear & Greed and CoinGecko load on the owner's machine.
 2. More detectors: bull flag, inverse head & shoulders, morning star; HVN/VAL as locations.
 3. Keep CI green: `.github/workflows/ci.yml` runs on every PR.
-4. Phase 1b backend: Python collector + QuestDB, so history is stored and pooled across 20+ coins.
-5. Data bugs: symbol filter (issue 3), unsubscribe on removal (4), exchange "down" state (5),
-   Delta USD labelling + funding units (1, 2).
+4. Phase 1b backend: Python collector + QuestDB, so history is stored and pooled across 20+ coins,
+   and setup alerts run server-side.
+5. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
 
 ## Health
 
-Verified 2026-11-01 from a clean `npm ci`:
+Verified 2026-11-02 from a clean `npm ci`:
 
-| Check                                                      | State                                                                                                                                              |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check` (`vp check`: format + lint + types)        | ✅ 134 files formatted; 0 errors or warnings in 91 files (backend included)                                                                        |
-| `npm test`                                                 | ✅ 215 tests, 11 files                                                                                                                             |
-| `npm run build` (`tsc -b` app + node + backend, then Vite) | ✅ chart code in its own chunk                                                                                                                     |
-| `npm run dev`                                              | ✅ <http://localhost:3000>; Dashboard, Chart, Markets, About load with no page errors (browser test at 1440 px and 400 px, mocked Binance history) |
-| `npm run backend`                                          | ✅ bundles `src/backend` and starts on :3001; `/health` OK, SQLite file created under `./data/`                                                    |
+| Check                                                      | State                                                                                                                                                                                                                |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check` (`vp check`: format + lint + types)        | ✅ 187 files formatted; 0 errors or warnings in 137 files (backend included)                                                                                                                                         |
+| `npm test`                                                 | ✅ 284 tests, 23 files                                                                                                                                                                                               |
+| `npm run build` (`tsc -b` app + node + backend, then Vite) | ✅ chart code in its own chunk                                                                                                                                                                                       |
+| `npm run dev`                                              | ✅ <http://localhost:3000>; Dashboard, Chart, Pattern stats, Risk, Alerts load with no page errors or sideways scroll (browser test at 1440 px and 400 px, mocked Binance history); `/api` proxy reaches the backend |
+| `npm run backend`                                          | ✅ bundles `src/backend` and starts on :3001; `/health` OK, SQLite file created under `./data/`                                                                                                                      |
 
 ## What exists
 
-- **Dashboard** (`/`): scanner over watchlist + 10 liquid coins on 4h. Shows setups confirmed on
+- **Dashboard** (`/`), top: market overview for the 10 research coins (`components/MarketOverview/`):
+  ticker strip; ⌘K coin search with per-exchange price and listing; exchange connection chips;
+  floating bubbles (size = 24h volume, colour = 24h / 7d change); sentiment (Fear & Greed gauge,
+  avg funding, long/short ratio, OI 24h, breadth, BTC dominance; no combined score); market
+  monitor table (price, 24h/7d, volume, 7d volatility, ATR, trend 4h/1d, funding, OI, corr. BTC,
+  sortable); 30-day correlation matrix; liquidations (Binance stream since page open); BTC
+  volatility regime + trading sessions; gainers/losers; data health. Each source fails on its
+  own and shows "unavailable".
+- **Dashboard** (`/`), below: scanner over watchlist + 10 liquid coins on 4h. Shows setups confirmed on
   the last 3 closed candles with pooled win rate, n, Wilson 95% range, break-even marker and
   verdict; a table of how every setup has performed; the pattern-to-confirmation pipeline;
   watchlist cards with a live price and 7-day sparkline.
@@ -40,10 +49,20 @@ Verified 2026-11-01 from a clean `npm ci`:
   stop and target price lines; W/L markers for past cases of the selected setup on this chart.
   Side panel: recent patterns and a setup card (pooled and this-coin stats, avg move,
   expectancy, confluence checks, last 5 cases). Below: key volume levels and zones.
+- **Pattern stats** (`/stats`): setup library on 1h / 4h / 1d (KPIs, n, win rate, Wilson range vs
+  break-even, avg win/loss, expectancy, verdict), verdict filter and sort, a per-coin breakdown
+  per row, the path to a confirmation and the overfitting guards.
+- **Risk** (`/risk`): position size, notional, leverage, reward:risk, fees, break-even and expected
+  value at the setup's pooled win rate and range. Pre-filled from the Chart's "Size this trade";
+  account size, risk % and fee remembered in this browser. Long and short.
+- **Alerts** (`/alerts`): "tell me when [coin] prints a [setup] on [TF]" with the record shown
+  before saving; rules and firings in this browser; checked every minute while a TCS tab is open
+  (history refetched when a candle closes); each firing tracked to its outcome; in-app banner;
+  Telegram via the backend prototype through the dev `/api` proxy when it runs and is configured.
 - **Analysis engine** (`src/utils/`, pure + tested): volume profile, zones, patterns (double
   bottom, bullish engulfing, hammer), outcome resolution, setup statistics, multi-coin scan.
 - **History** (`src/services/HistoryService.ts`): ~3,000 closed candles per coin from Binance
-  USDⓈ-M public REST, cached per session.
+  USDⓈ-M public REST, cached until a newer candle closes.
 - **Markets** (`/markets`): the earlier dashboard (price table, order book, spread panel, alert
   rule builder). Its chart panel now links to the Chart page.
 - **Backend prototype** (`src/backend/`): Express + `node:sqlite` + Telegram client; type-checked
@@ -51,20 +70,39 @@ Verified 2026-11-01 from a clean `npm ci`:
 
 ## Known issues
 
-1. **Delta is USD-quoted, shown as USDT** (`DeltaExchangeAdapter`); spread panel mixes them.
-2. **Delta funding-rate units unverified.**
-3. **Symbol filter drops real coins** (`SymbolService` substring filter hides JUP, SUPER).
-4. **Price subscriptions only grow**: removing a symbol never unsubscribes price/funding streams.
-5. **Exchange badge never shows "down"** (sockets retry forever).
-6. **Statistics are gross and browser-side**: before fees; limited to ~500 days × 10–12 coins on
+1. **Delta funding-rate units unverified** (shown with an "units unverified" tag). Delta prices are
+   USD-quoted: they share the asset's row with a "USD" tag and are left out of the spread panel.
+2. **Setup alerts are browser-side**: they run only while a TCS tab is open; rules live in this
+   browser's storage. Telegram works only with `npm run dev` + `npm run backend` (the `/api` proxy
+   is dev-only) and a bot configured via `POST /telegram/config`. Not tested against real Telegram.
+3. **Statistics are gross and browser-side**: before fees; limited to ~500 days × 10–12 coins on
    4h, so several setups show "too few cases". Phase 1b stores more history; Phase 2 adds costs.
-7. **Pooled stats take a few seconds** on first load (≈24 REST requests); no progress bar yet.
-8. Order book and trade prints: Binance only. Delta: no candles, no 24 h stats.
-9. `getPopularSymbols()` lists rebranded coins (`MATIC`, `FTM`); `.idx/dev.nix` lists Svelte/Vue
-   extensions.
-10. The backend is not called by the UI yet (alerts still evaluate in the browser).
+4. **Pooled stats take a few seconds** on first load (≈24 REST requests); no progress bar yet.
+5. Order book and trade prints: Binance only. Delta: no candles, no 24 h stats.
+6. `.idx/dev.nix` lists Svelte/Vue extensions.
+7. **Dashboard v2 live sources unverified**: Binance REST shapes are tested with fixtures; Fear &
+   Greed (alternative.me) and BTC dominance (CoinGecko) are unchecked against the live APIs and
+   CORS. Liquidation totals start from page open and undercount (Binance sends ≤1/coin/s).
+8. The Markets page's older price-rule alerts are separate from setup alerts and still browser-only.
 
 ## History
+
+- 2026-11-02: Dashboard v2 market overview built from the canvas design (all sources mocked in the
+  browser test; live sources not reachable from the sandbox). Product name moved to `src/brand.ts`.
+  Fixed `useSyncExternalStore` re-subscribing every render (would restart polling).
+
+- 2026-11-02: Pattern stats, Risk calculator and Alerts built from the reference designs; Chart
+  setup card links to both; Delta tagged USD and excluded from spreads; `HistoryService` refetches
+  after a candle closes; sr-only labels no longer widen pages at phone width.
+
+- 2026-11-02: Designs for Pattern stats, Risk calculator and Alerts drawn on a design canvas;
+  reference images saved in `docs/product/ux/reference/`.
+
+- 2026-11-02: Data bugs fixed: symbol search keeps JUP/SUPER (leveraged-token rule replaces the
+  substring filter), removing a symbol unsubscribes its streams on all three exchanges and clears
+  its book/trade data, exchange badge shows "down" after 3 failed reconnects; popular list uses
+  POL and S instead of MATIC and FTM. Live streams not exercised (exchange hosts blocked in the
+  test sandbox); covered by adapter unit tests.
 
 - 2026-11-01: All checks green incl. the backend: 35 backend type errors fixed, replay crash
   (`engineState` undefined) and cooldown fixed, database folder bug fixed, `npm run backend` starts;

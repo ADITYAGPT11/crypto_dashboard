@@ -8,7 +8,13 @@ export type ExchangeName = "BINANCE" | "OKX" | "DELTA";
 export type MarketType = "SPOT" | "FUT";
 export type GenericMarketData = {
   exchange: ExchangeName;
-  symbol: string; // canonical format: BASE-QUOTE (e.g. BTC-USDT)
+  /**
+   * Canonical BASE-QUOTE row key (e.g. BTC-USDT). Delta India instruments are
+   * USD-quoted but share the asset's row; `quote` says what the price is in.
+   */
+  symbol: string;
+  /** Currency the price is quoted in; omitted means USDT. */
+  quote?: "USDT" | "USD";
   type: MarketType;
   currentPrice: number;
   /** Event timestamp in epoch milliseconds (adapters normalize to ms). */

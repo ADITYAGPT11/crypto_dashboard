@@ -1,9 +1,13 @@
+import { toCanonicalSymbols } from "../utils/symbolUtils";
+
 /**
  * Service to fetch real-time symbol data from exchanges
  */
 interface BinanceSymbol {
   status: string;
   symbol: string;
+  baseAsset: string;
+  quoteAsset: string;
 }
 
 interface OkxInstrument {
@@ -40,21 +44,11 @@ export class SymbolService {
       }
       const data = await response.json();
 
-      this.binanceSymbols = data.symbols
-        .filter(
-          (symbol: BinanceSymbol) =>
-            symbol.status === "TRADING" &&
-            symbol.symbol.endsWith("USDT") &&
-            !symbol.symbol.includes("UP") &&
-            !symbol.symbol.includes("DOWN") &&
-            !symbol.symbol.includes("BEAR") &&
-            !symbol.symbol.includes("BULL"),
-        )
-        .map((symbol: BinanceSymbol) => {
-          const base = symbol.symbol.replace("USDT", "");
-          return `${base}-USDT`;
-        })
-        .sort();
+      const symbols: BinanceSymbol[] = data.symbols;
+      const bases = symbols
+        .filter((symbol) => symbol.status === "TRADING" && symbol.quoteAsset === "USDT")
+        .map((symbol) => symbol.baseAsset);
+      this.binanceSymbols = toCanonicalSymbols(bases, "USDT");
 
       this.updateAllSymbols();
       return this.binanceSymbols;
@@ -74,16 +68,11 @@ export class SymbolService {
       }
       const data = await response.json();
 
-      this.okxSymbols = data.data
-        .filter(
-          (instrument: OkxInstrument) =>
-            instrument.state === "live" &&
-            instrument.quoteCcy === "USDT" &&
-            !instrument.instId.includes("UP") &&
-            !instrument.instId.includes("DOWN"),
-        )
-        .map((instrument: OkxInstrument) => `${instrument.baseCcy}-USDT`)
-        .sort();
+      const instruments: OkxInstrument[] = data.data;
+      const bases = instruments
+        .filter((instrument) => instrument.state === "live" && instrument.quoteCcy === "USDT")
+        .map((instrument) => instrument.baseCcy);
+      this.okxSymbols = toCanonicalSymbols(bases, "USDT");
 
       this.updateAllSymbols();
       return this.okxSymbols;
@@ -118,13 +107,13 @@ export class SymbolService {
       "XRP-USDT",
       "DOT-USDT",
       "AVAX-USDT",
-      "MATIC-USDT",
+      "POL-USDT",
       "LINK-USDT",
       "UNI-USDT",
       "LTC-USDT",
       "ATOM-USDT",
       "NEAR-USDT",
-      "FTM-USDT",
+      "S-USDT",
       "ALGO-USDT",
       "VET-USDT",
       "ICP-USDT",
@@ -147,6 +136,11 @@ export class SymbolService {
     return this.allSymbols
       .filter((symbol) => symbol.toLowerCase().includes(searchTerm))
       .slice(0, 20); // Limit to 20 results
+  }
+
+  /** Exchanges whose spot list includes the symbol (empty until lists are fetched). */
+  listedOn(symbol: string): { binance: boolean; okx: boolean } {
+    return { binance: this.binanceSymbols.includes(symbol), okx: this.okxSymbols.includes(symbol) };
   }
 
   getAllSymbols(): string[] {

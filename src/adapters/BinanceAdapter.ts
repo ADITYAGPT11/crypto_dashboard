@@ -1,4 +1,5 @@
 import EventEmitter from "eventemitter3";
+import { stateAfterClose } from "../utils/connectionState";
 import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
 import type {
   CandleData,
@@ -106,11 +107,11 @@ export class BinanceAdapter extends EventEmitter {
     });
 
     ws.on("close", () => {
-      // autoReconnect will retry; report as reconnecting
+      // autoReconnect keeps retrying; "down" once several reconnects in a row fail
       this.emit("connectionStatus", {
         exchange: "BINANCE",
         market,
-        state: "connecting",
+        state: stateAfterClose(ws.failedReconnects),
       } satisfies ConnectionStatusPayload);
     });
 
@@ -160,6 +161,36 @@ export class BinanceAdapter extends EventEmitter {
     }
   }
 
+  /** Stop per-symbol streams on both markets (the reverse of `subscribe`). */
+  unsubscribe(symbols: string | string[], streams: BinanceStreamKind[]) {
+    const arr = Array.isArray(symbols) ? symbols : [symbols];
+    const tails = streams.map((kind) => BINANCE_STREAM_TAIL[kind]);
+    for (const market of ["spot", "futures"] as BinanceMarket[]) {
+      this.untrack(
+        market,
+        arr.flatMap((symbol) => tails.map((tail) => `${toWireSymbol(symbol)}@${tail}`)),
+      );
+    }
+  }
+
+  /** Stop the futures funding-rate stream (the reverse of `subscribeFundingRate`). */
+  unsubscribeFundingRate(symbols: string | string[]) {
+    const arr = Array.isArray(symbols) ? symbols : [symbols];
+    this.untrack(
+      "futures",
+      arr.map((s) => `${toWireSymbol(s)}@markPrice@1s`),
+    );
+    for (const s of arr) this.lastEmittedRate.delete(s);
+  }
+
+  /** Drop tracked streams and send one UNSUBSCRIBE for those that were live. */
+  private untrack(market: BinanceMarket, raws: string[]) {
+    const gone = raws.filter((raw) => this.trackedStreams[market].delete(raw));
+    if (gone.length > 0) {
+      this.clients[market].send({ method: "UNSUBSCRIBE", params: gone, id: nextRequestId() });
+    }
+  }
+
   private sendAllSubscriptions(market: BinanceMarket) {
     const streams = Array.from(this.trackedStreams[market]);
     if (streams.length === 0) return;
@@ -178,9 +209,7 @@ export class BinanceAdapter extends EventEmitter {
   }
 
   unsubscribeCandles(symbol: string, interval: CandleInterval, market: BinanceMarket) {
-    const raw = `${toWireSymbol(symbol)}@kline_${interval}`;
-    if (!this.trackedStreams[market].delete(raw)) return;
-    this.clients[market].send({ method: "UNSUBSCRIBE", params: [raw], id: nextRequestId() });
+    this.untrack(market, [`${toWireSymbol(symbol)}@kline_${interval}`]);
   }
 
   /**

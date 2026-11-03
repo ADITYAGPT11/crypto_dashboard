@@ -73,6 +73,11 @@ export class BaseWebSocketClient {
     };
     this.on(event as "message", wrapper);
   }
+  /** Reconnects tried since the last successful open (0 while connected). */
+  get failedReconnects(): number {
+    return this.reconnectAttempts;
+  }
+
   private emit(event: string, payload?: unknown) {
     if (this.opts.debug) console.debug(`[BaseWS] ${event}`, payload);
     const set = this.listeners.get(event);

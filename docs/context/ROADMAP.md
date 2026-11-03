@@ -23,11 +23,11 @@ flowchart LR
 - [x] Backend prototype starts (`npm run backend` bundles it) and passes type-check + lint
 - [x] Test runner: Vitest via Vite+, 191 tests (master, 2026-10-25)
 - [x] CI: GitHub Action (`.github/workflows/ci.yml`) runs check, tests, build and the backend bundle on each PR
-- [ ] Fix symbol filter dropping JUP/SUPER etc. (`SymbolService`)
-- [ ] Unsubscribe price/funding streams on symbol removal (all three adapters)
-- [ ] Exchange badge: `stale`/`down` instead of endless "Connecting…" (cells already show stale)
-- [ ] Label Delta instruments as USD; never mix with USDT silently (affects spread panel)
-- [ ] Verify Delta funding-rate units against the docs
+- [x] Fix symbol filter dropping JUP/SUPER etc. (`toCanonicalSymbols` in `symbolUtils`)
+- [x] Unsubscribe price/funding streams on symbol removal (all three adapters)
+- [x] Exchange badge shows `down` after 3 failed reconnects in a row (`utils/connectionState`)
+- [x] Label Delta instruments as USD; never mix with USDT silently (spread panel compares USDT only)
+- [ ] Verify Delta funding-rate units against the docs (tagged "units unverified" until then)
 
 **Exit:** app loads with no errors; `npm run build` and CI green; STATUS issues 1–5 closed.
 
@@ -42,7 +42,11 @@ flowchart LR
 - [x] `HistoryService` (Binance public REST) + multi-coin scan
 - [x] Dashboard (setup scanner, setup performance table, pipeline, watchlist)
 - [x] Chart workspace (Lightweight Charts, overlays, setup card, volume levels, zones)
-- [ ] Pattern stats, Risk calculator, Alerts screens; more detectors
+- [x] Pattern stats, Risk calculator, Alerts screens (designs in `docs/product/ux/reference/`)
+- [x] Dashboard v2 market overview (bubbles, sentiment, monitor, correlation, liquidations,
+      volatility regime, sessions, movers, data health)
+- [ ] Product name + logo (owner choosing; `src/brand.ts`)
+- [ ] More detectors
 
 ## Phase 1 · Backend + history (M1, M2)
 
@@ -115,4 +119,6 @@ criteria met.
 - Chart drawing tools.
 - Angel One / Indian equities (removed in `4350c71`).
 - Auto-execution, only after Phase 4/6 evidence justifies it.
+- Top news panel (needs a source: backend-fetched RSS or a free CryptoPanic key, owner to approve).
+- Browser push notifications and quiet hours for setup alerts.
 - ML models (gradient boosting on features) as a _filter_ on rule-based signals, never a black box.

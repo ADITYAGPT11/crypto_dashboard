@@ -7,6 +7,13 @@ export default defineConfig({
   plugins: lazyPlugins(() => [react()]),
   server: {
     port: 3000,
+    // Dev only: the browser reaches the backend prototype (:3001) as /api, same origin.
+    proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        rewrite: (path: string) => path.replace(/^\/api/, ""),
+      },
+    },
   },
   lint: {
     plugins: ["oxc", "typescript", "unicorn", "react"],
