@@ -190,3 +190,12 @@ statistics, so choosing them never tunes a rule; the rules stay preset v1. Highe
 count only if their impulse candle had closed before the pattern began and their break (if any)
 closed after the pattern confirmed. On a lower view the signal is drawn at the higher candle's
 close, never earlier. Editable rule versions (v2) come later, labelled exploratory.
+
+### 2026-11-03 · Candlestick patterns: TA-Lib in the backend, not talib-web in the browser
+
+Why: the owner approved `talib-web`, but the audit found it unusable: its wrapper misreads integer
+outputs and its wasm never runs `TA_Initialize`, so most candlestick functions can't fire. It was
+uninstalled before any code shipped. Our two browser detectors stay until Phase 1b, when the
+official TA-Lib (`ta-lib-python`) and `smart-money-concepts` run server-side. Chart patterns
+(double bottom, H&S, flags) stay in-house: no maintained permissive library exists; GPL code is
+reference only.
