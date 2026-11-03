@@ -63,7 +63,15 @@ export function perSymbolStats(scan: Scan, key: string): SymbolBreakdown[] {
   return out.sort((a, b) => b.stats.n - a.stats.n || a.symbol.localeCompare(b.symbol));
 }
 
-const PATTERN_TYPES: readonly PatternType[] = ["doubleBottom", "bullishEngulfing", "hammer"];
+const PATTERN_TYPES: readonly PatternType[] = [
+  "doubleBottom",
+  "bullishEngulfing",
+  "hammer",
+  "invertedHammer",
+  "bullishHarami",
+  "tweezersBottom",
+  "threeWhiteSoldiers",
+];
 const LOCATIONS: readonly SetupLocation[] = ["demandZone", "openSpace"];
 
 /** Parse a `type|location` setup key from untrusted input (URL, storage). */

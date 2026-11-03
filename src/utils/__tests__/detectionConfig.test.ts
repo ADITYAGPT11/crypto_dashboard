@@ -15,7 +15,15 @@ describe("detection config", () => {
     expect(activeTfs(DEFAULT_DETECTION)).toEqual(["1h", "4h", "1d"]);
     expect(
       activeTfs({
-        patterns: { doubleBottom: ["1d"], bullishEngulfing: [], hammer: ["1d"] },
+        patterns: {
+          doubleBottom: ["1d"],
+          bullishEngulfing: [],
+          hammer: ["1d"],
+          invertedHammer: [],
+          bullishHarami: [],
+          tweezersBottom: [],
+          threeWhiteSoldiers: [],
+        },
         zones: "same",
       }),
     ).toEqual(["1d"]);
@@ -25,7 +33,7 @@ describe("detection config", () => {
     expect(
       parseDetection({ patterns: { hammer: ["5m", "1d"], doubleBottom: [] }, zones: "4h" }),
     ).toEqual({
-      patterns: { doubleBottom: [], bullishEngulfing: ["4h", "1d"], hammer: ["1d"] },
+      patterns: { ...DEFAULT_DETECTION.patterns, doubleBottom: [], hammer: ["1d"] },
       zones: "4h",
     });
     expect(parseDetection("junk")).toEqual(DEFAULT_DETECTION);

@@ -199,3 +199,19 @@ uninstalled before any code shipped. Our two browser detectors stay until Phase 
 official TA-Lib (`ta-lib-python`) and `smart-money-concepts` run server-side. Chart patterns
 (double bottom, H&S, flags) stay in-house: no maintained permissive library exists; GPL code is
 reference only.
+
+### 2026-11-03 · TradingView-style chart: Lightweight Charts + free packages, not a chart rewrite
+
+Why: the owner wants TradingView's features and usability with free tools only. Lightweight
+Charts (TradingView's open-source library) stays, so our multi-timeframe pattern and zone overlay
+keeps working; indicators come from `indicatorts` (MIT), drawings from
+`lightweight-charts-drawing` (MIT), both audited and pinned. KLineChart was the alternative but
+meant rewriting the chart and overlay. Indicator values use closed candles only.
+
+### 2026-11-03 · Candlestick shapes from the `candlestick` package, context and plan stay ours
+
+Why: reuse over maintenance. The package (MIT) checks each shape; we add what it leaves out and
+what makes a setup measurable: the signal on the pattern's last candle (no look-ahead; tested by
+prefix invariance), a minimum size in ATR, a prior decline for reversal patterns, and the
+stop/target. Piercing line and morning star are left out: both need price gaps, which 24/7 crypto
+rarely has.

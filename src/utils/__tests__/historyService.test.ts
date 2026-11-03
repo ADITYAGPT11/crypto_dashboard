@@ -76,6 +76,13 @@ describe("HistoryService refresh", () => {
     expect(nextClose(0, "4h")).toBe(H4);
     expect(nextClose(H4 + 5, "4h")).toBe(2 * H4);
   });
+
+  it("closes weekly candles on Monday 00:00 UTC", () => {
+    const wed = Date.UTC(2026, 10, 4, 12); // Wednesday 4 Nov 2026
+    expect(new Date(nextClose(wed, "1w")).toISOString()).toBe("2026-11-09T00:00:00.000Z");
+    const monday = Date.UTC(2026, 10, 9);
+    expect(new Date(nextClose(monday, "1w")).toISOString()).toBe("2026-11-16T00:00:00.000Z");
+  });
 });
 
 describe("buildScan", () => {

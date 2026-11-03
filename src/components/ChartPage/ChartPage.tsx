@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { DrawingKind } from "lightweight-charts-drawing";
 import { useNavigate, useParams } from "react-router-dom";
-import type { Candle, CandleInterval } from "../../types/marketData";
+import { CANDLE_INTERVALS, type Candle, type CandleInterval } from "../../types/marketData";
 import type { SetupOccurrence } from "../../types/analysis";
 import { useHistories } from "../../custom-hooks/useHistories";
 import { useSetupStats } from "../../custom-hooks/useSetupStats";
@@ -26,20 +27,35 @@ import {
   type ViewPattern,
 } from "../../utils/timeframeMapping";
 import { Chip, Explain } from "../../common-components/Evidence";
-import PriceChart, { type Layers, type ViewMarker } from "./PriceChart";
+import PriceChart, {
+  type ChartHandle,
+  type IndicatorAction,
+  type Layers,
+  type ViewMarker,
+} from "./PriceChart";
+import ChartToolbar from "./ChartToolbar";
+import DrawingToolbar from "./DrawingToolbar";
+import IndicatorsDialog from "./IndicatorsDialog";
+import IndicatorSettings from "./IndicatorSettings";
+import { useLiveCandle } from "../../custom-hooks/useLiveCandle";
+import {
+  CHART_PREFS_STORAGE_KEY,
+  loadJson,
+  parseChartPrefs,
+  saveJson,
+  type ChartPrefs,
+} from "../../utils/chartDisplay";
+import {
+  INDICATORS_STORAGE_KEY,
+  newInstance,
+  parseInstances,
+  type IndicatorId,
+  type IndicatorInstance,
+} from "../../utils/indicatorRegistry";
 import SetupCard, { type Check } from "./SetupCard";
 import DetectionSettings from "./DetectionSettings";
 import { TfBadge } from "./TfBadge";
 import styles from "./ChartPage.module.scss";
-
-const VIEW_TFS: CandleInterval[] = ["1h", "4h", "1d"];
-const LAYER_LABELS: [keyof Layers, string, string][] = [
-  ["ema", "EMA 50", "#F0A35E"],
-  ["bb", "Bollinger", "#7DB4FF"],
-  ["zones", "Zones", "#56D364"],
-  ["vp", "Volume profile", "#4C9AFF"],
-  ["pattern", "Pattern", "#E6EDF3"],
-];
 
 /** An occurrence plus the timeframe it was detected on and its zone source. */
 interface Found {
@@ -74,13 +90,45 @@ const ChartPage: React.FC = () => {
     "1d": true,
   });
   const [attempt, setAttempt] = useState(0);
-  const [layers, setLayers] = useState<Layers>({
-    ema: true,
-    bb: false,
-    zones: true,
-    vp: true,
-    pattern: true,
-  });
+  const [layers, setLayers] = useState<Layers>({ zones: true, vp: true, pattern: true });
+  const [prefs, setPrefsState] = useState<ChartPrefs>(() =>
+    loadJson(CHART_PREFS_STORAGE_KEY, parseChartPrefs),
+  );
+  const setPrefs = (next: ChartPrefs) => {
+    setPrefsState(next);
+    saveJson(CHART_PREFS_STORAGE_KEY, next);
+  };
+  const [indicators, setIndicatorsState] = useState<IndicatorInstance[]>(() =>
+    loadJson(INDICATORS_STORAGE_KEY, parseInstances),
+  );
+  const setIndicators = (next: IndicatorInstance[]) => {
+    setIndicatorsState(next);
+    saveJson(INDICATORS_STORAGE_KEY, next);
+  };
+  const [dialog, setDialog] = useState<
+    { kind: "indicators" } | { kind: "settings"; uid: string } | null
+  >(null);
+  const [tool, setTool] = useState<DrawingKind | null>(null);
+  const [magnet, setMagnet] = useState(false);
+  const [drawingsVisible, setDrawingsVisible] = useState(true);
+  const chartHandle = useRef<ChartHandle | null>(null);
+  const chartCardRef = useRef<HTMLDivElement>(null);
+  const onIndicator = (uid: string, action: IndicatorAction) => {
+    if (action === "settings") setDialog({ kind: "settings", uid });
+    else if (action === "remove") setIndicators(indicators.filter((i) => i.uid !== uid));
+    else setIndicators(indicators.map((i) => (i.uid === uid ? { ...i, visible: !i.visible } : i)));
+  };
+  const addIndicator = (id: IndicatorId) =>
+    setIndicators([...indicators, newInstance(id, `${id}-${Date.now().toString(36)}`)]);
+  const screenshot = () => {
+    const url = chartHandle.current?.screenshot();
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${symbol}-${viewTf}-${new Date().toISOString().slice(0, 16).replace(":", "")}.png`;
+    a.click();
+  };
+
   const [selId, setSelId] = useState<string | null>(null);
 
   // Every timeframe needed: the view, each pattern timeframe and its zone source.
@@ -91,10 +139,11 @@ const ChartPage: React.FC = () => {
       set.add(tf);
       set.add(zoneTfFor(tf, config.zones));
     }
-    return DETECTION_TFS.filter((tf) => set.has(tf));
+    return CANDLE_INTERVALS.filter((tf) => set.has(tf));
   }, [viewTf, patternTfs, config.zones]);
   const hist = useHistories(symbol, needed, attempt);
   const view = hist.get(viewTf)!;
+  const live = useLiveCandle(symbol, viewTf);
   const candles = view.candles;
   const candlesOf = useCallback(
     (tf: CandleInterval) => hist.get(tf)?.candles ?? NO_CANDLES,
@@ -225,7 +274,8 @@ const ChartPage: React.FC = () => {
   );
 
   const profile = useMemo(() => computeVolumeProfile(candles.slice(-200), 48), [candles]);
-  const indicators = useMemo(() => {
+  // EMA 50 and 20-candle volume on the pattern's timeframe, for the confluence checks.
+  const context = useMemo(() => {
     const closes = selCandles.map((c) => c.close);
     return {
       ema50: ema(closes, 50),
@@ -247,7 +297,7 @@ const ChartPage: React.FC = () => {
         ? { ok: true, text: `Pattern low sits inside an intact ${selected.zoneTf} demand zone` }
         : { ok: false, text: `Not at a ${selected.zoneTf} demand zone (open space)` },
     );
-    const avgVol = indicators.vol20[i - 1];
+    const avgVol = context.vol20[i - 1];
     if (Number.isFinite(avgVol) && avgVol > 0) {
       const ratio = cs[i].volume / avgVol;
       out.push({
@@ -255,7 +305,7 @@ const ChartPage: React.FC = () => {
         text: `Confirmation candle on ${ratio.toFixed(1)}× the 20-candle average volume`,
       });
     }
-    const e = indicators.ema50[i];
+    const e = context.ema50[i];
     if (Number.isFinite(e)) {
       out.push(
         cs[i].close > e
@@ -275,7 +325,7 @@ const ChartPage: React.FC = () => {
       );
     }
     return out;
-  }, [selected, selCandles, indicators]);
+  }, [selected, selCandles, context]);
 
   // Intact zones nearest to the current price first, then the most recently broken.
   const zonesShown = useMemo(() => {
@@ -356,64 +406,33 @@ const ChartPage: React.FC = () => {
 
       <div className={styles.ws}>
         <div className={styles.col}>
-          <div className={styles.chartCard}>
-            <div className={styles.toolbar} role="toolbar" aria-label="Chart controls">
-              <label className="sr-only" htmlFor="chart-symbol">
-                Symbol
-              </label>
-              <select
-                id="chart-symbol"
-                className={styles.symbol}
-                value={symbol}
-                onChange={(e) => navigate(`/chart/${e.target.value}`)}
-              >
-                {symbols.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              {last && <span className={styles.lastPx}>{price(last.close)}</span>}
-              <div className={styles.seg} role="group" aria-label="View timeframe">
-                {VIEW_TFS.map((iv) => (
-                  <button
-                    key={iv}
-                    type="button"
-                    aria-pressed={iv === viewTf}
-                    onClick={() => setViewTf(iv)}
-                  >
-                    {iv}
-                  </button>
-                ))}
-              </div>
-              <span className={styles.toolGroup} role="group" aria-label="Show patterns found on">
-                Found on
-                {DETECTION_TFS.map((tf) => (
-                  <button
-                    key={tf}
-                    type="button"
-                    className={styles.tog}
-                    aria-pressed={showTf[tf]}
-                    aria-label={`Show patterns found on ${tf}`}
-                    onClick={() => setShowTf((m) => ({ ...m, [tf]: !m[tf] }))}
-                  >
-                    <TfBadge tf={tf} />
-                  </button>
-                ))}
-              </span>
-              {LAYER_LABELS.map(([k, label, color]) => (
-                <button
-                  key={k}
-                  type="button"
-                  className={styles.tog}
-                  aria-pressed={layers[k]}
-                  onClick={() => setLayers((l) => ({ ...l, [k]: !l[k] }))}
-                >
-                  <i style={{ background: color }} aria-hidden="true" />
-                  {label}
-                </button>
-              ))}
-            </div>
+          <div className={styles.chartCard} ref={chartCardRef}>
+            <ChartToolbar
+              symbol={symbol}
+              symbols={symbols}
+              onSymbol={(sym) => navigate(`/chart/${sym}`)}
+              lastPrice={live ? price(live.close) : last ? price(last.close) : null}
+              viewTf={viewTf}
+              onTf={setViewTf}
+              favorites={prefs.favorites}
+              onToggleFavorite={(tf) =>
+                setPrefs({
+                  ...prefs,
+                  favorites: prefs.favorites.includes(tf)
+                    ? prefs.favorites.filter((f) => f !== tf)
+                    : [...prefs.favorites, tf],
+                })
+              }
+              chartType={prefs.chartType}
+              onChartType={(chartType) => setPrefs({ ...prefs, chartType })}
+              onIndicators={() => setDialog({ kind: "indicators" })}
+              layers={layers}
+              onLayer={(k) => setLayers((l) => ({ ...l, [k]: !l[k] }))}
+              scale={prefs.scale}
+              onScale={(scale) => setPrefs({ ...prefs, scale })}
+              onScreenshot={screenshot}
+              onFullscreen={() => void chartCardRef.current?.requestFullscreen?.()}
+            />
             {view.loading && (
               <div className={styles.state}>
                 Loading {viewTf} history for {symbol} from Binance…
@@ -430,16 +449,38 @@ const ChartPage: React.FC = () => {
                 </button>
               </div>
             )}
-            <PriceChart
-              candles={candles}
-              viewTf={viewTf}
-              zones={viewZones}
-              selected={viewSelected}
-              plan={selected ? selected.occ.hit : null}
-              others={viewOthers}
-              markers={markers}
-              layers={layers}
-            />
+            <div className={styles.chartWithTools}>
+              <DrawingToolbar
+                tool={tool}
+                onTool={setTool}
+                magnet={magnet}
+                onMagnet={() => setMagnet((m) => !m)}
+                visible={drawingsVisible}
+                onVisible={() => setDrawingsVisible((v) => !v)}
+                onClear={() => chartHandle.current?.clearDrawings()}
+              />
+              <PriceChart
+                symbol={symbol}
+                candles={candles}
+                viewTf={viewTf}
+                live={live}
+                chartType={prefs.chartType}
+                scale={prefs.scale}
+                indicators={indicators}
+                onIndicator={onIndicator}
+                zones={viewZones}
+                selected={viewSelected}
+                plan={selected ? selected.occ.hit : null}
+                others={viewOthers}
+                markers={markers}
+                layers={layers}
+                tool={tool}
+                onToolChange={setTool}
+                magnet={magnet}
+                drawingsVisible={drawingsVisible}
+                handleRef={chartHandle}
+              />
+            </div>
             <div className={styles.legend} aria-hidden="true">
               <span>
                 <i style={{ background: "rgba(86,211,100,.35)" }} />
@@ -542,6 +583,21 @@ const ChartPage: React.FC = () => {
             <div className={styles.cardHead}>
               <h2 id="pat-title">Patterns on this chart</h2>
               <p>Most recent first. Pick one to see its history.</p>
+              <span className={styles.toolGroup} role="group" aria-label="Show patterns found on">
+                Found on
+                {DETECTION_TFS.map((tf) => (
+                  <button
+                    key={tf}
+                    type="button"
+                    className={styles.tog}
+                    aria-pressed={showTf[tf]}
+                    aria-label={`Show patterns found on ${tf}`}
+                    onClick={() => setShowTf((m) => ({ ...m, [tf]: !m[tf] }))}
+                  >
+                    <TfBadge tf={tf} />
+                  </button>
+                ))}
+              </span>
             </div>
             <ul className={styles.patList}>
               {recent.map((f) => {
@@ -609,6 +665,29 @@ const ChartPage: React.FC = () => {
           )}
         </aside>
       </div>
+      {dialog?.kind === "indicators" && (
+        <IndicatorsDialog
+          onAdd={addIndicator}
+          onClose={() => setDialog(null)}
+          counts={indicators.reduce<Record<string, number>>(
+            (m, i) => ({ ...m, [i.id]: (m[i.id] ?? 0) + 1 }),
+            {},
+          )}
+        />
+      )}
+      {dialog?.kind === "settings" &&
+        (() => {
+          const inst = indicators.find((i) => i.uid === dialog.uid);
+          return inst ? (
+            <IndicatorSettings
+              inst={inst}
+              onSave={(next) =>
+                setIndicators(indicators.map((i) => (i.uid === next.uid ? next : i)))
+              }
+              onClose={() => setDialog(null)}
+            />
+          ) : null;
+        })()}
     </main>
   );
 };

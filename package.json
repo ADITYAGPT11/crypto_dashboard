@@ -14,9 +14,12 @@
     "test": "vp test"
   },
   "dependencies": {
+    "candlestick": "3.0.0",
     "eventemitter3": "^5.0.4",
     "express": "^4.18.2",
+    "indicatorts": "2.2.2",
     "lightweight-charts": "^5.2.1",
+    "lightweight-charts-drawing": "0.6.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.12.0"

@@ -10,15 +10,9 @@
  */
 import type { Candle, CandleInterval } from "../types/marketData";
 import type { PatternType, SetupOccurrence, Zone } from "../types/analysis";
+import { INTERVAL_TO_MS } from "./candleUtils";
 
-export const TF_MS: Record<CandleInterval, number> = {
-  "1m": 60_000,
-  "5m": 300_000,
-  "15m": 900_000,
-  "1h": 3_600_000,
-  "4h": 14_400_000,
-  "1d": 86_400_000,
-};
+export const TF_MS: Record<CandleInterval, number> = INTERVAL_TO_MS;
 
 /** Index of the last view candle opening at or before `time` (−1 if none). */
 function barAt(view: readonly Candle[], time: number): number {

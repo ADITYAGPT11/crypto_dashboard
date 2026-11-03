@@ -1,5 +1,14 @@
 import type { Candle } from "../types/marketData";
 import type { PatternHit, PatternType } from "../types/analysis";
+import {
+  bullishEngulfing,
+  bullishHarami,
+  hammer,
+  invertedHammer,
+  threeWhiteSoldiers,
+  tweezersBottom,
+  type OHLC,
+} from "candlestick";
 import { atr } from "./indicators";
 
 /** Bars on each side that a swing low must be the lowest of. */
@@ -11,6 +20,10 @@ export const PATTERN_LABELS: Record<PatternType, string> = {
   doubleBottom: "Double bottom",
   bullishEngulfing: "Bullish engulfing",
   hammer: "Hammer",
+  invertedHammer: "Inverted hammer",
+  bullishHarami: "Bullish harami",
+  tweezersBottom: "Tweezer bottom",
+  threeWhiteSoldiers: "Three white soldiers",
 };
 
 function isPivotLow(candles: Candle[], i: number, k: number): boolean {
@@ -98,47 +111,52 @@ export function detectDoubleBottoms(candles: Candle[]): PatternHit[] {
 }
 
 /**
- * Bullish engulfing: a bearish candle (body ≥ 0.2 ATR) followed by a bullish
- * candle whose body fully covers it. Stop below both lows; target 1.5R.
+ * Candlestick patterns from the `candlestick` package (MIT): it checks each
+ * shape; we add the context it leaves out and the plan.
+ *
+ * - The package returns the index of a pattern's FIRST candle; the signal is
+ *   its LAST candle, the moment the pattern is complete (no look-ahead).
+ * - The pattern must span at least `minAtr` ATR, so dust candles don't count.
+ * - Reversal patterns need a prior decline: the close before the pattern is
+ *   below the close 5 candles earlier.
+ * - Stop 0.1 ATR below the pattern low; target 1.5R.
+ *
+ * Piercing line and morning star are not used: both need price gaps, which a
+ * 24/7 market almost never has.
  */
-export function detectBullishEngulfing(candles: Candle[]): PatternHit[] {
-  const atrs = atr(candles, 14);
-  const hits: PatternHit[] = [];
-  for (let i = 1; i < candles.length; i++) {
-    const a = atrs[i];
-    if (!Number.isFinite(a) || a <= 0) continue;
-    const prev = candles[i - 1];
-    const cur = candles[i];
-    const prevBody = prev.open - prev.close;
-    const curBody = cur.close - cur.open;
-    if (prevBody < 0.2 * a || curBody <= prevBody) continue;
-    if (cur.open > prev.close || cur.close < prev.open) continue;
-    const low = Math.min(prev.low, cur.low);
-    hits.push(candleHit("bullishEngulfing", i, cur.close, low, a));
-  }
-  return hits;
-}
+const CANDLE_RULES: {
+  type: PatternType;
+  find: (c: OHLC[]) => number[];
+  size: number;
+  reversal: boolean;
+  minAtr: number;
+}[] = [
+  { type: "hammer", find: hammer, size: 1, reversal: true, minAtr: 0.8 },
+  { type: "invertedHammer", find: invertedHammer, size: 1, reversal: true, minAtr: 0.8 },
+  { type: "bullishEngulfing", find: bullishEngulfing, size: 2, reversal: true, minAtr: 0.8 },
+  { type: "bullishHarami", find: bullishHarami, size: 2, reversal: true, minAtr: 0.8 },
+  { type: "tweezersBottom", find: tweezersBottom, size: 2, reversal: true, minAtr: 0.8 },
+  { type: "threeWhiteSoldiers", find: threeWhiteSoldiers, size: 3, reversal: false, minAtr: 1.5 },
+];
 
-/**
- * Hammer after a decline: range ≥ 0.8 ATR, lower wick ≥ 2× body, upper wick
- * ≤ 25% of range, and close below the close 5 candles earlier. Stop below the
- * low; target 1.5R.
- */
-export function detectHammers(candles: Candle[]): PatternHit[] {
+export function detectCandlestickPatterns(candles: Candle[]): PatternHit[] {
   const atrs = atr(candles, 14);
   const hits: PatternHit[] = [];
-  for (let i = 5; i < candles.length; i++) {
-    const a = atrs[i];
-    if (!Number.isFinite(a) || a <= 0) continue;
-    const c = candles[i];
-    const range = c.high - c.low;
-    const body = Math.abs(c.close - c.open);
-    const lowerWick = Math.min(c.open, c.close) - c.low;
-    const upperWick = c.high - Math.max(c.open, c.close);
-    if (range < 0.8 * a || body <= 0) continue;
-    if (lowerWick < 2 * body || upperWick > 0.25 * range) continue;
-    if (c.close >= candles[i - 5].close) continue;
-    hits.push(candleHit("hammer", i, c.close, c.low, a));
+  for (const rule of CANDLE_RULES) {
+    for (const start of rule.find(candles)) {
+      const end = start + rule.size - 1;
+      const a = atrs[end];
+      if (!Number.isFinite(a) || a <= 0) continue;
+      const span = candles.slice(start, end + 1);
+      const low = Math.min(...span.map((c) => c.low));
+      const high = Math.max(...span.map((c) => c.high));
+      if (high - low < rule.minAtr * a) continue;
+      if (rule.reversal) {
+        const before = start - 1;
+        if (before < 5 || candles[before].close >= candles[before - 5].close) continue;
+      }
+      hits.push(candleHit(rule.type, end, candles[end].close, low, a));
+    }
   }
   return hits;
 }
@@ -163,9 +181,7 @@ function candleHit(
 }
 
 export function detectAllPatterns(candles: Candle[]): PatternHit[] {
-  return [
-    ...detectDoubleBottoms(candles),
-    ...detectBullishEngulfing(candles),
-    ...detectHammers(candles),
-  ].sort((a, b) => a.index - b.index);
+  return [...detectDoubleBottoms(candles), ...detectCandlestickPatterns(candles)].sort(
+    (a, b) => a.index - b.index,
+  );
 }

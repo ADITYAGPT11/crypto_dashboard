@@ -50,7 +50,9 @@ flowchart LR
       background stats per context
 - [ ] Apply detection settings to Dashboard, Pattern stats and Alerts
 - [ ] Versioned rule presets (v2 editing, labelled exploratory until tested out-of-sample)
-- [ ] More detectors
+- [x] TradingView-style chart: timeframes, chart types, indicators + panes, drawing tools
+- [x] Candlestick patterns from the `candlestick` package (6 bullish)
+- [ ] More chart patterns in-house (bull flag, inverse head and shoulders)
 
 ## Phase 1 · Backend + history (M1, M2)
 

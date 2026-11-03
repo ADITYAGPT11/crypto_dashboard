@@ -24,8 +24,8 @@ Verified 2026-11-02 from a clean `npm ci`:
 
 | Check                                                      | State                                                                                                                                                                                                                |
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check` (`vp check`: format + lint + types)        | ✅ 187 files formatted; 0 errors or warnings in 137 files (backend included)                                                                                                                                         |
-| `npm test`                                                 | ✅ 284 tests, 23 files                                                                                                                                                                                               |
+| `npm run check` (`vp check`: format + lint + types)        | ✅ 207 files formatted; 0 errors or warnings in 157 files (backend included)                                                                                                                                         |
+| `npm test`                                                 | ✅ 313 tests, 27 files                                                                                                                                                                                               |
 | `npm run build` (`tsc -b` app + node + backend, then Vite) | ✅ chart code in its own chunk                                                                                                                                                                                       |
 | `npm run dev`                                              | ✅ <http://localhost:3000>; Dashboard, Chart, Pattern stats, Risk, Alerts load with no page errors or sideways scroll (browser test at 1440 px and 400 px, mocked Binance history); `/api` proxy reaches the backend |
 | `npm run backend`                                          | ✅ bundles `src/backend` and starts on :3001; `/health` OK, SQLite file created under `./data/`                                                                                                                      |
@@ -44,16 +44,20 @@ Verified 2026-11-02 from a clean `npm ci`:
   the last 3 closed candles with pooled win rate, n, Wilson 95% range, break-even marker and
   verdict; a table of how every setup has performed; the pattern-to-confirmation pipeline;
   watchlist cards with a live price and 7-day sparkline.
-- **Chart** (`/chart/:symbol`): Lightweight Charts with candles, volume, EMA 50, Bollinger. The
-  view timeframe (1h / 4h / 1d) only changes the candles shown. **Detection settings** (dropdowns,
-  saved in this browser) choose the timeframes each pattern is found on (default: double bottom
-  and engulfing 4h + 1d, hammer 1h + 4h) and where demand zones come from (default 1d, never lower
-  than the pattern). Patterns from every chosen timeframe are drawn on the view: a higher-TF
-  pattern's key candles are shaded blocks, its signal line sits at that candle's close.
-  Side panel: detection settings with background progress, patterns found (timeframe badges,
-  "found on" toggles), and a setup card for the selected setup only (pooled and this-coin stats).
-  `SetupStatsService` measures every timeframe in the background, the selected one first.
-  Below: key volume levels and zones.
+- **Chart** (`/chart/:symbol`), TradingView-style, on Lightweight Charts + free packages:
+  - Top bar: symbol, favourite timeframes + menu of every Binance interval 1m–1W (star to
+    favourite), chart type (candles, hollow, Heikin Ashi, bars, line, area), **Indicators**
+    dialog, Overlays (patterns, zones, volume profile), % and log scale, snapshot, fullscreen.
+  - Indicators from `indicatorts`: MA, EMA, Bollinger, rolling VWAP, Parabolic SAR, Volume,
+    RSI, MACD, Stochastic, ATR, OBV; panes for oscillators; legend per pane with values under the
+    crosshair and hover controls (hide, settings with Inputs/Style tabs, remove). Saved per browser.
+  - Drawing tools from `lightweight-charts-drawing` on a left rail (trend line, ray, horizontal
+    and vertical line, channel, rectangle, Fibonacci, price range, long position, text, brush,
+    magnet, hide all, remove all); drawings saved per symbol. Hidden on phones.
+  - Live forming candle from the Binance kline stream (drawn only; analysis uses closed candles).
+  - Detection settings: pattern timeframes (1h/4h/1d) and zone source chosen separately from the
+    view; higher-TF patterns drawn as blocks with the signal at their close; setup card for the
+    selected setup; `SetupStatsService` measures every timeframe in the background.
 - **Pattern stats** (`/stats`): setup library on 1h / 4h / 1d (KPIs, n, win rate, Wilson range vs
   break-even, avg win/loss, expectancy, verdict), verdict filter and sort, a per-coin breakdown
   per row, the path to a confirmation and the overfitting guards.
@@ -64,8 +68,10 @@ Verified 2026-11-02 from a clean `npm ci`:
   before saving; rules and firings in this browser; checked every minute while a TCS tab is open
   (history refetched when a candle closes); each firing tracked to its outcome; in-app banner;
   Telegram via the backend prototype through the dev `/api` proxy when it runs and is configured.
-- **Analysis engine** (`src/utils/`, pure + tested): volume profile, zones, patterns (double
-  bottom, bullish engulfing, hammer), outcome resolution, setup statistics, multi-coin scan.
+- **Analysis engine** (`src/utils/`, pure + tested): volume profile, zones, double bottom
+  (in-house), candlestick patterns via the `candlestick` package (hammer, inverted hammer,
+  bullish engulfing, bullish harami, tweezer bottom, three white soldiers) with our context
+  filters, outcome resolution, setup statistics, multi-coin scan.
 - **History** (`src/services/HistoryService.ts`): ~3,000 closed candles per coin from Binance
   USDⓈ-M public REST, cached until a newer candle closes.
 - **Markets** (`/markets`): the earlier dashboard (price table, order book, spread panel, alert
@@ -74,6 +80,10 @@ Verified 2026-11-02 from a clean `npm ci`:
   and linted with the app, starts with `npm run backend`. Replaced by the Python backend in Phase 1b.
 
 ## Known issues
+
+- **Live candle and drawings not exercised against real Binance** (exchange hosts blocked in the
+  dev sandbox; tested with mocked history and the drawing flow in a headless browser).
+  Indicators use closed candles only (the forming candle is drawn, not computed).
 
 - **Detection settings apply to the Chart only.** Dashboard, Pattern stats and Alerts still use
   same-timeframe zones on their own timeframe. 1h history is ~125 days, so 1h setups often show
@@ -95,6 +105,12 @@ Verified 2026-11-02 from a clean `npm ci`:
 8. The Markets page's older price-rule alerts are separate from setup alerts and still browser-only.
 
 ## History
+
+- 2026-11-03: TradingView-style Chart: all Binance timeframes with favourites, chart types,
+  indicators (`indicatorts`) with panes/legend/settings, drawing tools
+  (`lightweight-charts-drawing`), log/% scale, snapshot, fullscreen, live forming candle.
+  Candlestick detection moved to the `candlestick` package (6 bullish patterns). Weekly candle
+  closes fixed (Monday, not Thursday).
 
 - 2026-11-03: Chart detection settings: pattern timeframes and zone source chosen separately from
   the view timeframe; higher-timeframe zones located by time with no look-ahead; multi-timeframe

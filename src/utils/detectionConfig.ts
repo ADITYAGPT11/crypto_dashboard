@@ -12,7 +12,15 @@ import type { PatternType } from "../types/analysis";
 export const DETECTION_TFS: readonly CandleInterval[] = ["1h", "4h", "1d"];
 export type ZoneSourceOption = "same" | "4h" | "1d";
 export const ZONE_OPTIONS: readonly ZoneSourceOption[] = ["same", "4h", "1d"];
-export const PATTERN_TYPES: readonly PatternType[] = ["doubleBottom", "bullishEngulfing", "hammer"];
+export const PATTERN_TYPES: readonly PatternType[] = [
+  "doubleBottom",
+  "bullishEngulfing",
+  "hammer",
+  "invertedHammer",
+  "bullishHarami",
+  "tweezersBottom",
+  "threeWhiteSoldiers",
+];
 
 export const PRESET = { id: "v1", name: "Default", frozen: "2026-11-01" } as const;
 
@@ -26,6 +34,10 @@ export const DEFAULT_DETECTION: DetectionConfig = {
     doubleBottom: ["4h", "1d"],
     bullishEngulfing: ["4h", "1d"],
     hammer: ["1h", "4h"],
+    invertedHammer: ["4h"],
+    bullishHarami: ["4h"],
+    tweezersBottom: ["4h"],
+    threeWhiteSoldiers: ["4h", "1d"],
   },
   zones: "1d",
 };
