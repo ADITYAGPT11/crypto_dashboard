@@ -89,7 +89,7 @@ price table, spread (arbitrage), order book, alerts.
 
 **Analysis engine (pure, unit-tested in `src/utils/__tests__/setupAnalysis.test.ts`)**:
 `volumeProfile` (POC, value area, HVN/LVN), `zones` (demand/supply, tests/held/break), `patterns`
-(double bottom in-house; candlestick shapes from the `candlestick` package + our context; no
+(double bottom, inverse head and shoulders, bull flag in-house; candlestick shapes from the `candlestick` package + our context; no
 lookahead), `setupAnalysis` (location, outcome,
 stats, `buildScan`), `stats` (Wilson interval), `format`. Types in `src/types/analysis.ts`.
 `src/services/HistoryService.ts`: deep closed-candle history from Binance REST + `RESEARCH_UNIVERSE`.

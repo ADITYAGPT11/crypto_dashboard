@@ -25,7 +25,7 @@ Verified 2026-11-02 from a clean `npm ci`:
 | Check                                                      | State                                                                                                                                                                                                                |
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)        | ✅ 207 files formatted; 0 errors or warnings in 157 files (backend included)                                                                                                                                         |
-| `npm test`                                                 | ✅ 313 tests, 27 files                                                                                                                                                                                               |
+| `npm test`                                                 | ✅ 321 tests, 28 files                                                                                                                                                                                               |
 | `npm run build` (`tsc -b` app + node + backend, then Vite) | ✅ chart code in its own chunk                                                                                                                                                                                       |
 | `npm run dev`                                              | ✅ <http://localhost:3000>; Dashboard, Chart, Pattern stats, Risk, Alerts load with no page errors or sideways scroll (browser test at 1440 px and 400 px, mocked Binance history); `/api` proxy reaches the backend |
 | `npm run backend`                                          | ✅ bundles `src/backend` and starts on :3001; `/health` OK, SQLite file created under `./data/`                                                                                                                      |
@@ -68,8 +68,8 @@ Verified 2026-11-02 from a clean `npm ci`:
   before saving; rules and firings in this browser; checked every minute while a TCS tab is open
   (history refetched when a candle closes); each firing tracked to its outcome; in-app banner;
   Telegram via the backend prototype through the dev `/api` proxy when it runs and is configured.
-- **Analysis engine** (`src/utils/`, pure + tested): volume profile, zones, double bottom
-  (in-house), candlestick patterns via the `candlestick` package (hammer, inverted hammer,
+- **Analysis engine** (`src/utils/`, pure + tested): volume profile, zones, chart patterns
+  in-house (double bottom, inverse head and shoulders with a sloped neckline, bull flag), candlestick patterns via the `candlestick` package (hammer, inverted hammer,
   bullish engulfing, bullish harami, tweezer bottom, three white soldiers) with our context
   filters, outcome resolution, setup statistics, multi-coin scan.
 - **History** (`src/services/HistoryService.ts`): ~3,000 closed candles per coin from Binance
@@ -105,6 +105,9 @@ Verified 2026-11-02 from a clean `npm ci`:
 8. The Markets page's older price-rule alerts are separate from setup alerts and still browser-only.
 
 ## History
+
+- 2026-11-03: Bull flag and inverse head and shoulders detectors (in-house, ATR-scaled,
+  measured-move targets, no-look-ahead tests); available in detection settings, stats and alerts.
 
 - 2026-11-03: TradingView-style Chart: all Binance timeframes with favourites, chart types,
   indicators (`indicatorts`) with panes/legend/settings, drawing tools

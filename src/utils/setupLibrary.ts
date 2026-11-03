@@ -65,6 +65,8 @@ export function perSymbolStats(scan: Scan, key: string): SymbolBreakdown[] {
 
 const PATTERN_TYPES: readonly PatternType[] = [
   "doubleBottom",
+  "inverseHeadShoulders",
+  "bullFlag",
   "bullishEngulfing",
   "hammer",
   "invertedHammer",

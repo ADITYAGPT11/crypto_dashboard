@@ -86,6 +86,31 @@ describe("toViewPattern", () => {
   });
 });
 
+describe("toViewPattern line", () => {
+  it("maps a sloped neckline from 4h candles onto a 1h view", () => {
+    const four = series(20, H4);
+    const one = series(80, H1);
+    const hit: PatternHit = {
+      type: "inverseHeadShoulders",
+      index: 12,
+      entry: 100,
+      stop: 95,
+      target: 110,
+      low: 90,
+      points: [
+        { index: 2, price: 95 },
+        { index: 4, price: 100 },
+        { index: 6, price: 90 },
+      ],
+      line: { from: { index: 4, price: 100 }, to: { index: 12, price: 102 } },
+    };
+    const occ = { symbol: "X", hit, location: "openSpace", time: 0 } as SetupOccurrence;
+    const vp = toViewPattern(occ, "4h", four, one, "1h");
+    // 4h candle 4 = 1h bars 16–19 (centre 17.5); 4h candle 12 = bars 48–51 (centre 49.5)
+    expect(vp.line).toEqual({ x1: 17.5, p1: 100, x2: 49.5, p2: 102 });
+  });
+});
+
 describe("toViewZones and markers", () => {
   it("maps zone start and break through time", () => {
     const daily = series(10, D1);

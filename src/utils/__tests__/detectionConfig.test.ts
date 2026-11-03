@@ -23,6 +23,8 @@ describe("detection config", () => {
           bullishHarami: [],
           tweezersBottom: [],
           threeWhiteSoldiers: [],
+          bullFlag: [],
+          inverseHeadShoulders: [],
         },
         zones: "same",
       }),

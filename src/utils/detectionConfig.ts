@@ -14,6 +14,8 @@ export type ZoneSourceOption = "same" | "4h" | "1d";
 export const ZONE_OPTIONS: readonly ZoneSourceOption[] = ["same", "4h", "1d"];
 export const PATTERN_TYPES: readonly PatternType[] = [
   "doubleBottom",
+  "inverseHeadShoulders",
+  "bullFlag",
   "bullishEngulfing",
   "hammer",
   "invertedHammer",
@@ -32,6 +34,8 @@ export interface DetectionConfig {
 export const DEFAULT_DETECTION: DetectionConfig = {
   patterns: {
     doubleBottom: ["4h", "1d"],
+    inverseHeadShoulders: ["4h", "1d"],
+    bullFlag: ["1h", "4h"],
     bullishEngulfing: ["4h", "1d"],
     hammer: ["1h", "4h"],
     invertedHammer: ["4h"],
