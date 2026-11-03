@@ -181,3 +181,12 @@ its source and time. A combined score can come later only with a backtest behind
 
 Why: the owner asked for 10 coins. It keeps REST usage small (2 bulk calls every 30 s, 20
 per-coin calls every 5 min) and matches the coins the setup statistics pool across.
+
+### 2026-11-03 · Detection timeframes are separate from the chart's view timeframe
+
+Why: the owner asked for it, and a pattern is defined by the candles it is found on, not by what
+is on screen. Each (pattern timeframe, zone timeframe) pair is its own setup with its own
+statistics, so choosing them never tunes a rule; the rules stay preset v1. Higher-timeframe zones
+count only if their impulse candle had closed before the pattern began and their break (if any)
+closed after the pattern confirmed. On a lower view the signal is drawn at the higher candle's
+close, never earlier. Editable rule versions (v2) come later, labelled exploratory.

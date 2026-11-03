@@ -77,11 +77,13 @@ price table, spread (arbitrage), order book, alerts.
 - `MarketOverviewService`: Dashboard market data for the 10 research coins (Binance tickers,
   funding, OI, long/short; Fear & Greed; BTC dominance; liquidation stream); polls only while
   subscribed; each source `loading | ok | unavailable`
+- `SetupStatsService`: pooled setup stats per (pattern TF, zone TF) context over the research
+  universe, coin by coin with UI yields; priority requests first, others queued in the background
 - `SetupAlertService`: setup-alert rules + firings (localStorage), 60 s check over the research
   universe, outcome tracking, Telegram via backend `/api/alerts/send` (injectable deps for tests)
 
 **Hooks**: `useScan` (+ `useResearchScan`, `researchUniverse`), `useSetupAlerts`,
-`useMarketOverview`, `useNow`, `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
+`useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs), `useSetupStats`, `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
 `useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
 
 **Analysis engine (pure, unit-tested in `src/utils/__tests__/setupAnalysis.test.ts`)**:
@@ -96,7 +98,8 @@ stats, `buildScan`), `stats` (Wilson interval), `format`. Types in `src/types/an
 (position sizing + remembered prefs), `setupAlerts` (rule matching, storage parsing, Telegram
 payload), `marketStats` (volatility, ATR, trend, correlation, vol regime, sessions, movers,
 bubble layout), `marketOverview` (source parsers, liquidation sums), `marketRows` (per-coin
-rows), `tickerStats`, `priceUtils`, `watchlistStorage`,
+rows), `timeframeMapping` (time → fractional view position, view patterns/zones), `detectionConfig`
+(pattern TFs, zone source, preset), `tickerStats`, `priceUtils`, `watchlistStorage`,
 `layoutStorage`, `alertRulesStorage`. Adapter parsing and unsubscribe tests:
 `src/adapters/__tests__/`.
 
@@ -108,7 +111,7 @@ names), `connection.ts`, `alertRules.ts`
 **UI components**: `TopNav/`, `DashboardPage/` (+ `MarketOverview/`: strip, `CoinSearch`,
 `Connections`, `BubbleMap`, `Sentiment`, `MarketMonitor`, `Correlation`, `Liquidations`,
 `Regime`, `Movers`, `DataHealth`), `StatsPage/`, `RiskPage/`, `AlertsPage/`,
-`AlertToast/`, `ChartPage/` (`PriceChart`: Lightweight Charts +
+`AlertToast/`, `ChartPage/` (`DetectionSettings`, `TfBadge`, `PriceChart`, `SetupCard`) (`PriceChart`: Lightweight Charts +
 overlay canvas; `SetupCard`), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
 `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,

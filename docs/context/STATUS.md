@@ -44,11 +44,16 @@ Verified 2026-11-02 from a clean `npm ci`:
   the last 3 closed candles with pooled win rate, n, Wilson 95% range, break-even marker and
   verdict; a table of how every setup has performed; the pattern-to-confirmation pipeline;
   watchlist cards with a live price and 7-day sparkline.
-- **Chart** (`/chart/:symbol`): Lightweight Charts with candles, volume, EMA 50, Bollinger;
-  overlay of demand/supply zones, visible-range volume profile and the selected pattern; entry,
-  stop and target price lines; W/L markers for past cases of the selected setup on this chart.
-  Side panel: recent patterns and a setup card (pooled and this-coin stats, avg move,
-  expectancy, confluence checks, last 5 cases). Below: key volume levels and zones.
+- **Chart** (`/chart/:symbol`): Lightweight Charts with candles, volume, EMA 50, Bollinger. The
+  view timeframe (1h / 4h / 1d) only changes the candles shown. **Detection settings** (dropdowns,
+  saved in this browser) choose the timeframes each pattern is found on (default: double bottom
+  and engulfing 4h + 1d, hammer 1h + 4h) and where demand zones come from (default 1d, never lower
+  than the pattern). Patterns from every chosen timeframe are drawn on the view: a higher-TF
+  pattern's key candles are shaded blocks, its signal line sits at that candle's close.
+  Side panel: detection settings with background progress, patterns found (timeframe badges,
+  "found on" toggles), and a setup card for the selected setup only (pooled and this-coin stats).
+  `SetupStatsService` measures every timeframe in the background, the selected one first.
+  Below: key volume levels and zones.
 - **Pattern stats** (`/stats`): setup library on 1h / 4h / 1d (KPIs, n, win rate, Wilson range vs
   break-even, avg win/loss, expectancy, verdict), verdict filter and sort, a per-coin breakdown
   per row, the path to a confirmation and the overfitting guards.
@@ -70,6 +75,10 @@ Verified 2026-11-02 from a clean `npm ci`:
 
 ## Known issues
 
+- **Detection settings apply to the Chart only.** Dashboard, Pattern stats and Alerts still use
+  same-timeframe zones on their own timeframe. 1h history is ~125 days, so 1h setups often show
+  "too few cases".
+
 1. **Delta funding-rate units unverified** (shown with an "units unverified" tag). Delta prices are
    USD-quoted: they share the asset's row with a "USD" tag and are left out of the spread panel.
 2. **Setup alerts are browser-side**: they run only while a TCS tab is open; rules live in this
@@ -86,6 +95,11 @@ Verified 2026-11-02 from a clean `npm ci`:
 8. The Markets page's older price-rule alerts are separate from setup alerts and still browser-only.
 
 ## History
+
+- 2026-11-03: Chart detection settings: pattern timeframes and zone source chosen separately from
+  the view timeframe; higher-timeframe zones located by time with no look-ahead; multi-timeframe
+  overlay; background stats per (pattern TF, zone TF). Fixed a vacuous `buildScan` test (its
+  fixture produced no patterns).
 
 - 2026-11-02: Dashboard v2 market overview built from the canvas design (all sources mocked in the
   browser test; live sources not reachable from the sandbox). Product name moved to `src/brand.ts`.

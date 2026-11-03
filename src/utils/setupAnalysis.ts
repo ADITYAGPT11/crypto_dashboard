@@ -84,6 +84,47 @@ export function locate(hit: PatternHit, zones: Zone[], atrAtHit: number): SetupL
   return inside ? "demandZone" : "openSpace";
 }
 
+/**
+ * `locate` for zones detected on another (equal or higher) timeframe, by time.
+ * A zone counts only if it was known when the pattern began (its impulse candle
+ * had closed) and had not been broken by a candle that closed before the
+ * pattern confirmed. Same-timeframe input gives the same answer as `locate`.
+ */
+export function locateAcross(
+  hit: PatternHit,
+  patternCandles: Candle[],
+  patternMs: number,
+  zones: Zone[],
+  zoneCandles: Candle[],
+  zoneMs: number,
+  atrAtHit: number,
+): SetupLocation {
+  const firstIndex = Math.min(...hit.points.map((p) => p.index), hit.index);
+  const start = patternCandles[firstIndex].openTime;
+  const confirmClose = patternCandles[hit.index].openTime + patternMs;
+  const pad = Number.isFinite(atrAtHit) ? 0.25 * atrAtHit : 0;
+  const inside = zones.some((z) => {
+    if (z.kind !== "demand") return false;
+    const knownAt = zoneCandles[z.formedIndex].openTime + zoneMs;
+    const brokenAt = z.endIndex === null ? Infinity : zoneCandles[z.endIndex].openTime + zoneMs;
+    return (
+      knownAt <= start &&
+      brokenAt > confirmClose &&
+      hit.low >= z.low - pad &&
+      hit.low <= z.high + pad
+    );
+  });
+  return inside ? "demandZone" : "openSpace";
+}
+
+/** Where zones come from when they are not the pattern's own timeframe. */
+export interface ZoneSource {
+  candles: Candle[];
+  /** Duration of one pattern candle and one zone candle, ms. */
+  patternMs: number;
+  zoneMs: number;
+}
+
 export interface SymbolAnalysis {
   symbol: string;
   zones: Zone[];
@@ -92,15 +133,31 @@ export interface SymbolAnalysis {
 
 /**
  * Detect zones and patterns on closed candles only, place each pattern, and
- * resolve its outcome. Pass only closed candles (drop the forming one).
+ * resolve its outcome. Pass only closed candles (drop the forming one). With a
+ * `zoneSource`, zones come from those candles (e.g. 1d zones for 4h patterns);
+ * the returned `zones` then index into `zoneSource.candles`.
  */
-export function analyzeSymbol(symbol: string, candles: Candle[]): SymbolAnalysis {
-  const zones = detectZones(candles);
+export function analyzeSymbol(
+  symbol: string,
+  candles: Candle[],
+  zoneSource?: ZoneSource,
+): SymbolAnalysis {
+  const zones = detectZones(zoneSource ? zoneSource.candles : candles);
   const atrs = atr(candles, 14);
   const occurrences = detectAllPatterns(candles).map((hit) => ({
     symbol,
     hit,
-    location: locate(hit, zones, atrs[hit.index]),
+    location: zoneSource
+      ? locateAcross(
+          hit,
+          candles,
+          zoneSource.patternMs,
+          zones,
+          zoneSource.candles,
+          zoneSource.zoneMs,
+          atrs[hit.index],
+        )
+      : locate(hit, zones, atrs[hit.index]),
     outcome: evaluateOutcome(candles, hit),
     time: candles[hit.index].openTime,
   }));

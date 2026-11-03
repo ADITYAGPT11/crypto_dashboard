@@ -17,8 +17,9 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { Candle } from "../../types/marketData";
-import type { SetupOccurrence, Zone } from "../../types/analysis";
+import type { Candle, CandleInterval } from "../../types/marketData";
+import type { OutcomeResult } from "../../types/analysis";
+import type { ViewPattern, ViewZone } from "../../utils/timeframeMapping";
 import { bollingerBands, ema } from "../../utils/indicators";
 import { computeVolumeProfile } from "../../utils/volumeProfile";
 import styles from "./ChartPage.module.scss";
@@ -31,14 +32,48 @@ export interface Layers {
   pattern: boolean;
 }
 
+/** Past case of the selected setup, already placed on a view bar. */
+export interface ViewMarker {
+  /** Open time (ms) of the view bar where the source candle closed. */
+  time: number;
+  result: OutcomeResult;
+  current: boolean;
+}
+
+/** Plan prices of the selected setup. */
+export interface Plan {
+  entry: number;
+  stop: number;
+  target: number;
+}
+
 interface Props {
+  /** Candles of the view timeframe. */
   candles: Candle[];
-  zones: Zone[];
-  selected: SetupOccurrence | null;
-  /** Past occurrences of the selected setup on this chart (marked W/L). */
-  history: SetupOccurrence[];
+  viewTf: CandleInterval;
+  /** Zones mapped onto the view (any source timeframe). */
+  zones: ViewZone[];
+  /** The selected setup mapped onto the view. */
+  selected: ViewPattern | null;
+  plan: Plan | null;
+  /** Other recent patterns, drawn as small timeframe tags. */
+  others: ViewPattern[];
+  markers: ViewMarker[];
   layers: Layers;
 }
+
+/** Colour per detection timeframe (also used by the page's badges). */
+export const TF_COLOR: Record<string, string> = {
+  "1h": "#C084FC",
+  "4h": "#4C9AFF",
+  "1d": "#F0A35E",
+};
+
+const SHORT: Record<string, string> = {
+  doubleBottom: "DB",
+  bullishEngulfing: "BE",
+  hammer: "H",
+};
 
 const C = {
   up: "#56D364",
@@ -53,7 +88,16 @@ const C = {
 
 const t = (ms: number) => Math.floor(ms / 1000) as UTCTimestamp;
 
-const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers }) => {
+const PriceChart: React.FC<Props> = ({
+  candles,
+  viewTf,
+  zones,
+  selected,
+  plan,
+  others,
+  markers,
+  layers,
+}) => {
   const boxRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -66,11 +110,11 @@ const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers
     markers: ISeriesMarkersPluginApi<Time>;
   } | null>(null);
   const priceLinesRef = useRef<IPriceLine[]>([]);
-  const propsRef = useRef({ candles, zones, selected, layers });
+  const propsRef = useRef({ candles, viewTf, zones, selected, others, layers });
   const drawRef = useRef<() => void>(() => {});
   // Keep the latest props for the imperative overlay (runs before paint, after render).
   useLayoutEffect(() => {
-    propsRef.current = { candles, zones, selected, layers };
+    propsRef.current = { candles, viewTf, zones, selected, others, layers };
   });
 
   // Create the chart once.
@@ -146,7 +190,14 @@ const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers
     const canvas = overlayRef.current;
     const box = boxRef.current;
     if (!chart || !s || !canvas || !box) return;
-    const { candles: cs, zones: zs, selected: sel, layers: ly } = propsRef.current;
+    const {
+      candles: cs,
+      viewTf: vtf,
+      zones: zs,
+      selected: sel,
+      others: oth,
+      layers: ly,
+    } = propsRef.current;
     const dpr = window.devicePixelRatio || 1;
     const w = box.clientWidth;
     const h = box.clientHeight;
@@ -162,7 +213,15 @@ const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers
     const range = ts.getVisibleLogicalRange();
     if (!range || cs.length === 0) return;
     const plotW = ts.width();
-    const x = (i: number) => ts.logicalToCoordinate(i as Logical);
+    // logicalToCoordinate only handles whole bar indices (fractions return 0), so
+    // positions between bars (e.g. a 4h close on a 1h view) are interpolated.
+    const x = (l: number): number | null => {
+      const i = Math.floor(l);
+      const a = ts.logicalToCoordinate(i as Logical);
+      if (a === null || l === i) return a;
+      const b = ts.logicalToCoordinate((i + 1) as Logical);
+      return b === null ? a : a + (b - a) * (l - i);
+    };
     const y = (p: number) => s.candle.priceToCoordinate(p);
     g.save();
     g.beginPath();
@@ -173,15 +232,15 @@ const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers
 
     if (ly.zones) {
       for (const z of zs) {
-        const end = z.endIndex ?? cs.length + 12;
-        if (end < range.from || z.startIndex > range.to) continue;
-        const x1 = x(z.startIndex) ?? 0;
-        const x2 = z.endIndex === null ? plotW : (x(end) ?? plotW);
+        const end = z.to ?? cs.length + 12;
+        if (end < range.from || z.from > range.to) continue;
+        const x1 = x(z.from) ?? 0;
+        const x2 = z.to === null ? plotW : (x(end) ?? plotW);
         const yTop = y(z.high);
         const yBot = y(z.low);
         if (yTop === null || yBot === null) continue;
         const demand = z.kind === "demand";
-        const intact = z.endIndex === null;
+        const intact = z.to === null;
         g.fillStyle = demand
           ? `rgba(86,211,100,${intact ? 0.12 : 0.05})`
           : `rgba(244,112,103,${intact ? 0.1 : 0.04})`;
@@ -189,6 +248,10 @@ const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers
         if (intact) {
           g.strokeStyle = demand ? "rgba(86,211,100,0.45)" : "rgba(244,112,103,0.4)";
           g.strokeRect(x1 + 0.5, yTop + 0.5, x2 - x1 - 1, yBot - yTop - 1);
+        }
+        if (z.tf !== vtf && intact) {
+          g.fillStyle = demand ? "rgba(86,211,100,0.9)" : "rgba(244,112,103,0.9)";
+          g.fillText(`${z.tf} ${z.kind}`, Math.max(x1, 0) + 4, yBot - 8);
         }
       }
     }
@@ -230,23 +293,57 @@ const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers
       }
     }
 
+    const tag = (px: number, py: number, text: string, color: string) => {
+      const tw = g.measureText(text).width + 10;
+      g.fillStyle = color;
+      g.beginPath();
+      g.roundRect(px - tw / 2, py - 8, tw, 16, 4);
+      g.fill();
+      g.fillStyle = "#0B0F14";
+      g.fillText(text, px - tw / 2 + 5, py);
+    };
+
+    if (ly.pattern) {
+      // Other recent patterns: a small tag where each one's signal closed.
+      for (const o of oth) {
+        if (o === sel || o.entryX < range.from - 2 || o.entryX > range.to + 2) continue;
+        const px = x(o.entryX);
+        const py = y(o.low);
+        if (px === null || py === null) continue;
+        tag(px, py + 16, `${o.tf} ${SHORT[o.type]}`, TF_COLOR[o.tf] ?? C.muted);
+      }
+    }
+
     if (ly.pattern && sel) {
-      g.strokeStyle = "rgba(230,237,243,0.9)";
+      const color = TF_COLOR[sel.tf] ?? C.fg;
+      const barW = ts.options().barSpacing;
+      // Source candles wider than one view bar (e.g. 4h on 1h) are shaded as blocks.
+      for (const b of sel.blocks) {
+        const x1 = x(b.from);
+        const x2 = x(b.to);
+        if (x1 === null || x2 === null || x2 - x1 < barW * 1.5) continue;
+        g.fillStyle = "rgba(76,154,255,0.10)";
+        g.fillRect(x1, 0, x2 - x1, h);
+        g.setLineDash([3, 3]);
+        g.strokeStyle = "rgba(76,154,255,0.45)";
+        g.strokeRect(x1 + 0.5, 0.5, x2 - x1 - 1, h - 1);
+        g.setLineDash([]);
+      }
+      g.strokeStyle = color;
       g.lineWidth = 2;
-      const hit = sel.hit;
-      if (hit.type === "doubleBottom" && hit.points.length >= 4) {
+      if (sel.type === "doubleBottom" && sel.points.length >= 3) {
         g.beginPath();
-        hit.points.forEach((p, k) => {
-          const px = x(p.index);
+        sel.points.forEach((p, k) => {
+          const px = x(p.x);
           const py = y(p.price);
           if (px === null || py === null) return;
           if (k === 0) g.moveTo(px, py);
           else g.lineTo(px, py);
         });
         g.stroke();
-        const n1 = x(hit.points[0].index);
-        const n2 = x(hit.index);
-        const yn = hit.neckline != null ? y(hit.neckline) : null;
+        const n1 = x(sel.points[0].x);
+        const n2 = x(sel.entryX);
+        const yn = sel.neckline != null ? y(sel.neckline) : null;
         if (n1 !== null && n2 !== null && yn !== null) {
           g.setLineDash([4, 4]);
           g.beginPath();
@@ -254,17 +351,30 @@ const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers
           g.lineTo(n2, yn);
           g.stroke();
           g.setLineDash([]);
-          g.fillStyle = C.fg;
-          g.fillText("neckline", n1 + 4, yn - 10);
+          g.fillStyle = color;
+          g.fillText(`${sel.tf} neckline`, n1 + 4, yn - 10);
         }
       } else {
-        const px = x(hit.index);
-        const yHigh = y(Math.max(cs[hit.index].high, cs[Math.max(0, hit.index - 1)].high));
-        const yLow = y(hit.low);
-        const half = Math.max(6, ts.options().barSpacing * 1.4);
-        if (px !== null && yHigh !== null && yLow !== null) {
-          g.strokeRect(px - half, yHigh - 6, half * 2, yLow - yHigh + 12);
+        const last = sel.blocks[sel.blocks.length - 1];
+        const x1 = x(last.from);
+        const x2 = x(last.to);
+        const yHigh = y(sel.high);
+        const yLow = y(sel.low);
+        if (x1 !== null && x2 !== null && yHigh !== null && yLow !== null) {
+          const pad = Math.max(0, (barW * 1.4 - (x2 - x1)) / 2);
+          g.strokeRect(x1 - pad, yHigh - 6, x2 - x1 + pad * 2, yLow - yHigh + 12);
         }
+      }
+      // The signal exists only when the source candle closes.
+      const ex = x(sel.entryX);
+      if (ex !== null) {
+        g.setLineDash([]);
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(ex, 18);
+        g.lineTo(ex, h);
+        g.stroke();
+        tag(ex, 10, `${sel.tf} close ✓`, color);
       }
       g.lineWidth = 1;
     }
@@ -333,6 +443,11 @@ const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers
     drawRef.current();
   }, [layers]);
 
+  // Redraw the overlay when what it draws changes.
+  useEffect(() => {
+    requestAnimationFrame(() => drawRef.current());
+  }, [zones, others]);
+
   // Selected setup: plan price lines, history markers, scroll into view.
   useEffect(() => {
     const s = seriesRef.current;
@@ -340,25 +455,18 @@ const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers
     if (!s || !chart) return;
     for (const pl of priceLinesRef.current) s.candle.removePriceLine(pl);
     priceLinesRef.current = [];
-    const markers: SeriesMarker<Time>[] = history
-      .filter((o) => o.outcome.result !== "open" || o === selected)
-      .map((o) => ({
-        time: t(o.time),
+    const ms: SeriesMarker<Time>[] = markers
+      .filter((m) => m.result !== "open" || m.current)
+      .map((m) => ({
+        time: t(m.time),
         position: "belowBar" as const,
         shape: "arrowUp" as const,
-        color: o.outcome.result === "win" ? C.up : o.outcome.result === "loss" ? C.down : C.muted,
-        text:
-          o === selected
-            ? "now"
-            : o.outcome.result === "win"
-              ? "W"
-              : o.outcome.result === "loss"
-                ? "L"
-                : "–",
+        color: m.result === "win" ? C.up : m.result === "loss" ? C.down : C.muted,
+        text: m.current ? "now" : m.result === "win" ? "W" : m.result === "loss" ? "L" : "–",
       }))
       .sort((a, b) => (a.time as number) - (b.time as number));
-    s.markers.setMarkers(layers.pattern ? markers : []);
-    if (selected && layers.pattern) {
+    s.markers.setMarkers(layers.pattern ? ms : []);
+    if (selected && plan && layers.pattern) {
       const add = (priceValue: number, color: string, title: string, style: LineStyle) =>
         priceLinesRef.current.push(
           s.candle.createPriceLine({
@@ -370,17 +478,18 @@ const PriceChart: React.FC<Props> = ({ candles, zones, selected, history, layers
             axisLabelVisible: true,
           }),
         );
-      add(selected.hit.target, C.up, "Target", LineStyle.Dashed);
-      add(selected.hit.entry, C.signal, "Entry", LineStyle.Solid);
-      add(selected.hit.stop, C.down, "Stop", LineStyle.Dashed);
-      const i = selected.hit.index;
+      add(plan.target, C.up, "Target", LineStyle.Dashed);
+      add(plan.entry, C.signal, "Entry", LineStyle.Solid);
+      add(plan.stop, C.down, "Stop", LineStyle.Dashed);
       const len = propsRef.current.candles.length;
-      chart
-        .timeScale()
-        .setVisibleLogicalRange({ from: Math.max(0, i - 110), to: Math.min(len + 10, i + 50) });
+      const span = Math.max(110, selected.entryX - selected.startX + 40);
+      chart.timeScale().setVisibleLogicalRange({
+        from: Math.max(0, selected.startX - (span - (selected.entryX - selected.startX)) * 0.7),
+        to: Math.min(len + 10, selected.entryX + 50),
+      });
     }
     requestAnimationFrame(() => drawRef.current());
-  }, [selected, history, layers.pattern]);
+  }, [selected, plan, markers, layers.pattern]);
 
   return (
     <div className={styles.chartArea}>
