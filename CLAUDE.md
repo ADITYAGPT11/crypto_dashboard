@@ -35,9 +35,12 @@ npm test            # Vitest unit tests (vp test)
 npm run check       # format + lint + typecheck (vp check); `npx vp check --fix` to fix
 npm run build       # tsc -b (app, node, backend) + production build
 npm run backend     # bundles and starts the Node prototype on :3001 (Python replaces it in 1b)
+npm run backend:py  # Python backend (uv, FastAPI) on :8000, proxied as /tcs in dev
+cd backend && uv run pytest && uv run ruff check . && uv run ruff format --check . && uv run pyright
 ```
 
-**Done means:** `npm run check` clean, `npm test` green, `npm run build` passes, and STATUS updated.
+**Done means:** `npm run check` clean, `npm test` green, `npm run build` passes, the backend
+checks above pass when `backend/` changed, and STATUS updated.
 
 ## Guardrails (non-negotiable)
 

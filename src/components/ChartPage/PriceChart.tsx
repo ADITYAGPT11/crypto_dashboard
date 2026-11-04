@@ -48,6 +48,8 @@ export interface ViewMarker {
   time: number;
   result: OutcomeResult;
   current: boolean;
+  /** Short setups point down from above the bar; default up from below. */
+  direction?: "up" | "down";
 }
 
 /** Plan prices of the selected setup. */
@@ -85,6 +87,8 @@ interface Props {
   /** Other recent patterns, drawn as small timeframe tags. */
   others: ViewPattern[];
   markers: ViewMarker[];
+  /** View-bar open time to scroll to when no built-in setup is selected (library pick). */
+  focusTime?: number | null;
   layers: Layers;
   tool: DrawingKind | null;
   onToolChange: (tool: DrawingKind | null) => void;
@@ -189,6 +193,7 @@ const PriceChart: React.FC<Props> = ({
   plan,
   others,
   markers,
+  focusTime = null,
   layers,
   tool,
   onToolChange,
@@ -731,14 +736,14 @@ const PriceChart: React.FC<Props> = ({
       .filter((m) => m.result !== "open" || m.current)
       .map((m) => ({
         time: t(m.time),
-        position: "belowBar" as const,
-        shape: "arrowUp" as const,
+        position: m.direction === "down" ? ("aboveBar" as const) : ("belowBar" as const),
+        shape: m.direction === "down" ? ("arrowDown" as const) : ("arrowUp" as const),
         color: m.result === "win" ? C.up : m.result === "loss" ? C.down : C.muted,
         text: m.current ? "now" : m.result === "win" ? "W" : m.result === "loss" ? "L" : "–",
       }))
       .sort((a, b) => (a.time as number) - (b.time as number));
     markersRef.current?.setMarkers(layers.pattern ? ms : []);
-    if (selected && plan && layers.pattern) {
+    if (plan && layers.pattern) {
       const add = (priceValue: number, color: string, title: string, style: LineStyle) =>
         priceLinesRef.current.push(
           main.api.createPriceLine({
@@ -753,15 +758,24 @@ const PriceChart: React.FC<Props> = ({
       add(plan.target, C.up, "Target", LineStyle.Dashed);
       add(plan.entry, C.signal, "Entry", LineStyle.Solid);
       add(plan.stop, C.down, "Stop", LineStyle.Dashed);
-      const len = propsRef.current.candles.length;
+    }
+    const len = propsRef.current.candles.length;
+    if (selected && plan && layers.pattern) {
       const span = Math.max(110, selected.entryX - selected.startX + 40);
       chart.timeScale().setVisibleLogicalRange({
         from: Math.max(0, selected.startX - (span - (selected.entryX - selected.startX)) * 0.7),
         to: Math.min(len + 10, selected.entryX + 50),
       });
+    } else if (focusTime !== null && layers.pattern) {
+      const at = propsRef.current.candles.findIndex((c) => c.openTime === focusTime);
+      if (at >= 0)
+        chart.timeScale().setVisibleLogicalRange({
+          from: Math.max(0, at - 90),
+          to: Math.min(len + 10, at + 40),
+        });
     }
     requestAnimationFrame(() => drawRef.current());
-  }, [selected, plan, markers, layers.pattern, chartType]);
+  }, [selected, plan, markers, focusTime, layers.pattern, chartType]);
 
   // Legend values: hovered bar, else the latest (forming candle when live).
   const n = candles.length;

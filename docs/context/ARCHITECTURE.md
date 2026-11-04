@@ -201,7 +201,8 @@ in the lockfile.
 
 1. **P0:** fix the broken build/runtime and data bugs, add CI. Frontend stays at the repo root.
    The TS backend prototype (`src/backend/`: Express, `node:sqlite`, Telegram) is frozen.
-2. **P1 start:** `git mv` the frontend to `apps/web/`; scaffold `backend/` with uv; add
+2. **P1 start:** `backend/` is scaffolded (2026-11-04: uv, FastAPI, pattern library on
+   in-memory Binance history). Still to do: `git mv` the frontend to `apps/web/`; add
    `infra/docker-compose.yml` with QuestDB; collector writes candles/funding. Port the Telegram
    client and replay ideas from `src/backend/` to Python, then delete `src/backend/`.
 3. **P1 end:** UI's connection badges read `/health` from the API; browser WebSockets remain only

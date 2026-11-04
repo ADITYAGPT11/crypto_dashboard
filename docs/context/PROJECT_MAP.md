@@ -79,10 +79,12 @@ price table, spread (arbitrage), order book, alerts.
   subscribed; each source `loading | ok | unavailable`
 - `SetupStatsService`: pooled setup stats per (pattern TF, zone TF) context over the research
   universe, coin by coin with UI yields; priority requests first, others queued in the background
+- `PatternLibraryService`: backend patterns + stats per symbol x TF x kind, refetched after a
+  candle closes; `loading | ready | offline | error`
 - `SetupAlertService`: setup-alert rules + firings (localStorage), 60 s check over the research
   universe, outcome tracking, Telegram via backend `/api/alerts/send` (injectable deps for tests)
 
-**Hooks**: `useScan` (+ `useResearchScan`, `researchUniverse`), `useSetupAlerts`,
+**Hooks**: `usePatternLibrary`, `useScan` (+ `useResearchScan`, `researchUniverse`), `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs), `useSetupStats`,
 `useLiveCandle` (Binance forming candle), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
 `useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
@@ -103,10 +105,10 @@ bubble layout), `marketOverview` (source parsers, liquidation sums), `marketRows
 rows), `timeframeMapping` (time → fractional view position, view patterns/zones), `detectionConfig`
 (pattern TFs, zone source, preset), `indicatorRegistry` (chart indicators on `indicatorts`,
 instances, parsing), `chartDisplay` (Heikin-Ashi, timeframe labels, chart prefs), `tickerStats`, `priceUtils`, `watchlistStorage`,
-`layoutStorage`, `alertRulesStorage`. Adapter parsing and unsubscribe tests:
+`layoutStorage`, `alertRulesStorage`, `patternLibrary` (backend event lists, markers, stats keys). Adapter parsing and unsubscribe tests:
 `src/adapters/__tests__/`.
 
-**Types**: `src/types/marketData.ts` (market data, candles, trades, order book, exchange/market
+**Types**: `src/types/patternLibrary.ts` (backend response shapes), `src/types/marketData.ts` (market data, candles, trades, order book, exchange/market
 names), `connection.ts`, `alertRules.ts`
 
 **Brand**: `src/brand.ts` (product name and tagline in one place).
@@ -119,8 +121,21 @@ names), `connection.ts`, `alertRules.ts`
 `TfBadge`, `SetupCard`) (`PriceChart`: Lightweight Charts +
 overlay canvas; `SetupCard`), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
-`AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
+`PatternLibrary/` (list + `PatternLibraryCard`, shown on the Chart), `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
 `RealTimeClock`)
+
+**Python backend** (`backend/`, uv; `npm run backend:py` starts FastAPI on :8000; tests in
+`backend/tests/`, CI job `backend`)
+
+- `src/tcs/common/symbols.py`: canonical symbols, intervals, `RESEARCH_UNIVERSE` (same 10 coins)
+- `src/tcs/marketdata/binance_history.py`: Binance USDⓈ-M klines, 2 pages (~3,000 closed
+  candles), cached until the next close; `candles.py`: column arrays
+- `src/tcs/research/patterns/`: `catalog.py` (ta_patterns detectors, kinds chart / short /
+  candlestick, labels, combined duplicates dropped), `detect.py` (scan, first candle of each run =
+  event), `outcome.py` (Wilder ATR, 1/2 ATR bracket walk, forward moves), `stats.py` (Wilson,
+  Bonferroni-corrected verdict), `service.py` (`PatternResearch`: per-coin cache, pooling)
+- `src/tcs/api/`: `app.py` (`/health`, `/patterns/catalog`, `/patterns/{symbol}/{tf}`,
+  `/patterns/{symbol}/{tf}/stats`), `schemas.py` (response models), `main.py` (uvicorn)
 
 **Backend prototype** (`src/backend/`, `npm run backend` bundles it to `dist-backend/` and starts it on port 3001; type-checked via `tsconfig.backend.json`)
 
@@ -154,5 +169,6 @@ overlay canvas; `SetupCard`), `MainContainer/` (Markets), `dashboard/` (`PriceTa
   `/futures/data/{openInterestHist,globalLongShortAccountRatio}`; WS `fstream…/ws/!forceOrder@arr`
 - `api.alternative.me/fng/?limit=8` (Fear & Greed), `api.coingecko.com/api/v3/global` (dominance)
 - Telegram Bot API `api.telegram.org` (backend prototype only)
-- Backend from the browser: `/api/*` → `http://localhost:3001/*` via the Vite dev proxy
-  (`vite.config.ts`), dev only
+- Backend from the browser: `/api/*` → `http://localhost:3001/*` and `/tcs/*` →
+  `http://127.0.0.1:8000/*` (Python) via the Vite dev proxy (`vite.config.ts`), dev only
+- Python backend → Binance `fapi.binance.com/fapi/v1/klines`

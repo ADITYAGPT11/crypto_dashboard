@@ -224,3 +224,18 @@ points only once confirmed, and set measured-move targets: inverse H&S stop belo
 shoulder, target neckline + head depth (sloped neckline allowed); bull flag stop below the flag,
 target breakout + pole. A wick above the flag doesn't cancel it; a close above the pole top before
 the flag forms means the pole is still running.
+
+### 2026-11-04 · Pattern library: ta_patterns in the Python backend, judged by one ATR bracket
+
+Why: the owner wants accurate detection plus the past performance of the same pattern, from free
+tools, with the backend in Python. `ta_patterns` (MIT) is the widest free detector set and passed
+our look-ahead test at every candle; no free tool measures pattern performance on crypto, so we
+do. It returns only +1/-1/0, so every pattern is judged by the same rule (entry at the completing
+close, stop 1 ATR, target 2 ATR, 30 candles; break-even 33%), adjustable per request. Its "chart"
+list mixes formations with ~80 short-term/volume event patterns that fire on most candles; those
+are a separate kind (`short`) so the Chart shows formations by default. The verdict uses a
+Bonferroni-corrected Wilson low end over every pattern x direction tested: on a pure random walk
+the uncorrected 95% rule flagged 2 of 146 patterns as edges, the corrected one none. The backend
+starts in `backend/` without QuestDB (history cached in memory) and the frontend stays at the
+repo root; both moves are separate steps of Phase 1. The in-house browser detectors stay until a
+library pattern measures at least as well.

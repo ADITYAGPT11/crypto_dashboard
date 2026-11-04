@@ -10,6 +10,7 @@
     "lint:fix": "vp lint . --fix",
     "preview": "vp preview",
     "backend": "vp build --ssr src/backend/index.ts --outDir dist-backend && node dist-backend/index.js",
+    "backend:py": "uv --directory backend run tcs-api",
     "check": "vp check",
     "test": "vp test"
   },
