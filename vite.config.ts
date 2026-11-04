@@ -13,6 +13,11 @@ export default defineConfig({
         target: "http://localhost:3001",
         rewrite: (path: string) => path.replace(/^\/api/, ""),
       },
+      // Dev only: the Python backend (`npm run backend:py`, :8000) as /tcs.
+      "/tcs": {
+        target: "http://127.0.0.1:8000",
+        rewrite: (path: string) => path.replace(/^\/tcs/, ""),
+      },
     },
   },
   lint: {
@@ -22,7 +27,7 @@ export default defineConfig({
       browser: true,
       es2026: true,
     },
-    ignorePatterns: ["node_modules", "dist", "dist-backend", "build"],
+    ignorePatterns: ["node_modules", "dist", "dist-backend", "build", "backend"],
     categories: {
       correctness: "warn",
     },

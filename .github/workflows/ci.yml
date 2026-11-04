@@ -23,3 +23,24 @@ jobs:
         run: npm run build
       - name: Backend bundles
         run: npx vp build --ssr src/backend/index.ts --outDir dist-backend
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.32"
+      - name: Install (locked)
+        run: uv sync --locked
+      - name: Format
+        run: uv run ruff format --check .
+      - name: Lint
+        run: uv run ruff check .
+      - name: Type-check
+        run: uv run pyright
+      - name: Tests (incl. no-look-ahead)
+        run: uv run pytest -q
