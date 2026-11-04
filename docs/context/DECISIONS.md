@@ -215,3 +215,12 @@ what makes a setup measurable: the signal on the pattern's last candle (no look-
 prefix invariance), a minimum size in ATR, a prior decline for reversal patterns, and the
 stop/target. Piercing line and morning star are left out: both need price gaps, which 24/7 crypto
 rarely has.
+
+### 2026-11-03 · Bull flag and inverse head and shoulders are written in-house
+
+Why: no maintained, permissively licensed library detects them with defined entry, stop and
+target (GPL scanners are reference only). Rules are ATR-scaled like the double bottom, use swing
+points only once confirmed, and set measured-move targets: inverse H&S stop below the right
+shoulder, target neckline + head depth (sloped neckline allowed); bull flag stop below the flag,
+target breakout + pole. A wick above the flag doesn't cancel it; a close above the pole top before
+the flag forms means the pole is still running.

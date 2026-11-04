@@ -52,7 +52,8 @@ flowchart LR
 - [ ] Versioned rule presets (v2 editing, labelled exploratory until tested out-of-sample)
 - [x] TradingView-style chart: timeframes, chart types, indicators + panes, drawing tools
 - [x] Candlestick patterns from the `candlestick` package (6 bullish)
-- [ ] More chart patterns in-house (bull flag, inverse head and shoulders)
+- [x] Bull flag and inverse head and shoulders (in-house)
+- [ ] More chart patterns (triangles, falling wedge, cup and handle)
 
 ## Phase 1 · Backend + history (M1, M2)
 

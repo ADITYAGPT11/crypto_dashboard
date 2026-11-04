@@ -24,6 +24,8 @@ export const PATTERN_LABELS: Record<PatternType, string> = {
   bullishHarami: "Bullish harami",
   tweezersBottom: "Tweezer bottom",
   threeWhiteSoldiers: "Three white soldiers",
+  bullFlag: "Bull flag",
+  inverseHeadShoulders: "Inverse head and shoulders",
 };
 
 function isPivotLow(candles: Candle[], i: number, k: number): boolean {
@@ -111,6 +113,160 @@ export function detectDoubleBottoms(candles: Candle[]): PatternHit[] {
 }
 
 /**
+ * Inverse head and shoulders: three swing lows where the middle one (head) is at
+ * least 0.5 ATR below both shoulders and the shoulders are within 1 ATR of each
+ * other; 3–40 candles between each; no lower low between the shoulders. The
+ * neckline joins the highest highs between them and may slope; it must sit at
+ * least 1.5 ATR above the head and 0.5 ATR above both shoulders.
+ *
+ * Confirmed on the first close above the neckline within 25 candles of the right
+ * shoulder, and no earlier than PIVOT_BARS after it (the right shoulder is then a
+ * known swing low: no look-ahead). A close below the right shoulder first fails it.
+ *
+ * Entry = confirmation close; stop = right shoulder − 0.2 ATR;
+ * target = neckline at confirmation + (neckline above head − head) (measured move).
+ */
+export function detectInverseHeadShoulders(candles: Candle[]): PatternHit[] {
+  const atrs = atr(candles, 14);
+  const pivots: number[] = [];
+  for (let i = 0; i < candles.length; i++) if (isPivotLow(candles, i, PIVOT_BARS)) pivots.push(i);
+  const hits: PatternHit[] = [];
+  let lastConfirm = -1;
+  const highestBetween = (a: number, b: number) => {
+    let k = a + 1;
+    for (let j = a + 1; j < b; j++) if (candles[j].high > candles[k].high) k = j;
+    return k;
+  };
+
+  for (let r = 2; r < pivots.length; r++) {
+    const iR = pivots[r];
+    const a = atrs[iR];
+    if (!Number.isFinite(a) || a <= 0 || iR <= lastConfirm) continue;
+    const lowR = candles[iR].low;
+    let found: PatternHit | null = null;
+    for (let h = r - 1; h >= 1 && !found; h--) {
+      const iH = pivots[h];
+      if (iR - iH > 40) break;
+      if (iR - iH < 3) continue;
+      const lowH = candles[iH].low;
+      if (lowH > lowR - 0.5 * a) continue;
+      for (let l = h - 1; l >= 0 && !found; l--) {
+        const iL = pivots[l];
+        if (iH - iL > 40) break;
+        if (iH - iL < 3) continue;
+        const lowL = candles[iL].low;
+        if (lowL < lowH + 0.5 * a || Math.abs(lowL - lowR) > a) continue;
+        let undercut = false;
+        for (let j = iL; j <= iR; j++) if (candles[j].low < lowH - 1e-12) undercut = true;
+        if (undercut) continue;
+        const iP1 = highestBetween(iL, iH);
+        const iP2 = highestBetween(iH, iR);
+        const p1 = candles[iP1].high;
+        const p2 = candles[iP2].high;
+        const slope = (p2 - p1) / (iP2 - iP1);
+        const neck = (i: number) => p1 + slope * (i - iP1);
+        const depth = neck(iH) - lowH;
+        if (depth < 1.5 * a) continue;
+        if (lowL > neck(iL) - 0.5 * a || lowR > neck(iR) - 0.5 * a) continue;
+        for (let c = iR + PIVOT_BARS; c <= Math.min(iR + 25, candles.length - 1); c++) {
+          if (candles[c].close < lowR) break; // right shoulder broke first
+          if (candles[c].close > neck(c)) {
+            const ac = Number.isFinite(atrs[c]) ? atrs[c] : a;
+            found = {
+              type: "inverseHeadShoulders",
+              index: c,
+              entry: candles[c].close,
+              stop: lowR - 0.2 * ac,
+              target: neck(c) + depth,
+              low: lowH,
+              points: [
+                { index: iL, price: lowL },
+                { index: iP1, price: p1 },
+                { index: iH, price: lowH },
+                { index: iP2, price: p2 },
+                { index: iR, price: lowR },
+                { index: c, price: candles[c].close },
+              ],
+              line: { from: { index: iP1, price: p1 }, to: { index: c, price: neck(c) } },
+            };
+            break;
+          }
+        }
+      }
+    }
+    if (found) {
+      hits.push(found);
+      lastConfirm = found.index;
+    }
+  }
+  return hits;
+}
+
+/**
+ * Bull flag: a pole (rise of at least 3 ATR within 3–15 candles, ending at the
+ * highest high of the last 15 candles), then a flag: at least 3 candles that
+ * give back at most half the pole (wicks may probe above, closes stay below the
+ * flag's highs). Confirmed when a candle closes above the flag's highest high,
+ * within 20 candles of the pole top.
+ * Uses only candles up to the confirmation (no look-ahead).
+ *
+ * Entry = confirmation close; stop = flag low − 0.2 ATR;
+ * target = entry + pole height (measured move).
+ */
+export function detectBullFlags(candles: Candle[]): PatternHit[] {
+  const atrs = atr(candles, 14);
+  const hits: PatternHit[] = [];
+  let lastConfirm = -1;
+  for (let t = 15; t < candles.length; t++) {
+    const a = atrs[t];
+    if (!Number.isFinite(a) || a <= 0 || t <= lastConfirm) continue;
+    const top = candles[t].high;
+    let isTop = true;
+    for (let j = t - 15; j < t; j++) if (candles[j].high >= top) isTop = false;
+    if (!isTop) continue;
+    let s = t - 15;
+    for (let j = t - 15; j <= t - 3; j++) if (candles[j].low < candles[s].low) s = j;
+    const pole = top - candles[s].low;
+    if (t - s < 3 || pole < 3 * a) continue;
+
+    let flagLow = Infinity;
+    let flagLowIdx = t;
+    let flagHigh = -Infinity;
+    for (let f = t + 1; f <= Math.min(t + 20, candles.length - 1); f++) {
+      const cf = candles[f];
+      if (f - t >= 4 && cf.close > flagHigh) {
+        const af = Number.isFinite(atrs[f]) ? atrs[f] : a;
+        hits.push({
+          type: "bullFlag",
+          index: f,
+          entry: cf.close,
+          stop: flagLow - 0.2 * af,
+          target: cf.close + pole,
+          low: flagLow,
+          points: [
+            { index: s, price: candles[s].low },
+            { index: t, price: top },
+            { index: flagLowIdx, price: flagLow },
+            { index: f, price: cf.close },
+          ],
+          line: { from: { index: t + 1, price: flagHigh }, to: { index: f, price: flagHigh } },
+        });
+        lastConfirm = f;
+        break;
+      }
+      if (cf.close > top) break; // still the pole (or a new top), not a flag yet
+      if (cf.low < flagLow) {
+        flagLow = cf.low;
+        flagLowIdx = f;
+      }
+      if (flagLow < top - 0.5 * pole) break; // gave back too much
+      flagHigh = Math.max(flagHigh, cf.high);
+    }
+  }
+  return hits;
+}
+
+/**
  * Candlestick patterns from the `candlestick` package (MIT): it checks each
  * shape; we add the context it leaves out and the plan.
  *
@@ -181,7 +337,10 @@ function candleHit(
 }
 
 export function detectAllPatterns(candles: Candle[]): PatternHit[] {
-  return [...detectDoubleBottoms(candles), ...detectCandlestickPatterns(candles)].sort(
-    (a, b) => a.index - b.index,
-  );
+  return [
+    ...detectDoubleBottoms(candles),
+    ...detectInverseHeadShoulders(candles),
+    ...detectBullFlags(candles),
+    ...detectCandlestickPatterns(candles),
+  ].sort((a, b) => a.index - b.index);
 }

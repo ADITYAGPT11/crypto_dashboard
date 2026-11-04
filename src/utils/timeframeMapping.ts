@@ -58,6 +58,8 @@ export interface ViewPattern {
   /** Start of the pattern (first key candle). */
   startX: number;
   neckline?: number;
+  /** Sloped neckline / flag line between two view positions. */
+  line?: { x1: number; p1: number; x2: number; p2: number };
   low: number;
   /** Highest high of the confirmation candle and the one before (box top). */
   high: number;
@@ -88,6 +90,18 @@ export function toViewPattern(
     entryX: conf.to,
     startX: span(keys[0]).from,
     neckline: hit.neckline,
+    line: hit.line
+      ? (() => {
+          const a = span(hit.line.from.index);
+          const b = span(hit.line.to.index);
+          return {
+            x1: (a.from + a.to) / 2,
+            p1: hit.line.from.price,
+            x2: (b.from + b.to) / 2,
+            p2: hit.line.to.price,
+          };
+        })()
+      : undefined,
     low: hit.low,
     high: Math.max(source[hit.index].high, source[Math.max(0, hit.index - 1)].high),
   };

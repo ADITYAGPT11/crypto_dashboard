@@ -11,7 +11,9 @@ export type PatternType =
   | "invertedHammer"
   | "bullishHarami"
   | "tweezersBottom"
-  | "threeWhiteSoldiers";
+  | "threeWhiteSoldiers"
+  | "bullFlag"
+  | "inverseHeadShoulders";
 export type SetupLocation = "demandZone" | "openSpace";
 export type OutcomeResult = "win" | "loss" | "expired" | "open";
 export type Verdict = "edge" | "noEdge" | "tooFew";
@@ -32,7 +34,10 @@ export interface PatternHit {
   low: number;
   /** Key points for drawing (e.g. the two lows and the neckline peak). */
   points: PricePoint[];
+  /** Horizontal neckline (double bottom). */
   neckline?: number;
+  /** A drawn line that may slope: inverse H&S neckline, bull-flag resistance. */
+  line?: { from: PricePoint; to: PricePoint };
 }
 
 export interface Zone {

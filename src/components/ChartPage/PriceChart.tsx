@@ -108,6 +108,8 @@ const SHORT: Record<string, string> = {
   bullishHarami: "HR",
   threeWhiteSoldiers: "3WS",
   tweezersBottom: "TB",
+  bullFlag: "BF",
+  inverseHeadShoulders: "IHS",
 };
 
 const C = {
@@ -641,7 +643,8 @@ const PriceChart: React.FC<Props> = ({
       }
       g.strokeStyle = color;
       g.lineWidth = 2;
-      if (sel.type === "doubleBottom" && sel.points.length >= 3) {
+      if (sel.points.length >= 3) {
+        // Chart patterns: the path through their key points.
         g.beginPath();
         sel.points.forEach((p, k) => {
           const px = x(p.x);
@@ -651,18 +654,36 @@ const PriceChart: React.FC<Props> = ({
           else g.lineTo(px, py);
         });
         g.stroke();
-        const n1 = x(sel.points[0].x);
-        const n2 = x(sel.entryX);
-        const yn = sel.neckline != null ? y(sel.neckline) : null;
-        if (n1 !== null && n2 !== null && yn !== null) {
-          g.setLineDash([4, 4]);
-          g.beginPath();
-          g.moveTo(n1, yn);
-          g.lineTo(n2, yn);
-          g.stroke();
-          g.setLineDash([]);
-          g.fillStyle = color;
-          g.fillText(`${sel.tf} neckline`, n1 + 4, yn - 10);
+        const lineLabel = sel.type === "bullFlag" ? "flag" : "neckline";
+        if (sel.line) {
+          const x1 = x(sel.line.x1);
+          const x2 = x(sel.line.x2);
+          const y1 = y(sel.line.p1);
+          const y2 = y(sel.line.p2);
+          if (x1 !== null && x2 !== null && y1 !== null && y2 !== null) {
+            g.setLineDash([4, 4]);
+            g.beginPath();
+            g.moveTo(x1, y1);
+            g.lineTo(x2, y2);
+            g.stroke();
+            g.setLineDash([]);
+            g.fillStyle = color;
+            g.fillText(`${sel.tf} ${lineLabel}`, x1 + 4, y1 - 10);
+          }
+        } else {
+          const n1 = x(sel.points[0].x);
+          const n2 = x(sel.entryX);
+          const yn = sel.neckline != null ? y(sel.neckline) : null;
+          if (n1 !== null && n2 !== null && yn !== null) {
+            g.setLineDash([4, 4]);
+            g.beginPath();
+            g.moveTo(n1, yn);
+            g.lineTo(n2, yn);
+            g.stroke();
+            g.setLineDash([]);
+            g.fillStyle = color;
+            g.fillText(`${sel.tf} ${lineLabel}`, n1 + 4, yn - 10);
+          }
         }
       } else {
         const last = sel.blocks[sel.blocks.length - 1];
