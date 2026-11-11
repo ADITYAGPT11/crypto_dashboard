@@ -16,11 +16,10 @@ confirmations yet (by design).
 1. Owner: run `npm start` on a machine that reaches Binance, let the first
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
-2. Owner picks the product name (`src/brand.ts` + `index.html` title).
-3. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
-4. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
-5. Random-entry baseline per setup (does a pattern beat chance with the same stop/target?).
-6. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
+2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
+3. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
+4. Random-entry baseline per setup (does a pattern beat chance with the same stop/target?).
+5. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
 
 ## Health
 
@@ -65,10 +64,11 @@ Verified 2026-11-11:
 
 ## Known issues
 
-1. **Live data not exercised from the sandbox**: Binance REST/WS are geo-blocked there and
-   OKX's WebSocket port is closed, so live candles, the REST tail and live order books were
-   tested with fixtures, the archive and a replayed real OKX book. Where Binance REST is blocked
-   the service's data ends at the last archived day and the chart says how many candles behind.
+1. **Live data not exercised against real exchanges from the sandbox**: Binance REST/WS are
+   geo-blocked there and OKX's WebSocket port is closed. Live candles (Binance and the OKX
+   fallback) were tested with simulated kline streams, the REST tail with the archive, and live
+   order books with a replayed real OKX book. Where Binance REST is blocked the service's data
+   ends at the last archived day and the chart says how many candles behind.
 2. **Statistics need a first run**: until the background job finishes (minutes), Pattern stats,
    the setup card and the scanner show "not measured yet".
 3. **Setup alerts run in the browser** (every minute while a tab is open) and use same-timeframe
@@ -83,6 +83,13 @@ Verified 2026-11-11:
 
 ## History
 
+- 2026-11-11: Product named **GreenMTM** (owner); logo `public/greenmtm.svg` (favicon and top
+  bar), no tagline. The Python package stays `tcs` internally.
+- 2026-11-11: Chart follows the market: forming candle from Binance's kline stream, or OKX's when
+  Binance is silent for 15 s, with a Live / Live · OKX / No live ticks badge; closed history
+  refetched after each candle close; the view scrolls to a pattern only when it is clicked
+  (it used to jump back on every refresh). Removed the vertical "close ✓" line. OKX daily/weekly
+  candles now use UTC bars (`1Dutc`), not Hong Kong time.
 - 2026-11-11: Chart shows key levels only, configurable in Display settings (owner feedback:
   too many zones, order blocks and labels). Display only; locations and statistics unchanged.
 - 2026-11-11: PR #6 (ta_patterns Pattern library, 2026-11-04) merged into this branch and

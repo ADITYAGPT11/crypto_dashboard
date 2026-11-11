@@ -1,4 +1,4 @@
-# TCS analysis service (Python)
+# GreenMTM analysis service (Python)
 
 One rule set for pattern detection, demand/supply zones, order blocks and setup statistics.
 The chart calls it on recent candles; the background job runs it over one to two years of

@@ -1,4 +1,4 @@
-/* Design tokens for the TCS UI (see docs/product/ux/PHASE1_UX.md → Visual language).
+/* Design tokens for the GreenMTM UI (see docs/product/ux/PHASE1_UX.md → Visual language).
    Dark-only by design. Prefixed --t- so they never collide with the older theme variables. */
 :root {
   --t-ground: #0b0f14;
@@ -17,6 +17,7 @@
   --t-signal-soft: #2b4a75;
   --t-amber: #f0a35e;
   --t-up: #56d364;
+  --t-brand: #34d399; /* GreenMTM wordmark and logo */
   --t-down: #f47067;
   --t-up-bg: #12261a;
   --t-down-bg: #2d1517;

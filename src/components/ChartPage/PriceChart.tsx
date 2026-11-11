@@ -93,6 +93,8 @@ interface Props {
   /** The selected setup mapped onto the view. */
   selected: ViewPattern | null;
   plan: Plan | null;
+  /** Changes when the user picks a pattern: the chart scrolls to it then, and only then. */
+  focusKey?: string | null;
   /** Other recent patterns, drawn as small timeframe tags. */
   others: ViewPattern[];
   markers: ViewMarker[];
@@ -187,6 +189,7 @@ const PriceChart: React.FC<Props> = ({
   heatmap = null,
   selected,
   plan,
+  focusKey = null,
   others,
   markers,
   layers,
@@ -198,6 +201,7 @@ const PriceChart: React.FC<Props> = ({
 }) => {
   const boxRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
+  const focusedRef = useRef<string | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const mainRef = useRef<{ api: ISeriesApi<SeriesType>; type: ChartType } | null>(null);
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
@@ -706,17 +710,6 @@ const PriceChart: React.FC<Props> = ({
           g.strokeRect(x1 - pad, yHigh - 6, x2 - x1 + pad * 2, yLow - yHigh + 12);
         }
       }
-      // The signal exists only when the source candle closes.
-      const ex = x(sel.entryX);
-      if (ex !== null) {
-        g.setLineDash([]);
-        g.lineWidth = 1.5;
-        g.beginPath();
-        g.moveTo(ex, 18);
-        g.lineTo(ex, h);
-        g.stroke();
-        tag(ex, 10, `${sel.tf} close ✓`, color);
-      }
       g.lineWidth = 1;
     }
     g.restore();
@@ -763,15 +756,20 @@ const PriceChart: React.FC<Props> = ({
       add(plan.target, C.up, "Target", LineStyle.Dashed);
       add(plan.entry, C.signal, "Entry", LineStyle.Solid);
       add(plan.stop, C.down, "Stop", LineStyle.Dashed);
-      const len = propsRef.current.candles.length;
-      const span = Math.max(110, selected.entryX - selected.startX + 40);
-      chart.timeScale().setVisibleLogicalRange({
-        from: Math.max(0, selected.startX - (span - (selected.entryX - selected.startX)) * 0.7),
-        to: Math.min(len + 10, selected.entryX + 50),
-      });
+      // Scroll to the pattern only when the user picked it, never on a data refresh
+      // (otherwise every candle close would pull the view away from the latest candle).
+      if (focusKey !== null && focusKey !== focusedRef.current) {
+        focusedRef.current = focusKey;
+        const len = propsRef.current.candles.length;
+        const span = Math.max(110, selected.entryX - selected.startX + 40);
+        chart.timeScale().setVisibleLogicalRange({
+          from: Math.max(0, selected.startX - (span - (selected.entryX - selected.startX)) * 0.7),
+          to: Math.min(len + 10, selected.entryX + 50),
+        });
+      }
     }
     requestAnimationFrame(() => drawRef.current());
-  }, [selected, plan, markers, layers.pattern, chartType]);
+  }, [selected, plan, markers, layers.pattern, chartType, focusKey]);
 
   // Legend values: hovered bar, else the latest (forming candle when live).
   const n = candles.length;

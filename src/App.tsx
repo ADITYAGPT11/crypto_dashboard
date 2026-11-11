@@ -16,7 +16,7 @@ const ChartPage = lazy(() => import("./components/ChartPage"));
 const StatsPage = lazy(() => import("./components/StatsPage"));
 
 function App() {
-  // Setup alerts are checked while any TCS page is open (Phase 1a, browser-side).
+  // Setup alerts are checked while any GreenMTM page is open (Phase 1a, browser-side).
   useEffect(() => SetupAlertService.getInstance().start(), []);
 
   return (

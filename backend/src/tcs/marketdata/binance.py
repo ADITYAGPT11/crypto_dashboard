@@ -31,7 +31,7 @@ class SourceUnavailable(Exception):
 
 def _client() -> httpx.Client:
     return httpx.Client(
-        timeout=20, headers={"User-Agent": "tcs-research/0.1"}, follow_redirects=True
+        timeout=20, headers={"User-Agent": "greenmtm-research/0.1"}, follow_redirects=True
     )
 
 

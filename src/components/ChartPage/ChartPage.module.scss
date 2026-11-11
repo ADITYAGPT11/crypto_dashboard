@@ -925,3 +925,23 @@ details.group {
     list-style: revert;
   }
 }
+
+.liveBadge {
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+.liveOn {
+  color: var(--t-up);
+  background: var(--t-up-bg);
+}
+.liveAlt {
+  color: var(--t-amber);
+  background: var(--t-warn-bg);
+}
+.liveOff {
+  color: var(--t-muted);
+  background: var(--t-inner);
+}

@@ -29,13 +29,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  color: var(--t-fg);
+  text-decoration: none;
   b {
-    font-size: 16px;
+    font-size: 18px;
+    letter-spacing: -0.01em;
   }
-  small {
-    color: var(--t-muted);
-    font-size: 13px;
-  }
+}
+.lead {
+  color: var(--t-brand);
 }
 .nav {
   display: flex;

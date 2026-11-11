@@ -114,7 +114,7 @@ price table, spread (arbitrage), order book, alerts.
 **Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
 `useScanner`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
-`useLiveCandle` (Binance forming candle), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
+`useLiveCandle` (forming candle: Binance, OKX when Binance is silent; `utils/liveCandle`), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
 `useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
 
 **Analysis in the browser**: none that feeds statistics (the service owns every rule). Display
@@ -143,7 +143,8 @@ instances, parsing), `chartDisplay` (Heikin-Ashi, timeframe labels, chart prefs)
 **Types**: `src/types/marketData.ts` (market data, candles, trades, order book, exchange/market
 names), `connection.ts`, `alertRules.ts`
 
-**Brand**: `src/brand.ts` (product name and tagline in one place).
+**Brand**: `src/brand.ts` (GreenMTM name, wordmark parts, logo path) + `public/greenmtm.svg`
+(logo and favicon); colour `--t-brand` in `tokens.css`.
 
 **UI components**: `TopNav/`, `DashboardPage/` (+ `MarketOverview/`: strip, `CoinSearch`,
 `Connections`, `BubbleMap`, `Sentiment`, `MarketMonitor`, `Correlation`, `Liquidations`,

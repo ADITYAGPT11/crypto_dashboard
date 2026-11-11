@@ -45,7 +45,7 @@ flowchart LR
 - [x] Pattern stats, Risk calculator, Alerts screens (designs in `docs/product/ux/reference/`)
 - [x] Dashboard v2 market overview (bubbles, sentiment, monitor, correlation, liquidations,
       volatility regime, sessions, movers, data health)
-- [ ] Product name + logo (owner choosing; `src/brand.ts`)
+- [x] Product name + logo: GreenMTM (`src/brand.ts`, `public/greenmtm.svg`)
 - [x] Chart detection settings: pattern timeframes + zone source per user, multi-timeframe overlay,
       background stats per context
 - [x] Level source applied to Dashboard and Pattern stats (Alerts use same-timeframe levels)

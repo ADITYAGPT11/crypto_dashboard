@@ -314,3 +314,10 @@ each kind, zones with a departure of at least 2 ATR, overlapping levels merged (
 the selected pattern plus 3 recent tags. All adjustable and saved per browser
 (`src/utils/overlaySettings.ts`). It is a display filter in TypeScript on purpose: setups are
 still located against every level by the Python rules, so the numbers do not depend on it.
+
+### 2026-11-11 · Product name GreenMTM
+
+Owner decision: the product is **GreenMTM** (MTM = mark-to-market), no tagline. Logo: an emerald
+tile with an M drawn as a price line whose last leg breaks out upward (`public/greenmtm.svg`,
+also the favicon). Code names stay: the Python package is `tcs` and the repo `crypto_dashboard`;
+renaming them would touch every import for no user-visible change.

@@ -25,7 +25,7 @@ export const INTERVAL_TO_MS: Record<CandleInterval, number> = {
  * Returns null for unknown intervals so callers can skip them safely.
  */
 export function toCanonicalInterval(raw: string): CandleInterval | null {
-  const norm = raw.toLowerCase();
+  const norm = raw.toLowerCase().replace(/utc$/, ""); // OKX "1Dutc" → "1d"
   return (CANDLE_INTERVALS as readonly string[]).includes(norm) ? (norm as CandleInterval) : null;
 }
 
