@@ -57,6 +57,7 @@ interface Props {
   onIndicators: () => void;
   layers: Layers;
   onLayer: (k: keyof Layers) => void;
+  onDisplaySettings: () => void;
   scale: ScaleMode;
   onScale: (m: ScaleMode) => void;
   onScreenshot: () => void;
@@ -213,6 +214,18 @@ const ChartToolbar: React.FC<Props> = (p) => {
                 {label}
               </button>
             ))}
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.menuItem}
+              onClick={() => {
+                setLayerOpen(false);
+                p.onDisplaySettings();
+              }}
+            >
+              <span className={styles.check} aria-hidden="true" />
+              Display settings…
+            </button>
           </div>
         )}
       </div>

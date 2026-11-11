@@ -45,6 +45,13 @@ import ChartToolbar from "./ChartToolbar";
 import DrawingToolbar from "./DrawingToolbar";
 import IndicatorsDialog from "./IndicatorsDialog";
 import IndicatorSettings from "./IndicatorSettings";
+import OverlaySettingsDialog from "./OverlaySettingsDialog";
+import {
+  keyLevels,
+  OVERLAYS_STORAGE_KEY,
+  parseOverlays,
+  type OverlaySettings,
+} from "../../utils/overlaySettings";
 import LiquidityPanel from "./LiquidityPanel";
 import { useLiveCandle } from "../../custom-hooks/useLiveCandle";
 import { useLiquidity } from "../../custom-hooks/useLiquidity";
@@ -109,14 +116,14 @@ const ChartPage: React.FC = () => {
     "1d": true,
   });
   const [attempt, setAttempt] = useState(0);
-  const [layers, setLayers] = useState<Layers>({
-    zones: true,
-    orderBlocks: true,
-    fvg: false,
-    vp: true,
-    pattern: true,
-    heatmap: false,
-  });
+  const [overlays, setOverlaysState] = useState<OverlaySettings>(() =>
+    loadJson(OVERLAYS_STORAGE_KEY, parseOverlays),
+  );
+  const setOverlays = (next: OverlaySettings) => {
+    setOverlaysState(next);
+    saveJson(OVERLAYS_STORAGE_KEY, next);
+  };
+  const layers: Layers = overlays;
   const [prefs, setPrefsState] = useState<ChartPrefs>(() =>
     loadJson(CHART_PREFS_STORAGE_KEY, parseChartPrefs),
   );
@@ -132,7 +139,7 @@ const ChartPage: React.FC = () => {
     saveJson(INDICATORS_STORAGE_KEY, next);
   };
   const [dialog, setDialog] = useState<
-    { kind: "indicators" } | { kind: "settings"; uid: string } | null
+    { kind: "indicators" } | { kind: "overlays" } | { kind: "settings"; uid: string } | null
   >(null);
   const [tool, setTool] = useState<DrawingKind | null>(null);
   const [magnet, setMagnet] = useState(false);
@@ -253,9 +260,10 @@ const ChartPage: React.FC = () => {
       candles.length
         ? recent
             .filter((f) => f !== selected)
+            .slice(0, overlays.patternTags)
             .map((f) => toViewPattern(f.occ, f.tf, candles, viewTf))
         : [],
-    [recent, selected, candles, viewTf],
+    [recent, selected, candles, viewTf, overlays.patternTags],
   );
   const markers: ViewMarker[] = useMemo(() => {
     if (!selected || !candles.length) return [];
@@ -275,10 +283,16 @@ const ChartPage: React.FC = () => {
   }, [history, selected, candles]);
 
   const levelTf = (selAnalysis?.zoneTf ?? selZoneTf) as CandleInterval;
+  // Only the key levels are drawn and listed (Overlays → Display settings); every level still
+  // counts for the setups' locations and statistics.
+  const lastClose = candles.length ? candles[candles.length - 1].close : null;
+  const shown = useMemo(
+    () => (selAnalysis && lastClose !== null ? keyLevels(selAnalysis, lastClose, overlays) : null),
+    [selAnalysis, lastClose, overlays],
+  );
   const viewLevels = useMemo(
-    () =>
-      selAnalysis && candles.length ? toViewLevels(selAnalysis, levelTf, candles, viewTf) : [],
-    [selAnalysis, levelTf, candles, viewTf],
+    () => (shown && candles.length ? toViewLevels(shown, levelTf, candles, viewTf) : []),
+    [shown, levelTf, candles, viewTf],
   );
 
   const profile = useMemo(() => computeVolumeProfile(candles.slice(-200), 48), [candles]);
@@ -334,12 +348,11 @@ const ChartPage: React.FC = () => {
     return out;
   }, [selected, selCandles, context]);
 
-  // Key levels: intact zones and order blocks nearest to price, then the most recently broken.
+  // The key levels on the chart, nearest to price first (broken ones last).
   const levelsShown = useMemo(() => {
-    if (!selAnalysis || !candles.length) return [];
-    const px = candles[candles.length - 1].close;
+    if (!shown || lastClose === null) return [];
     const rows = [
-      ...selAnalysis.zones.map((z) => ({
+      ...shown.zones.map((z) => ({
         id: `z${z.formedTime}${z.kind}`,
         kind: z.kind,
         low: z.low,
@@ -353,7 +366,7 @@ const ChartPage: React.FC = () => {
         end: z.endTime,
         strength: `${z.departureAtr.toFixed(1)} ATR`,
       })),
-      ...selAnalysis.orderBlocks.map((b) => ({
+      ...shown.orderBlocks.map((b) => ({
         id: `b${b.formedTime}${b.kind}`,
         kind: b.kind,
         low: b.low,
@@ -363,11 +376,14 @@ const ChartPage: React.FC = () => {
         strength: `BOS ${price(b.broke)}`,
       })),
     ];
-    const dist = (r: { low: number; high: number }) => Math.abs((r.low + r.high) / 2 - px);
+    const dist = (r: { low: number; high: number }) => Math.abs((r.low + r.high) / 2 - lastClose);
     const intact = rows.filter((r) => r.end === null).sort((a, b) => dist(a) - dist(b));
     const broken = rows.filter((r) => r.end !== null).sort((a, b) => (b.end ?? 0) - (a.end ?? 0));
-    return [...intact.slice(0, 8), ...broken.slice(0, 2)];
-  }, [selAnalysis, candles]);
+    return [...intact, ...broken];
+  }, [shown, lastClose]);
+  const hiddenLevels = selAnalysis
+    ? selAnalysis.zones.length + selAnalysis.orderBlocks.length - levelsShown.length
+    : 0;
 
   const levels = profile
     ? [
@@ -475,7 +491,8 @@ const ChartPage: React.FC = () => {
               onChartType={(chartType) => setPrefs({ ...prefs, chartType })}
               onIndicators={() => setDialog({ kind: "indicators" })}
               layers={layers}
-              onLayer={(k) => setLayers((l) => ({ ...l, [k]: !l[k] }))}
+              onLayer={(k) => setOverlays({ ...overlays, [k]: !overlays[k] })}
+              onDisplaySettings={() => setDialog({ kind: "overlays" })}
               scale={prefs.scale}
               onScale={(scale) => setPrefs({ ...prefs, scale })}
               onScreenshot={screenshot}
@@ -591,7 +608,17 @@ const ChartPage: React.FC = () => {
                   structure. Both are known only once that move closed. Fresh = not traded back into
                   yet; a close through the far edge ends it.
                 </Explain>
-                <p>Intact levels nearest to price first, then the most recently broken.</p>
+                <p>
+                  Key levels on the chart, nearest to price first
+                  {hiddenLevels > 0 ? ` · ${hiddenLevels} more hidden` : ""} ·{" "}
+                  <button
+                    type="button"
+                    className={styles.link}
+                    onClick={() => setDialog({ kind: "overlays" })}
+                  >
+                    display settings
+                  </button>
+                </p>
               </div>
               <div className={styles.xs}>
                 <table className={styles.tbl}>
@@ -723,6 +750,13 @@ const ChartPage: React.FC = () => {
           )}
         </aside>
       </div>
+      {dialog?.kind === "overlays" && (
+        <OverlaySettingsDialog
+          value={overlays}
+          onChange={setOverlays}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog?.kind === "indicators" && (
         <IndicatorsDialog
           onAdd={addIndicator}
