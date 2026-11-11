@@ -59,7 +59,8 @@ flowchart LR
 ## Phase 1 · Backend + history (M1, M2)
 
 - [x] Decide backend stack: Python 3.12 + FastAPI + QuestDB (see DECISIONS, ARCHITECTURE)
-- [ ] Monorepo layout per `ARCHITECTURE.md`: move frontend to `apps/web`, scaffold `backend/` with uv
+- [x] Scaffold `backend/` with uv (FastAPI, tests, CI job) (2026-11-04; rule set 2026-11-11)
+- [ ] Monorepo layout per `ARCHITECTURE.md`: move frontend to `apps/web`
 - [ ] Collector service: Binance + OKX (+ Delta) via CCXT; health + gap detection
 - [ ] `infra/docker-compose.yml`: QuestDB + backend + web
 - [ ] QuestDB tables: candles 1m, funding, OI
@@ -83,6 +84,8 @@ criteria met.
 ## Phase 2 · Research + backtest (M3)
 
 - [ ] Feature library (TA, funding percentile, basis, OI change, regime)
+- [ ] Multiple-testing correction on the verdict (Bonferroni or FDR across every setup tested;
+      from PR #6: on a random walk the uncorrected 95% rule flagged 2 of 146 patterns as edges)
 - [ ] Vectorised screener + event-driven backtester with the shared cost model
 - [ ] Strategy report generator (HTML) + gate checker
 - [ ] Research journal: every hypothesis and result logged, including failures

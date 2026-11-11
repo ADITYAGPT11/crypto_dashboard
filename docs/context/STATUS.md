@@ -81,6 +81,8 @@ Verified 2026-11-11:
 
 ## History
 
+- 2026-11-11: PR #6 (ta_patterns Pattern library, 2026-11-04) merged into this branch and
+  replaced by the single rule set at the owner's request (DECISIONS 2026-11-11).
 - 2026-11-11: **Python analysis service** (`backend/`) is the one rule set: 11 chart patterns
   (bearish twins by mirroring), 10 TA-Lib candlestick patterns with our context, demand/supply
   zones, BOS/CHoCH, order blocks, fair value gaps; background statistics over 1–2 years per

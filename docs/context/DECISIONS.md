@@ -225,6 +225,21 @@ shoulder, target neckline + head depth (sloped neckline allowed); bull flag stop
 target breakout + pole. A wick above the flag doesn't cancel it; a close above the pole top before
 the flag forms means the pole is still running.
 
+### 2026-11-04 · Pattern library: ta_patterns in the Python backend, judged by one ATR bracket
+
+Why: the owner wants accurate detection plus the past performance of the same pattern, from free
+tools, with the backend in Python. `ta_patterns` (MIT) is the widest free detector set and passed
+our look-ahead test at every candle; no free tool measures pattern performance on crypto, so we
+do. It returns only +1/-1/0, so every pattern is judged by the same rule (entry at the completing
+close, stop 1 ATR, target 2 ATR, 30 candles; break-even 33%), adjustable per request. Its "chart"
+list mixes formations with ~80 short-term/volume event patterns that fire on most candles; those
+are a separate kind (`short`) so the Chart shows formations by default. The verdict uses a
+Bonferroni-corrected Wilson low end over every pattern x direction tested: on a pure random walk
+the uncorrected 95% rule flagged 2 of 146 patterns as edges, the corrected one none. The backend
+starts in `backend/` without QuestDB (history cached in memory) and the frontend stays at the
+repo root; both moves are separate steps of Phase 1. The in-house browser detectors stay until a
+library pattern measures at least as well.
+
 ### 2026-11-11 · The Python service owns every rule; the TypeScript detectors are deleted
 
 Why: the owner asked for one rule set behind both the chart (recent candles) and the background
@@ -280,3 +295,13 @@ snapshot + diff sync, OKX its sequence ids. Buckets are ~50 round steps across t
 cover (OKX's 400 levels span only ~$40 either side of BTC: a price-based 5 bps bucket gave two
 buckets per side). Liquidity is never used in statistics: visible orders can be spoofed.
 Revisit: server-side depth recording when the collector exists, so history survives a reload.
+
+### 2026-11-11 · The single rule set replaces the ta_patterns Pattern library (owner decision)
+
+Why: PR #6 (ta_patterns, 2026-11-04) and PR #7 (this rule set) were built in parallel and both
+own `backend/`. The owner chose one rule set: the chart and the statistics must run the same
+rules, each pattern keeps its textbook stop and target, and locations (zones, order blocks) are
+measured. ta_patterns' uniform 1-ATR/2-ATR bracket and its separate panel next to the browser
+detectors were two rule sets at once. Kept from #6: the Bonferroni idea for the verdict is noted
+for Phase 2 (ROADMAP), the uv version pin in CI and the JS lint ignoring `backend/`. Its code
+stays in git history (`cfb4719`).
