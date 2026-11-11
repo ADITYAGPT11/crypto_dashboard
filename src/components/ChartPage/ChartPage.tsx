@@ -163,6 +163,8 @@ const ChartPage: React.FC = () => {
   };
 
   const [selId, setSelId] = useState<string | null>(null);
+  // Bumped on every click, so picking the same pattern again scrolls back to it.
+  const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
 
   // The rule set lives in the backend: patterns, zones and order blocks per detection timeframe.
   const catalog = useCatalog().data;
@@ -211,7 +213,8 @@ const ChartPage: React.FC = () => {
   );
   const hist = useHistories(symbol, needed, attempt);
   const view = hist.get(viewTf)!;
-  const live = useLiveCandle(symbol, viewTf);
+  const liveFeed = useLiveCandle(symbol, viewTf);
+  const live = liveFeed.candle;
   const candles = view.candles;
   const selCandles = hist.get(selTf)?.candles ?? NO_CANDLES;
 
@@ -476,6 +479,8 @@ const ChartPage: React.FC = () => {
               symbols={symbols}
               onSymbol={(sym) => navigate(`/chart/${sym}`)}
               lastPrice={live ? price(live.close) : last ? price(last.close) : null}
+              liveSource={liveFeed.source}
+              liveAt={liveFeed.at}
               viewTf={viewTf}
               onTf={setViewTf}
               favorites={prefs.favorites}
@@ -537,6 +542,7 @@ const ChartPage: React.FC = () => {
                 heatmap={heatmap}
                 selected={viewSelected}
                 plan={selected ? selected.occ : null}
+                focusKey={focus ? `${focus.id}#${focus.n}` : null}
                 others={viewOthers}
                 markers={markers}
                 layers={layers}
@@ -694,7 +700,10 @@ const ChartPage: React.FC = () => {
                     <button
                       type="button"
                       aria-pressed={selected !== null && foundId(f) === foundId(selected)}
-                      onClick={() => setSelId(foundId(f))}
+                      onClick={() => {
+                        setSelId(foundId(f));
+                        setFocus((p) => ({ id: foundId(f), n: (p?.n ?? 0) + 1 }));
+                      }}
                     >
                       <b>
                         <TfBadge tf={f.tf} />{" "}

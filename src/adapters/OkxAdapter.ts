@@ -24,10 +24,14 @@ interface OkxTickerRow {
   nextFundingRate?: string; // predicted rate for next period
 }
 
-/** Our interval → OKX bar suffix (OKX spells hours/days in upper case). */
-/** OKX bar names: minutes stay lowercase, hours/days/weeks are uppercase (1H, 1D, 1W). */
-function toOkxBar(interval: CandleInterval): string {
-  return interval.replace(/[hdw]$/, (u) => u.toUpperCase());
+/**
+ * Our interval → OKX bar name. Minutes stay lowercase, hours/days/weeks are uppercase
+ * (1H, 4H). OKX's plain 6H/12H/1D/1W bars open on Hong Kong time (UTC+8); the `utc`
+ * variants open on UTC like Binance and our analysis, so those are used.
+ */
+export function toOkxBar(interval: CandleInterval): string {
+  const bar = interval.replace(/[hdw]$/, (u) => u.toUpperCase());
+  return ["6H", "12H", "1D", "3D", "1W"].includes(bar) ? `${bar}utc` : bar;
 }
 
 export class OkxAdapter extends EventEmitter {

@@ -114,7 +114,7 @@ price table, spread (arbitrage), order book, alerts.
 **Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
 `useScanner`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
-`useLiveCandle` (Binance forming candle), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
+`useLiveCandle` (forming candle: Binance, OKX when Binance is silent; `utils/liveCandle`), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
 `useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
 
 **Analysis in the browser**: none that feeds statistics (the service owns every rule). Display

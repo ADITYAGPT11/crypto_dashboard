@@ -9,6 +9,10 @@ import {
   type ScaleMode,
 } from "../../utils/chartDisplay";
 import type { Layers } from "./PriceChart";
+import type { LiveSource } from "../../utils/liveCandle";
+import { LIVE_STALE_MS } from "../../utils/liveCandle";
+import { useNow } from "../../custom-hooks/useNow";
+
 import { Icon } from "./icons";
 import styles from "./ChartPage.module.scss";
 
@@ -48,6 +52,9 @@ interface Props {
   symbols: string[];
   onSymbol: (s: string) => void;
   lastPrice: string | null;
+  /** Where the forming candle comes from, and its last tick (null: none yet). */
+  liveSource: LiveSource | null;
+  liveAt: number | null;
   viewTf: CandleInterval;
   onTf: (tf: CandleInterval) => void;
   favorites: CandleInterval[];
@@ -62,6 +69,29 @@ interface Props {
   onScale: (m: ScaleMode) => void;
   onScreenshot: () => void;
   onFullscreen: () => void;
+}
+
+/** Live-tick status: which exchange draws the forming candle, or that nothing arrives. */
+function LiveBadge({ source, at }: { source: LiveSource | null; at: number | null }) {
+  const now = useNow(5_000);
+  const fresh = at !== null && now - at <= LIVE_STALE_MS;
+  const text = !source || !fresh ? "No live ticks" : source === "BINANCE" ? "Live" : "Live · OKX";
+  const title = !source
+    ? "No live candle has arrived from Binance or OKX yet. The chart shows closed candles; check that this network can reach fstream.binance.com / ws.okx.com."
+    : !fresh
+      ? `Last live tick ${Math.round((now - (at ?? now)) / 1000)} s ago: the exchange stream is not delivering.`
+      : source === "BINANCE"
+        ? "Forming candle from Binance's kline stream."
+        : "Binance's stream is silent, so the forming candle comes from OKX (prices can differ slightly).";
+  return (
+    <span
+      className={`${styles.liveBadge} ${fresh ? (source === "BINANCE" ? styles.liveOn : styles.liveAlt) : styles.liveOff}`}
+      title={title}
+      role="status"
+    >
+      <span aria-hidden="true">●</span> {text}
+    </span>
+  );
 }
 
 /** TradingView-style top toolbar. */
@@ -90,6 +120,7 @@ const ChartToolbar: React.FC<Props> = (p) => {
         ))}
       </select>
       {p.lastPrice && <span className={styles.lastPx}>{p.lastPrice}</span>}
+      <LiveBadge source={p.liveSource} at={p.liveAt} />
       <span className={styles.sep} aria-hidden="true" />
 
       <div className={styles.tfGroup} role="group" aria-label="Timeframe">
