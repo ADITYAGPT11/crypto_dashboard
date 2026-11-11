@@ -104,7 +104,8 @@ payload), `marketStats` (volatility, ATR, trend, correlation, vol regime, sessio
 bubble layout), `marketOverview` (source parsers, liquidation sums), `marketRows` (per-coin
 rows), `timeframeMapping` (time → fractional view position, view patterns/zones), `detectionConfig`
 (pattern TFs, zone source, preset), `indicatorRegistry` (chart indicators on `indicatorts`,
-instances, parsing), `chartDisplay` (Heikin-Ashi, timeframe labels, chart prefs), `tickerStats`, `priceUtils`, `watchlistStorage`,
+instances, parsing; `indicatorGolden.test.ts` pins values to the recorded 2.2.2 outputs in
+`__tests__/fixtures/`), `chartDisplay` (Heikin-Ashi, timeframe labels, chart prefs), `tickerStats`, `priceUtils`, `watchlistStorage`,
 `layoutStorage`, `alertRulesStorage`, `patternLibrary` (backend event lists, markers, stats keys). Adapter parsing and unsubscribe tests:
 `src/adapters/__tests__/`.
 

@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-04 · branch `claude/ta-patterns-backend`_
+_Last verified: 2026-11-11 · branch `claude/keen-carson-blripw`_
 
 ## Phase
 
@@ -23,12 +23,12 @@ and the collector are next. No confirmations yet (by design).
 
 ## Health
 
-Verified 2026-11-04 from a clean `npm ci` and `uv sync --locked`:
+First three rows re-verified 2026-11-11 from a clean `npm ci`; the rest 2026-11-04 (with `uv sync --locked`):
 
 | Check                                                      | State                                                                                                                                                                                                                |
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check` (`vp check`: format + lint + types)        | ✅ 207 files formatted; 0 errors or warnings in 157 files (backend included)                                                                                                                                         |
-| `npm test`                                                 | ✅ 321 tests, 28 files                                                                                                                                                                                               |
+| `npm run check` (`vp check`: format + lint + types)        | ✅ 221 files formatted; 0 errors or warnings in 163 files (backend included)                                                                                                                                         |
+| `npm test`                                                 | ✅ 351 tests, 30 files                                                                                                                                                                                               |
 | `npm run build` (`tsc -b` app + node + backend, then Vite) | ✅ chart code in its own chunk                                                                                                                                                                                       |
 | `npm run dev`                                              | ✅ <http://localhost:3000>; Dashboard, Chart, Pattern stats, Risk, Alerts load with no page errors or sideways scroll (browser test at 1440 px and 400 px, mocked Binance history); `/api` proxy reaches the backend |
 | Backend `uv run pytest` / `ruff` / `pyright`               | ✅ 20 tests (incl. no-look-ahead over the whole pipeline); ruff + pyright clean                                                                                                                                      |
@@ -53,7 +53,7 @@ Verified 2026-11-04 from a clean `npm ci` and `uv sync --locked`:
   - Top bar: symbol, favourite timeframes + menu of every Binance interval 1m–1W (star to
     favourite), chart type (candles, hollow, Heikin Ashi, bars, line, area), **Indicators**
     dialog, Overlays (patterns, zones, volume profile), % and log scale, snapshot, fullscreen.
-  - Indicators from `indicatorts`: MA, EMA, Bollinger, rolling VWAP, Parabolic SAR, Volume,
+  - Indicators from `indicatorts` 2.6.1: MA, EMA, Bollinger, rolling VWAP, Parabolic SAR, Volume,
     RSI, MACD, Stochastic, ATR, OBV; panes for oscillators; legend per pane with values under the
     crosshair and hover controls (hide, settings with Inputs/Style tabs, remove). Saved per browser.
   - Drawing tools from `lightweight-charts-drawing` on a left rail (trend line, ray, horizontal
@@ -100,8 +100,6 @@ Verified 2026-11-04 from a clean `npm ci` and `uv sync --locked`:
 - **Library stats use one bracket for all patterns** (1 ATR stop, 2 ATR target), not each
   pattern's textbook target; adjustable via the API (`stop_atr`, `target_atr`, `max_bars`), not
   in the UI yet. Gross, before fees.
-- npm marks `indicatorts` 2.2.2 (chart indicators) deprecated; it still works. Re-audit.
-
 - **Live candle and drawings not exercised against real Binance** (exchange hosts blocked in the
   dev sandbox; tested with mocked history and the drawing flow in a headless browser).
   Indicators use closed candles only (the forming candle is drawn, not computed).
@@ -126,6 +124,11 @@ Verified 2026-11-04 from a clean `npm ci` and `uv sync --locked`:
 8. The Markets page's older price-rule alerts are separate from setup alerts and still browser-only.
 
 ## History
+
+- 2026-11-11: `indicatorts` 2.2.2 (deprecated on npm) → 2.6.1, pinned; no `npm ci` warning. Golden
+  test against 2.2.2's outputs: 8 indicators identical; ATR now Wilder (SMA-seeded, equals the
+  backend ATR; 2.2.2 was up to 11% off) and Parabolic SAR no longer lands inside a candle
+  (upstream fixes). trading-signals compared and not adopted (TOOLING → Reuse audit).
 
 - 2026-11-04: Python backend scaffolded (`backend/`: uv, FastAPI, CI job). Pattern library from
   ta_patterns (MIT, audited: no look-ahead on any of 300 detectors): events on the completing

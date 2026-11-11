@@ -125,6 +125,8 @@ criteria met.
 - Liquidity heatmap (old Module 9); candidate renderer: nazmiefearmutcu/flowmap (see TOOLING).
 - Derivatives stats: OI, basis, liquidations, CVD, volume profile (old Module 10).
 - Chart drawing tools.
+- Chart RSI/EMA/MACD warm-up: `indicatorts` `seed: "sma"` would match TradingView's RSI and
+  TA-Lib's EMA from the first drawn value (ATR already does). Changes plotted values.
 - Angel One / Indian equities (removed in `4350c71`).
 - Auto-execution, only after Phase 4/6 evidence justifies it.
 - Top news panel (needs a source: backend-fetched RSS or a free CryptoPanic key, owner to approve).

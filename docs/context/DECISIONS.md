@@ -239,3 +239,14 @@ the uncorrected 95% rule flagged 2 of 146 patterns as edges, the corrected one n
 starts in `backend/` without QuestDB (history cached in memory) and the frontend stays at the
 repo root; both moves are separate steps of Phase 1. The in-house browser detectors stay until a
 library pattern measures at least as well.
+
+### 2026-11-11 · Chart indicators stay on `indicatorts`, upgraded to 2.6.1; ATR SMA-seeded
+
+Why: npm deprecated 2.2.2 without a reason, but the package isn't abandoned. The maintainer
+published 2.3.0–2.6.1 from the repo's release workflow with provenance, keeping the API we call.
+The other maintained MIT option, trading-signals, has a streaming API that would mean rewriting
+every adapter for values that are display-only (statistics come from the backend). 2.3.0 fixes
+two bugs we drew: ATR averaged true range with an SMA (up to 11% off the backend ATR that sets the
+pattern stops) and Parabolic SAR could flip on the close and draw inside a candle. A golden test
+against 2.2.2's recorded outputs shows the other 8 indicators unchanged; ATR uses `seed: "sma"`, so
+the ATR pane equals the backend's ATR. Pinned exact: the release was a day old.

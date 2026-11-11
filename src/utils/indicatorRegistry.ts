@@ -1,8 +1,9 @@
 /**
  * Chart indicators, TradingView-style: each has inputs (with TradingView's
  * defaults), plots with colours, and a placement (on price, own pane, or the
- * volume strip). Maths comes from `indicatorts` (MIT); we only align outputs and
- * blank the warm-up so a half-formed average is never drawn.
+ * volume strip). Maths comes from `indicatorts` (MIT, pinned); we only align outputs and
+ * blank the warm-up so a half-formed average is never drawn. ATR is SMA-seeded Wilder
+ * smoothing, so the pane equals the backend ATR behind the pattern stops.
  */
 import { atr, bb, ema, macd, obv, psar, rsi, sma, stoch, vwap } from "indicatorts";
 import type { Candle } from "../types/marketData";
@@ -213,7 +214,9 @@ export const INDICATORS: readonly IndicatorDef[] = [
     placement: "pane",
     inputs: [len(14)],
     plots: [{ key: "atr", label: "ATR", color: "#B71C1C", kind: "line" }],
-    compute: (c, p) => ({ atr: atr(highs(c), lows(c), closes(c), { period: p.length }).atrLine }),
+    compute: (c, p) => ({
+      atr: atr(highs(c), lows(c), closes(c), { period: p.length, seed: "sma" }).atrLine,
+    }),
     warmup: (p) => p.length,
   },
   {
