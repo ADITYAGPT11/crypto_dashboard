@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
-import type { Outcome, SetupOccurrence, SetupStats, Verdict } from "../../types/analysis";
-import type { Scan, SymbolAnalysis } from "../setupAnalysis";
-import { filterAndSort, libraryTotals, parseSetupKey, perSymbolStats } from "../setupLibrary";
+import type { StatsOut, SummaryOut } from "../../api/schema";
+import type { SetupStats, Verdict } from "../../types/analysis";
+import { filterAndSort, libraryTotals, statsByKey } from "../setupLibrary";
+import { locationLabel, normalizeSetupKey, parseSetupKey, setupKey } from "../setupKeys";
 
 function stats(key: string, n: number, winRate: number, expectancyR: number, verdict: Verdict) {
   return { key, n, winRate, expectancyR, verdict } as SetupStats;
@@ -33,63 +34,60 @@ describe("libraryTotals", () => {
   });
 });
 
-describe("perSymbolStats", () => {
-  const outcome = (result: Outcome["result"]): Outcome => ({
-    result,
-    exitIndex: 1,
-    movePct: result === "win" ? 3 : -1.5,
-    r: result === "win" ? 2 : -1,
-    bars: 3,
-  });
-  const occ = (symbol: string, result: Outcome["result"], time: number): SetupOccurrence => ({
-    symbol,
-    hit: { type: "hammer", index: time, entry: 100, stop: 98, target: 104, low: 98, points: [] },
-    location: "demandZone",
-    outcome: outcome(result),
-    time,
-  });
-  const analysis = (symbol: string, occurrences: SetupOccurrence[]): SymbolAnalysis => ({
-    symbol,
-    zones: [],
-    occurrences,
-  });
-
-  it("measures the setup per coin, most cases first, skipping coins without cases", () => {
-    const btc = [occ("BTC", "win", 1), occ("BTC", "loss", 2)];
-    const eth = [occ("ETH", "win", 3), occ("ETH", "win", 4), occ("ETH", "loss", 5)];
-    const sol = [occ("SOL", "open", 6)];
-    const scan: Scan = {
-      analyses: new Map([
-        ["BTC", analysis("BTC", btc)],
-        ["ETH", analysis("ETH", eth)],
-        ["SOL", analysis("SOL", sol)],
-      ]),
-      pooled: new Map([["hammer|demandZone", stats("hammer|demandZone", 5, 0.6, 0.8, "tooFew")]]),
-      current: [],
-    };
-    scan.pooled.get("hammer|demandZone")!.type = "hammer";
-    scan.pooled.get("hammer|demandZone")!.location = "demandZone";
-
-    const rows = perSymbolStats(scan, "hammer|demandZone");
-    expect(rows.map((r) => [r.symbol, r.stats.n, r.stats.wins])).toEqual([
-      ["ETH", 3, 2],
-      ["BTC", 2, 1],
-    ]);
-  });
-
-  it("returns nothing for an unknown setup", () => {
-    const scan: Scan = { analyses: new Map(), pooled: new Map(), current: [] };
-    expect(perSymbolStats(scan, "nope")).toEqual([]);
+describe("statsByKey", () => {
+  const summary: SummaryOut = {
+    n: 40,
+    wins: 22,
+    losses: 18,
+    expired: 3,
+    open: 1,
+    winRate: 0.55,
+    ciLow: 0.4,
+    ciHigh: 0.69,
+    breakEven: 0.4,
+    avgWinPct: 3,
+    avgLossPct: -2,
+    expectancyR: 0.2,
+    medianBars: 6,
+    verdict: "noEdge",
+  };
+  it("keys the backend's setups and maps the Wilson range", () => {
+    const body = {
+      setups: [
+        { pattern: "hammer", direction: "long", location: "zone", summary },
+        { pattern: "hammer", direction: "long", location: "*", summary },
+        { pattern: "x", direction: "long", location: "nowhere", summary },
+      ],
+    } as StatsOut;
+    const m = statsByKey(body);
+    expect([...m.keys()]).toEqual(["hammer|long|zone", "hammer|long|*"]);
+    expect(m.get("hammer|long|zone")).toMatchObject({ n: 40, ci: [0.4, 0.69], verdict: "noEdge" });
+    expect(statsByKey(null).size).toBe(0);
   });
 });
 
-describe("parseSetupKey", () => {
-  it("accepts known pattern|location keys", () => {
-    expect(parseSetupKey("hammer|demandZone")).toEqual({ type: "hammer", location: "demandZone" });
+describe("setup keys", () => {
+  it("round-trips and rejects junk", () => {
+    expect(parseSetupKey(setupKey("doubleTop", "short", "confluence"))).toEqual({
+      pattern: "doubleTop",
+      direction: "short",
+      location: "confluence",
+    });
+    expect(parseSetupKey("doubleTop|sideways|zone")).toBeNull();
+    expect(parseSetupKey("doubleTop|short|nowhere")).toBeNull();
+    expect(parseSetupKey("a b|long|zone")).toBeNull();
+    expect(parseSetupKey("")).toBeNull();
   });
-  it("rejects anything else", () => {
-    for (const bad of [null, "", "hammer", "hammer|moon", "x|demandZone", "hammer|demandZone|x"]) {
-      expect(parseSetupKey(bad)).toBeNull();
-    }
+
+  it("upgrades keys stored before directions existed", () => {
+    expect(normalizeSetupKey("doubleBottom|demandZone")).toBe("doubleBottom|long|zone");
+    expect(normalizeSetupKey("hammer|openSpace")).toBe("hammer|long|openSpace");
+    expect(normalizeSetupKey("tweezersBottom|openSpace")).toBeNull(); // retired pattern
+  });
+
+  it("names locations by direction", () => {
+    expect(locationLabel("zone", "long")).toBe("in demand zone");
+    expect(locationLabel("zone", "short")).toBe("in supply zone");
+    expect(locationLabel("orderBlock", "short")).toBe("at bearish order block");
   });
 });

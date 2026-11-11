@@ -48,27 +48,29 @@ flowchart LR
 - [ ] Product name + logo (owner choosing; `src/brand.ts`)
 - [x] Chart detection settings: pattern timeframes + zone source per user, multi-timeframe overlay,
       background stats per context
-- [ ] Apply detection settings to Dashboard, Pattern stats and Alerts
+- [x] Level source applied to Dashboard and Pattern stats (Alerts use same-timeframe levels)
 - [ ] Versioned rule presets (v2 editing, labelled exploratory until tested out-of-sample)
 - [x] TradingView-style chart: timeframes, chart types, indicators + panes, drawing tools
-- [x] Candlestick patterns from the `candlestick` package (6 bullish)
+- [x] Candlestick patterns: TA-Lib shapes in the analysis service (10, both directions)
 - [x] Bull flag and inverse head and shoulders (in-house)
-- [ ] More chart patterns (triangles, falling wedge, cup and handle)
+- [x] Triangles (ascending, descending, symmetrical) and wedges; bearish twins of every pattern
+- [ ] Cup and handle, rectangles (if the owner wants them)
 
 ## Phase 1 · Backend + history (M1, M2)
 
 - [x] Decide backend stack: Python 3.12 + FastAPI + QuestDB (see DECISIONS, ARCHITECTURE)
-- [x] Scaffold `backend/` with uv (FastAPI, tests, CI job) (2026-11-04)
+- [x] Scaffold `backend/` with uv (FastAPI, tests, CI job) (2026-11-04; rule set 2026-11-11)
 - [ ] Monorepo layout per `ARCHITECTURE.md`: move frontend to `apps/web`
 - [ ] Collector service: Binance + OKX (+ Delta) via CCXT; health + gap detection
 - [ ] `infra/docker-compose.yml`: QuestDB + backend + web
 - [ ] QuestDB tables: candles 1m, funding, OI
 - [ ] Backfill job: 2 years of the top 20 USDT pairs
 - [ ] Data quality report (gaps, dupes, outliers)
-- [ ] Detectors (deterministic, versioned, unit-tested): candlestick and chart patterns,
-      demand/supply zones, volume profile (POC, VAH/VAL, HVN/LVN)
-- [ ] Setup history engine: pattern × location → outcome (target before stop), n, win rate,
-      Wilson 95% range, avg win/loss, gross expectancy; per coin and pooled across 20 coins
+- [x] Detectors (deterministic, versioned, unit-tested): candlestick and chart patterns,
+      demand/supply zones, order blocks, FVG, BOS/CHoCH (`backend/src/tcs/analysis`)
+- [x] Setup history engine: pattern × direction × location → outcome, n, Wilson 95% range,
+      break-even, expectancy; per coin and pooled (background job, 1–2 years)
+- [ ] Random-entry baseline per setup (same stop/target distances)
 - [ ] API: `/candles`, `/indicators`, `/patterns`, `/zones`, `/volume-profile`, `/scanner/now`,
       `/setups`, `/setups/{id}/history`, `/alerts`, `/coverage`, `/quality`, `/backfill`, `/health`
 - [ ] Phase 1 UI per `docs/product/ux/PHASE1_UX.md`, in priority order: **Dashboard** (setup
@@ -82,6 +84,8 @@ criteria met.
 ## Phase 2 · Research + backtest (M3)
 
 - [ ] Feature library (TA, funding percentile, basis, OI change, regime)
+- [ ] Multiple-testing correction on the verdict (Bonferroni or FDR across every setup tested;
+      from PR #6: on a random walk the uncorrected 95% rule flagged 2 of 146 patterns as edges)
 - [ ] Vectorised screener + event-driven backtester with the shared cost model
 - [ ] Strategy report generator (HTML) + gate checker
 - [ ] Research journal: every hypothesis and result logged, including failures
@@ -124,7 +128,7 @@ criteria met.
 - Order-book features for research: full depth needs snapshot + diff sync (today: top-20 partial book).
 - Liquidity heatmap (old Module 9); candidate renderer: nazmiefearmutcu/flowmap (see TOOLING).
 - Derivatives stats: OI, basis, liquidations, CVD, volume profile (old Module 10).
-- Chart drawing tools.
+- Server-side order-book depth recording (heatmap history that survives a reload).
 - Angel One / Indian equities (removed in `4350c71`).
 - Auto-execution, only after Phase 4/6 evidence justifies it.
 - Top news panel (needs a source: backend-fetched RSS or a free CryptoPanic key, owner to approve).

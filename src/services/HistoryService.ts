@@ -1,12 +1,16 @@
 import type { Candle, CandleInterval } from "../types/marketData";
+import type { CandlesOut } from "../api/schema";
+import { apiGet } from "../api/client";
 import { INTERVAL_TO_MS, normalizeHistory } from "../utils/candleUtils";
 
 /**
  * Deep candle history for analysis (patterns, zones, setup statistics).
  *
- * Phase 1a: fetched in the browser from Binance USDⓈ-M futures public REST
- * (no key), paged backwards, cached per symbol × interval for the session.
- * Phase 1b replaces this with the backend's stored history (QuestDB).
+ * Fetched in the browser from Binance USDⓈ-M futures public REST (no key), paged
+ * backwards, cached per symbol × interval for the session. When Binance is not
+ * reachable from the browser, the analysis service's stored candles (`/api/v1/candles`,
+ * the same exchange's klines) are used instead, so the chart still shows what the
+ * patterns were found on.
  */
 
 export const INTERVAL_MS: Record<CandleInterval, number> = INTERVAL_TO_MS;
@@ -24,6 +28,30 @@ export interface History {
 }
 
 type Fetcher = (url: string) => Promise<unknown>;
+/** Candles from another source when Binance fails (null = no fallback). */
+export type Fallback = (
+  symbol: string,
+  interval: CandleInterval,
+  limit: number,
+) => Promise<Candle[]>;
+
+const BACKEND_TFS: readonly CandleInterval[] = ["15m", "1h", "4h", "1d"];
+
+export const backendFallback: Fallback = async (symbol, interval, limit) => {
+  if (!BACKEND_TFS.includes(interval)) throw new Error(`no stored ${interval} history`);
+  const body = await apiGet<CandlesOut>(`/candles/${symbol}`, {
+    tf: interval,
+    limit: Math.min(limit, 5000),
+  });
+  return body.candles.map(([openTime, open, high, low, close, volume]) => ({
+    openTime,
+    open,
+    high,
+    low,
+    close,
+    volume,
+  }));
+};
 
 const defaultFetcher: Fetcher = async (url) => {
   const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
@@ -43,10 +71,12 @@ export class HistoryService {
   constructor(
     private fetcher: Fetcher = defaultFetcher,
     private now: () => number = Date.now,
+    private fallback: Fallback | null = null,
   ) {}
 
   static getInstance(): HistoryService {
-    if (!HistoryService.instance) HistoryService.instance = new HistoryService();
+    if (!HistoryService.instance)
+      HistoryService.instance = new HistoryService(defaultFetcher, Date.now, backendFallback);
     return HistoryService.instance;
   }
 
@@ -65,16 +95,29 @@ export class HistoryService {
     const stale = fetchedAt != null && nextClose(fetchedAt, interval) <= this.now();
     if (hit && !stale) return hit;
     this.fetchedAt.delete(key);
-    const p = this.fetchPages(symbol, interval, pages).then(
-      (h) => {
-        this.fetchedAt.set(key, h.fetchedAt);
-        return h;
-      },
-      (err: unknown) => {
-        this.cache.delete(key);
-        throw err;
-      },
-    );
+    const p = this.fetchPages(symbol, interval, pages)
+      .catch(async (err: unknown) => {
+        if (!this.fallback) throw err;
+        try {
+          const candles = await this.fallback(symbol, interval, pages * PAGE_LIMIT);
+          const cutoff = this.now();
+          const closed = candles.filter((c) => c.openTime + INTERVAL_MS[interval] <= cutoff);
+          if (closed.length === 0) throw err;
+          return { symbol, interval, candles: closed, fetchedAt: cutoff };
+        } catch {
+          throw err; // report the exchange's error, not the fallback's
+        }
+      })
+      .then(
+        (h) => {
+          this.fetchedAt.set(key, h.fetchedAt);
+          return h;
+        },
+        (err: unknown) => {
+          this.cache.delete(key);
+          throw err;
+        },
+      );
     this.cache.set(key, p);
     return p;
   }

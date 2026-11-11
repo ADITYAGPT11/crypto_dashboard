@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { SetupOccurrence, SetupStats } from "../../types/analysis";
-import type { CurrentSetup, Scan } from "../setupAnalysis";
 import {
   matchFirings,
   parseFirings,
   parseRules,
   resolveOutcome,
   WATCHLIST,
+  type CurrentSetup,
   type SetupAlertRule,
 } from "../setupAlerts";
 
@@ -15,32 +15,37 @@ const H4 = 14_400_000;
 const pooled = (verdict: SetupStats["verdict"]) =>
   ({ n: 212, wins: 129, winRate: 0.61, ci: [0.54, 0.67], verdict }) as SetupStats;
 
-function occ(symbol: string, time: number, result: SetupOccurrence["outcome"]["result"] = "open") {
+function occ(
+  symbol: string,
+  time: number,
+  result: SetupOccurrence["outcome"]["result"] = "open",
+  pattern = "doubleBottom",
+): SetupOccurrence {
   return {
     symbol,
-    hit: {
-      type: "doubleBottom",
-      index: 10,
-      entry: 100,
-      stop: 95,
-      target: 110,
-      low: 95,
-      points: [],
-    },
-    location: "demandZone",
-    outcome: { result, exitIndex: null, movePct: 0, r: 0, bars: 0 },
+    pattern,
+    direction: "long",
+    location: "zone",
     time,
-  } as SetupOccurrence;
+    startTime: time - 10 * 14_400_000,
+    entry: 100,
+    stop: 95,
+    target: 110,
+    extreme: 95,
+    points: [],
+    lines: [],
+    outcome: { result, exitTime: null, movePct: 0, r: 0, bars: 0 },
+  };
 }
 
 function current(symbol: string, time: number, verdict: SetupStats["verdict"] = "edge") {
-  return { occurrence: occ(symbol, time), pooled: pooled(verdict), own: pooled(verdict) };
+  return { occurrence: occ(symbol, time), pooled: pooled(verdict) };
 }
 
 const rule = (over: Partial<SetupAlertRule> = {}): SetupAlertRule => ({
   id: "r1",
   symbol: "BTC-USDT",
-  setupKey: "doubleBottom|demandZone",
+  setupKey: "doubleBottom|long|zone",
   interval: "4h",
   telegram: true,
   inApp: true,
@@ -82,7 +87,7 @@ describe("matchFirings", () => {
     expect(matchFirings([rule({ paused: true })], cur, "4h", [], new Set(), now)).toEqual([]);
     expect(matchFirings([rule({ interval: "1h" })], cur, "4h", [], new Set(), now)).toEqual([]);
     expect(
-      matchFirings([rule({ setupKey: "hammer|demandZone" })], cur, "4h", [], new Set(), now),
+      matchFirings([rule({ setupKey: "hammer|long|zone" })], cur, "4h", [], new Set(), now),
     ).toEqual([]);
     // candle 98 closed at 99·H4, before the rule was created at 100·H4
     expect(
@@ -103,7 +108,7 @@ describe("matchFirings", () => {
 });
 
 describe("resolveOutcome", () => {
-  it("reads the outcome of the same occurrence from a newer scan", () => {
+  it("reads the outcome of the same occurrence from the coin's newer analysis", () => {
     const [firing] = matchFirings(
       [rule()],
       [current("BTC-USDT", 101 * H4)],
@@ -112,18 +117,9 @@ describe("resolveOutcome", () => {
       new Set(),
       0,
     );
-    const scan = {
-      analyses: new Map([
-        [
-          "BTC-USDT",
-          { symbol: "BTC-USDT", zones: [], occurrences: [occ("BTC-USDT", 101 * H4, "win")] },
-        ],
-      ]),
-      pooled: new Map(),
-      current: [],
-    } as Scan;
-    expect(resolveOutcome(firing, scan)).toBe("win");
-    expect(resolveOutcome({ ...firing, symbol: "SOL-USDT" }, scan)).toBe("open");
+    const newer = [occ("BTC-USDT", 101 * H4, "win")];
+    expect(resolveOutcome(firing, newer)).toBe("win");
+    expect(resolveOutcome({ ...firing, time: 99 * H4 }, newer)).toBe("open");
   });
 });
 
@@ -133,12 +129,13 @@ describe("storage parsing", () => {
     const parsed = parseRules([
       good,
       { ...good, id: "r2", symbol: "not a symbol" },
-      { ...good, id: "r3", setupKey: "moon|demandZone" },
+      { ...good, id: "r3", setupKey: "moon|nowhere" },
       { ...good, id: "r4", interval: "5m" },
       { ...good },
       "junk",
+      { ...good, id: "r5", setupKey: "hammer|demandZone" }, // stored before directions existed
     ]);
-    expect(parsed).toEqual([good]);
+    expect(parsed).toEqual([good, { ...good, id: "r5", setupKey: "hammer|long|zone" }]);
     expect(parseRules(null)).toEqual([]);
   });
 

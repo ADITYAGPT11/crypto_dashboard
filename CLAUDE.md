@@ -4,24 +4,26 @@
 > confirmations** backed by deep research, historical backtesting, forward testing, mathematical
 > edge, statistical probability, technical analysis, news impact and risk management.
 >
-> **Today it is:** a browser React app (Phase 1a): a setup-scanner **Dashboard** and a **Chart**
-> workspace (patterns, demand/supply zones, volume profile, win-rate history of every setup) on
-> Binance public history, plus the older Markets page. Read `docs/context/STATUS.md` first.
+> **Today it is:** a React app plus a **Python analysis service** (`backend/`) that owns every
+> rule: chart and candlestick patterns, demand/supply zones, order blocks, and the win-rate
+> history of every setup (background job over 1–2 years). Dashboard, Chart (with a liquidity
+> heatmap), Pattern stats, Risk, Alerts. Read `docs/context/STATUS.md` first.
 
 ## Context map: read in this order, only as deep as the task needs
 
-| File                           | Read it when                                        | Keep it updated when                                 |
-| ------------------------------ | --------------------------------------------------- | ---------------------------------------------------- |
-| `docs/context/STATUS.md`       | always, first                                       | anything ships, breaks, or is found broken           |
-| `docs/context/PROJECT_MAP.md`  | touching code                                       | files/modules/events are added, moved or removed     |
-| `docs/context/ARCHITECTURE.md` | adding a service, folder or package                 | the target structure or chosen stack changes         |
-| `docs/context/ROADMAP.md`      | planning new work                                   | a phase starts, finishes or changes scope            |
-| `docs/context/DECISIONS.md`    | "why is it like this?"                              | a non-obvious choice is made (append, never rewrite) |
-| `docs/context/MINDMAP.md`      | onboarding / big picture                            | modules or roadmap phases change                     |
-| `docs/product/README.md`       | product questions, principles                       | product principles or module list change             |
-| `docs/product/modules/M*.md`   | working on that module (load only the one you need) | its scope, status or acceptance criteria change      |
-| `docs/product/ux/PHASE1_UX.md` | building any UI screen                              | features, screens or visual rules change             |
-| `docs/context/TOOLING.md`      | adding a dependency, skill or MCP                   | a tool is adopted, rejected or dropped               |
+| File                           | Read it when                                        | Keep it updated when                                  |
+| ------------------------------ | --------------------------------------------------- | ----------------------------------------------------- |
+| `docs/context/STATUS.md`       | always, first                                       | anything ships, breaks, or is found broken            |
+| `docs/context/PROJECT_MAP.md`  | touching code                                       | files/modules/events are added, moved or removed      |
+| `docs/context/ARCHITECTURE.md` | adding a service, folder or package                 | the target structure or chosen stack changes          |
+| `docs/context/ROADMAP.md`      | planning new work                                   | a phase starts, finishes or changes scope             |
+| `docs/context/DECISIONS.md`    | "why is it like this?"                              | a non-obvious choice is made (append, never rewrite)  |
+| `docs/context/MINDMAP.md`      | onboarding / big picture                            | modules or roadmap phases change                      |
+| `docs/product/README.md`       | product questions, principles                       | product principles or module list change              |
+| `docs/product/modules/M*.md`   | working on that module (load only the one you need) | its scope, status or acceptance criteria change       |
+| `docs/product/ux/PHASE1_UX.md` | building any UI screen                              | features, screens or visual rules change              |
+| `docs/product/patterns.md`     | touching a detector, location, outcome or statistic | any rule or threshold changes (new `RULESET_VERSION`) |
+| `docs/context/TOOLING.md`      | adding a dependency, skill or MCP                   | a tool is adopted, rejected or dropped                |
 
 Prefer these files over re-reading the whole repo. If a file disagrees with the code, the code
 wins: fix the file in the same change.
@@ -30,17 +32,19 @@ wins: fix the file in the same change.
 
 ```bash
 npm ci              # install (Node 22.5+, needed for node:sqlite in the backend)
+npm start           # all of it: web :3000 + Python api :8000 + Node prototype :3001 (scripts/start.mjs)
 npm run dev         # dev server on http://localhost:3000
 npm test            # Vitest unit tests (vp test)
 npm run check       # format + lint + typecheck (vp check); `npx vp check --fix` to fix
 npm run build       # tsc -b (app, node, backend) + production build
-npm run backend     # bundles and starts the Node prototype on :3001 (Python replaces it in 1b)
-npm run backend:py  # Python backend (uv, FastAPI) on :8000, proxied as /tcs in dev
-cd backend && uv run pytest && uv run ruff check . && uv run ruff format --check . && uv run pyright
+npm run backend     # bundles and starts the Node prototype on :3001 (Telegram; Python replaces it)
+npm run api         # Python analysis service on :8000 (uv; first run backfills, then stats job)
+npm run api:check   # ruff format + lint, pyright strict, pytest (backend/)
+npm run api:types   # regenerate src/api/schema.ts after changing backend/src/tcs/api/schemas.py
 ```
 
-**Done means:** `npm run check` clean, `npm test` green, `npm run build` passes, the backend
-checks above pass when `backend/` changed, and STATUS updated.
+**Done means:** `npm run check` clean, `npm test` green, `npm run build` passes,
+`npm run api:check` green, and STATUS updated.
 
 ## Guardrails (non-negotiable)
 
@@ -67,6 +71,11 @@ checks above pass when `backend/` changed, and STATUS updated.
   `subscribe()` returning an unsubscribe fn + a small hook in `custom-hooks/`
   (pattern: `useLivePrice.ts`). Don't push tick data through parent React state.
 - New pure logic goes in `src/utils/<name>.ts` with tests in `src/utils/__tests__/`.
+- **Every rule that feeds a statistic lives in `backend/src/tcs/analysis/`** (Python), called
+  through `engine.analyze` by both the chart API and the stats job. Never re-implement a detector
+  in TypeScript. New detectors: thresholds in ATR, swings only after `known_at`, bullish rule +
+  mirrored twin, and they must pass `tests/test_invariants.py`. Bump `RULESET_VERSION` on any
+  rule change and regenerate the golden snapshot.
 - Analysis must never look ahead: detectors confirm a pattern only with candles that existed at
   that time, and statistics show n, a Wilson 95% range and a break-even comparison.
 - New pages share `src/styles/_page.scss` mixins and `--t-*` tokens from `src/styles/tokens.css`.

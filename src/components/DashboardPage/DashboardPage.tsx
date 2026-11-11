@@ -2,14 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { RESEARCH_UNIVERSE } from "../../services/HistoryService";
 import { MarketDataService } from "../../services/MarketDataService";
-import { useScan } from "../../custom-hooks/useScan";
+import { useUniverseCandles } from "../../custom-hooks/useUniverseCandles";
+import { useCatalog, useScanner, useStats } from "../../custom-hooks/useAnalysisApi";
 import { useLivePrice } from "../../custom-hooks/useLivePrice";
 import { loadWatchlist } from "../../utils/watchlistStorage";
-import { LOCATION_LABELS } from "../../utils/setupAnalysis";
-import { PATTERN_LABELS } from "../../utils/patterns";
+import { patternLabel } from "../../utils/patternLabels";
+import { locationLabel, toStats } from "../../utils/setupKeys";
+import { statsByKey } from "../../utils/setupLibrary";
+import { loadDetection, zoneTfFor } from "../../utils/detectionConfig";
 import { pct, price, signedPct, signedR } from "../../utils/format";
 import type { Candle } from "../../types/marketData";
-import type { SetupStats } from "../../types/analysis";
+import type { SetupOccurrence, SetupStats } from "../../types/analysis";
 import { Chip, CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
 import MarketOverview from "../MarketOverview";
 import styles from "./DashboardPage.module.scss";
@@ -17,8 +20,8 @@ import styles from "./DashboardPage.module.scss";
 const INTERVAL = "4h" as const;
 const SPARK = 42; // 7 days of 4h candles
 
-function setupLabel(s: Pick<SetupStats, "type" | "location">) {
-  return `${PATTERN_LABELS[s.type]} · ${LOCATION_LABELS[s.location]}`;
+function setupLabel(s: Pick<SetupStats, "pattern" | "direction" | "location">) {
+  return `${s.direction === "long" ? "▲" : "▼"} ${patternLabel(s.pattern)} · ${locationLabel(s.location, s.direction)}`;
 }
 
 /** Header band with a three-layer parallax, disabled under reduced motion. */
@@ -124,31 +127,46 @@ const DashboardPage: React.FC = () => {
   const watchlist = useMemo(() => loadWatchlist(), []);
   const universe = useMemo(() => [...new Set([...watchlist, ...RESEARCH_UNIVERSE])], [watchlist]);
   const [attempt, setAttempt] = useState(0);
-  const { loading, scan, candles, failed } = useScan(universe, INTERVAL, attempt);
+  const { candles, failed } = useUniverseCandles(universe, INTERVAL, attempt);
+  const zoneTf = useMemo(() => zoneTfFor(INTERVAL, loadDetection().zones), []);
+  const catalog = useCatalog().data;
+  const scanner = useScanner(INTERVAL, zoneTf, watchlist);
+  const statsRes = useStats(INTERVAL, zoneTf);
+  const run = statsRes.data?.run ?? null;
+  const ready = scanner.data !== null;
+  const serviceError = scanner.error ?? statsRes.error;
 
   useEffect(() => {
     MarketDataService.getInstance().startMarketData(watchlist);
   }, [watchlist]);
 
-  const current = scan?.current ?? [];
-  const edgeNow = current.filter((c) => c.pooled.verdict === "edge").length;
+  const current = useMemo(
+    () =>
+      (scanner.data?.items ?? []).map((i) => {
+        const o: SetupOccurrence = { ...i.occurrence, symbol: i.symbol };
+        return {
+          occurrence: o,
+          pooled: i.pooled ? toStats(o.pattern, o.direction, o.location, i.pooled) : null,
+        };
+      }),
+    [scanner.data],
+  );
+  const edgeNow = current.filter((c) => c.pooled?.verdict === "edge").length;
   const library = useMemo(
-    () => (scan ? [...scan.pooled.values()].sort((a, b) => b.n - a.n) : []),
-    [scan],
+    () =>
+      [...statsByKey(statsRes.data).values()]
+        .filter((s) => s.location !== "*" && s.n > 0)
+        .sort((a, b) => b.n - a.n),
+    [statsRes.data],
   );
-  const tracked = useMemo(
-    () => (scan ? [...scan.analyses.values()].reduce((s, a) => s + a.occurrences.length, 0) : 0),
-    [scan],
-  );
-  const coins = candles.size;
-  const anyCandles = candles.values().next().value as Candle[] | undefined;
-  const days =
-    anyCandles && anyCandles.length > 1
-      ? Math.round(
-          (anyCandles[anyCandles.length - 1].openTime - anyCandles[0].openTime) / 86_400_000,
-        )
-      : 0;
-  const top = current.find((c) => c.pooled.verdict === "edge") ?? current[0];
+  const tracked = library.reduce((s, x) => s + x.n + x.expired, 0);
+  const coins = run ? run.coins.length - run.failed.length : 0;
+  const days = run?.days ?? 0;
+  const top =
+    current.find((c) => c.pooled?.verdict === "edge") ??
+    current.find((c) => c.pooled) ??
+    current[0];
+  const patternCount = catalog?.patterns.length ?? 0;
 
   return (
     <main className={styles.page}>
@@ -163,39 +181,41 @@ const DashboardPage: React.FC = () => {
 
       <Band>
         <span className={styles.lbl}>
-          Scanner · {Object.keys(PATTERN_LABELS).length} patterns × 2 locations × {universe.length}{" "}
-          coins · {INTERVAL}
+          Scanner · {patternCount || "…"} patterns × 4 locations × {universe.length} coins ·{" "}
+          {INTERVAL} · {zoneTf} levels
         </span>
         <h2 id="band-title">
-          {loading && !scan
-            ? `Scanning ${universe.length} coins…`
+          {!ready
+            ? serviceError
+              ? "The analysis service is offline."
+              : `Scanning ${universe.length} coins…`
             : current.length === 0
               ? "No setups on the last 3 closed candles."
               : `${current.length} setup${current.length === 1 ? "" : "s"} on the last 3 closed candles. ${edgeNow} with a measured edge.`}
         </h2>
         <p>
-          {loading && !scan
-            ? `Loading about 500 days of ${INTERVAL} history per coin from Binance, then measuring every past occurrence.`
-            : top
-              ? `${top.occurrence.symbol} printed a ${PATTERN_LABELS[top.occurrence.hit.type].toLowerCase()} ${LOCATION_LABELS[top.occurrence.location]}. Across ${top.pooled.n} past cases on ${coins} coins it reached its target ${pct(top.pooled.winRate)} of the time (range ${pct(top.pooled.ci[0])}–${pct(top.pooled.ci[1])}).`
+          {!ready
+            ? (serviceError ?? "Detecting patterns on the latest closed candles of every coin…")
+            : top?.pooled
+              ? `${top.occurrence.symbol} printed a ${top.occurrence.direction === "long" ? "bullish" : "bearish"} ${patternLabel(top.occurrence.pattern).toLowerCase()} ${locationLabel(top.occurrence.location, top.occurrence.direction)}. Across ${top.pooled.n} past cases on ${coins} coins it reached its target ${pct(top.pooled.winRate)} of the time (range ${pct(top.pooled.ci[0])}–${pct(top.pooled.ci[1])}).`
               : "The scanner re-checks at every candle close. Below is how each setup has performed so far."}
         </p>
         <div className={styles.kpis}>
           <div>
             <span className={styles.lbl}>Setups now</span>
-            <span className={styles.num}>{scan ? current.length : "…"}</span>
+            <span className={styles.num}>{ready ? current.length : "…"}</span>
           </div>
           <div>
             <span className={styles.lbl}>Edge candidates</span>
-            <span className={`${styles.num} ${styles.up}`}>{scan ? edgeNow : "…"}</span>
+            <span className={`${styles.num} ${styles.up}`}>{ready ? edgeNow : "…"}</span>
           </div>
           <div>
             <span className={styles.lbl}>Patterns measured</span>
-            <span className={styles.num}>{scan ? tracked.toLocaleString("en-US") : "…"}</span>
+            <span className={styles.num}>{run ? tracked.toLocaleString("en-US") : "…"}</span>
           </div>
           <div>
             <span className={styles.lbl}>History</span>
-            <span className={styles.num}>{scan ? `${coins} coins · ${days} d` : "…"}</span>
+            <span className={styles.num}>{run ? `${coins} coins · ${days} d` : "…"}</span>
           </div>
         </div>
       </Band>
@@ -203,10 +223,8 @@ const DashboardPage: React.FC = () => {
       {failed.length > 0 && (
         <div className={styles.alert} role="alert">
           <span>
-            Couldn't load history for {failed.join(", ")}.{" "}
-            {coins > 0
-              ? "Statistics use the coins that loaded."
-              : "Binance's public API must be reachable from this browser."}
+            Couldn't load chart history for {failed.join(", ")} (sparklines and the market
+            overview). Binance's public API must be reachable from this browser.
           </span>
           <button type="button" className={styles.btn} onClick={() => setAttempt((a) => a + 1)}>
             Try again
@@ -222,10 +240,10 @@ const DashboardPage: React.FC = () => {
           <div className={styles.cardHead}>
             <h2 id="now-title">Setups detected now</h2>
             <Explain title="What counts as a setup">
-              A pattern (double bottom, bullish engulfing, hammer) plus its location (inside a
-              demand zone or in open space), confirmed on one of the last 3 closed {INTERVAL}{" "}
-              candles. The win rate is the same setup across every coin's history: target hit before
-              stop within 30 candles.
+              A pattern (double bottom, engulfing, triangle…) in a direction plus its location (at a{" "}
+              {zoneTf} demand/supply zone, an order block, both, or open space), confirmed on one of
+              the last 3 closed {INTERVAL} candles. The win rate is the same setup across every
+              coin's history: target hit before stop within {catalog?.maxHoldBars ?? 30} candles.
             </Explain>
             <p>
               Pattern + location on a recent closed candle. Statistics pool every past case across
@@ -249,27 +267,32 @@ const DashboardPage: React.FC = () => {
               </thead>
               <tbody>
                 {current.slice(0, 15).map(({ occurrence: o, pooled: p }) => (
-                  <tr key={`${o.symbol}${o.hit.type}${o.hit.index}`}>
+                  <tr key={`${o.symbol}${o.pattern}${o.direction}${o.time}`}>
                     <td>
                       <b>{o.symbol}</b>
                     </td>
                     <td>
-                      {PATTERN_LABELS[o.hit.type]}{" "}
-                      <span className={styles.mute}>{LOCATION_LABELS[o.location]}</span>
+                      <span className={o.direction === "long" ? styles.up : styles.down}>
+                        {o.direction === "long" ? "▲" : "▼"}
+                      </span>{" "}
+                      {patternLabel(o.pattern)}{" "}
+                      <span className={styles.mute}>{locationLabel(o.location, o.direction)}</span>
                     </td>
-                    <td className={`${styles.r} ${styles.num}`}>{p.n}</td>
+                    <td className={`${styles.r} ${styles.num}`}>{p ? p.n : "—"}</td>
                     <td>
-                      <div className={styles.ciCell}>
-                        <span className={styles.num}>{pct(p.winRate)}</span>
-                        <CiBar stats={p} />
-                      </div>
+                      {p ? (
+                        <div className={styles.ciCell}>
+                          <span className={styles.num}>{pct(p.winRate)}</span>
+                          <CiBar stats={p} />
+                        </div>
+                      ) : (
+                        <span className={styles.mute}>not measured yet</span>
+                      )}
                     </td>
                     <td className={`${styles.r} ${styles.num} ${styles.up}`}>
-                      {signedPct(p.avgWinPct)}
+                      {p ? signedPct(p.avgWinPct) : "—"}
                     </td>
-                    <td>
-                      <VerdictChip verdict={p.verdict} />
-                    </td>
+                    <td>{p && <VerdictChip verdict={p.verdict} />}</td>
                     <td>
                       <Link className={styles.btnSm} to={`/chart/${o.symbol}`}>
                         Chart
@@ -277,7 +300,7 @@ const DashboardPage: React.FC = () => {
                     </td>
                   </tr>
                 ))}
-                {scan && current.length === 0 && (
+                {ready && current.length === 0 && (
                   <tr>
                     <td colSpan={7} className={styles.mute}>
                       Nothing confirmed on the last 3 closed {INTERVAL} candles. The table below
@@ -285,10 +308,10 @@ const DashboardPage: React.FC = () => {
                     </td>
                   </tr>
                 )}
-                {!scan && (
+                {!ready && (
                   <tr>
                     <td colSpan={7} className={styles.mute}>
-                      Scanning…
+                      {serviceError ?? "Scanning…"}
                     </td>
                   </tr>
                 )}
@@ -352,14 +375,16 @@ const DashboardPage: React.FC = () => {
         <div className={styles.cardHead}>
           <h2 id="lib-title">How each setup has performed</h2>
           <Explain title="Reading this table">
-            Every past case of each setup on every coin. Break-even is the win rate needed to profit
-            given the average win size (single-candle patterns target 1.5× risk, so they need about
-            40%). Edge candidate: at least 30 cases and the whole 95% range above break-even.
-            Results are before fees; Phase 2 re-tests candidates with costs.
+            Every past case of each setup on every coin, measured in the background. Break-even is
+            the win rate needed to profit given the average win size (candlestick patterns target
+            1.5× risk, so they need 40%). Edge candidate: at least {catalog?.minSample ?? 30} cases
+            and the whole 95% range above break-even. Results are before fees; Phase 2 re-tests
+            candidates with costs.
           </Explain>
           <p>
-            {coins} coins · {INTERVAL} · before fees. Location changes results, so each pattern is
-            measured inside demand zones and in open space separately.
+            {coins} coins · {days} days · {INTERVAL} · {zoneTf} levels · before fees. Location
+            changes results, so each pattern is measured at zones, order blocks, both, and in open
+            space.
           </p>
         </div>
         <div className={styles.xs}>
@@ -377,7 +402,7 @@ const DashboardPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {library.map((s) => (
+              {library.slice(0, 15).map((s) => (
                 <tr key={s.key}>
                   <td>
                     <b>{setupLabel(s)}</b>
@@ -406,6 +431,12 @@ const DashboardPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {library.length > 15 && (
+          <p className={styles.mute}>
+            The 15 setups with the most cases.{" "}
+            <Link to="/stats">All {library.length} in Pattern stats</Link>.
+          </p>
+        )}
       </section>
 
       <section className={styles.card} aria-labelledby="watch-title">

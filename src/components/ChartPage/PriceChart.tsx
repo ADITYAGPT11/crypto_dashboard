@@ -23,8 +23,11 @@ import {
 } from "lightweight-charts";
 import { DrawingManager, type DrawingKind } from "lightweight-charts-drawing";
 import type { Candle, CandleInterval } from "../../types/marketData";
-import type { OutcomeResult } from "../../types/analysis";
-import type { ViewPattern, ViewZone } from "../../utils/timeframeMapping";
+import type { Direction, OutcomeResult } from "../../types/analysis";
+import type { ViewLevel, ViewPattern } from "../../utils/timeframeMapping";
+import { patternShort } from "../../utils/patternLabels";
+import type { HeatmapFrame } from "../../utils/liquidityHeatmap";
+import { drawHeatmap } from "./drawHeatmap";
 import { computeVolumeProfile } from "../../utils/volumeProfile";
 import {
   computeInstance,
@@ -38,8 +41,11 @@ import styles from "./ChartPage.module.scss";
 
 export interface Layers {
   zones: boolean;
+  orderBlocks: boolean;
+  fvg: boolean;
   vp: boolean;
   pattern: boolean;
+  heatmap: boolean;
 }
 
 /** Past case of the selected setup, already placed on a view bar. */
@@ -48,8 +54,7 @@ export interface ViewMarker {
   time: number;
   result: OutcomeResult;
   current: boolean;
-  /** Short setups point down from above the bar; default up from below. */
-  direction?: "up" | "down";
+  direction: Direction;
 }
 
 /** Plan prices of the selected setup. */
@@ -79,16 +84,16 @@ interface Props {
   scale: ScaleMode;
   indicators: IndicatorInstance[];
   onIndicator: (uid: string, action: IndicatorAction) => void;
-  /** Zones mapped onto the view (any source timeframe). */
-  zones: ViewZone[];
+  /** Zones, order blocks and gaps mapped onto the view (any source timeframe). */
+  levels: ViewLevel[];
+  /** Resting order-book liquidity sampled since the page opened (heatmap layer). */
+  heatmap?: HeatmapFrame | null;
   /** The selected setup mapped onto the view. */
   selected: ViewPattern | null;
   plan: Plan | null;
   /** Other recent patterns, drawn as small timeframe tags. */
   others: ViewPattern[];
   markers: ViewMarker[];
-  /** View-bar open time to scroll to when no built-in setup is selected (library pick). */
-  focusTime?: number | null;
   layers: Layers;
   tool: DrawingKind | null;
   onToolChange: (tool: DrawingKind | null) => void;
@@ -102,18 +107,6 @@ export const TF_COLOR: Record<string, string> = {
   "1h": "#C084FC",
   "4h": "#4C9AFF",
   "1d": "#F0A35E",
-};
-
-const SHORT: Record<string, string> = {
-  doubleBottom: "DB",
-  bullishEngulfing: "BE",
-  hammer: "H",
-  invertedHammer: "IH",
-  bullishHarami: "HR",
-  threeWhiteSoldiers: "3WS",
-  tweezersBottom: "TB",
-  bullFlag: "BF",
-  inverseHeadShoulders: "IHS",
 };
 
 const C = {
@@ -188,12 +181,12 @@ const PriceChart: React.FC<Props> = ({
   scale,
   indicators,
   onIndicator,
-  zones,
+  levels,
+  heatmap = null,
   selected,
   plan,
   others,
   markers,
-  focusTime = null,
   layers,
   tool,
   onToolChange,
@@ -210,7 +203,7 @@ const PriceChart: React.FC<Props> = ({
   const indRef = useRef<IndicatorSeries[]>([]);
   const priceLinesRef = useRef<IPriceLine[]>([]);
   const displayRef = useRef<Candle[]>([]);
-  const propsRef = useRef({ candles, viewTf, zones, selected, others, layers });
+  const propsRef = useRef({ candles, viewTf, levels, heatmap, selected, others, layers });
   const drawRef = useRef<() => void>(() => {});
   const onToolRef = useRef(onToolChange);
   const symbolRef = useRef(symbol);
@@ -220,7 +213,7 @@ const PriceChart: React.FC<Props> = ({
   const [legend, setLegend] = useState<Pick<IndicatorSeries, "uid" | "pane" | "values">[]>([]);
 
   useLayoutEffect(() => {
-    propsRef.current = { candles, viewTf, zones, selected, others, layers };
+    propsRef.current = { candles, viewTf, levels, heatmap, selected, others, layers };
     onToolRef.current = onToolChange;
   });
 
@@ -510,7 +503,8 @@ const PriceChart: React.FC<Props> = ({
     const {
       candles: cs,
       viewTf: vtf,
-      zones: zs,
+      levels: lvs,
+      heatmap: hm,
       selected: sel,
       others: oth,
       layers: ly,
@@ -547,29 +541,42 @@ const PriceChart: React.FC<Props> = ({
     g.font = "11px JetBrains Mono, monospace";
     g.textBaseline = "middle";
 
-    if (ly.zones) {
-      for (const z of zs) {
-        const end = z.to ?? cs.length + 12;
-        if (end < range.from || z.from > range.to) continue;
-        const x1 = x(z.from) ?? 0;
-        const x2 = z.to === null ? plotW : (x(end) ?? plotW);
-        const yTop = y(z.high);
-        const yBot = y(z.low);
-        if (yTop === null || yBot === null) continue;
-        const demand = z.kind === "demand";
-        const intact = z.to === null;
-        g.fillStyle = demand
-          ? `rgba(86,211,100,${intact ? 0.12 : 0.05})`
-          : `rgba(244,112,103,${intact ? 0.1 : 0.04})`;
-        g.fillRect(x1, yTop, x2 - x1, yBot - yTop);
-        if (intact) {
-          g.strokeStyle = demand ? "rgba(86,211,100,0.45)" : "rgba(244,112,103,0.4)";
-          g.strokeRect(x1 + 0.5, yTop + 0.5, x2 - x1 - 1, yBot - yTop - 1);
-        }
-        if (z.tf !== vtf && intact) {
-          g.fillStyle = demand ? "rgba(86,211,100,0.9)" : "rgba(244,112,103,0.9)";
-          g.fillText(`${z.tf} ${z.kind}`, Math.max(x1, 0) + 4, yBot - 8);
-        }
+    if (ly.heatmap && hm) drawHeatmap(g, hm, cs, vtf, x, y, plotW, h);
+
+    const LEVEL_STYLE = {
+      zone: { on: ly.zones, alpha: 0.12 },
+      orderBlock: { on: ly.orderBlocks, alpha: 0.1 },
+      fvg: { on: ly.fvg, alpha: 0.07 },
+    } as const;
+    for (const z of lvs) {
+      const st = LEVEL_STYLE[z.layer];
+      if (!st.on) continue;
+      const end = z.to ?? cs.length + 12;
+      if (end < range.from || z.from > range.to) continue;
+      const x1 = x(z.from) ?? 0;
+      const x2 = z.to === null ? plotW : (x(end) ?? plotW);
+      const yTop = y(z.high);
+      const yBot = y(z.low);
+      if (yTop === null || yBot === null) continue;
+      const bull = z.kind === "demand" || z.kind === "bullish";
+      const rgb = bull ? "86,211,100" : "244,112,103";
+      const intact = z.to === null;
+      g.fillStyle = `rgba(${rgb},${intact ? st.alpha : st.alpha / 2.5})`;
+      g.fillRect(x1, yTop, x2 - x1, yBot - yTop);
+      if (z.layer === "orderBlock") {
+        g.setLineDash([4, 3]);
+        g.strokeStyle = intact ? "rgba(76,154,255,0.8)" : "rgba(76,154,255,0.3)";
+        g.strokeRect(x1 + 0.5, yTop + 0.5, x2 - x1 - 1, yBot - yTop - 1);
+        g.setLineDash([]);
+      } else if (z.layer === "zone" && intact) {
+        g.strokeStyle = `rgba(${rgb},0.45)`;
+        g.strokeRect(x1 + 0.5, yTop + 0.5, x2 - x1 - 1, yBot - yTop - 1);
+      }
+      if (intact && z.layer !== "fvg") {
+        const name =
+          z.layer === "orderBlock" ? `${bull ? "bull" : "bear"} OB` : bull ? "demand" : "supply";
+        g.fillStyle = z.layer === "orderBlock" ? "rgba(76,154,255,0.95)" : `rgba(${rgb},0.9)`;
+        g.fillText(`${z.tf} ${name}${z.fresh ? " · fresh" : ""}`, Math.max(x1, 0) + 4, yBot - 8);
       }
     }
 
@@ -625,9 +632,15 @@ const PriceChart: React.FC<Props> = ({
       for (const o of oth) {
         if (o === sel || o.entryX < range.from - 2 || o.entryX > range.to + 2) continue;
         const px = x(o.entryX);
-        const py = y(o.low);
+        const py = y(o.extreme);
         if (px === null || py === null) continue;
-        tag(px, py + 16, `${o.tf} ${SHORT[o.type]}`, TF_COLOR[o.tf] ?? C.muted);
+        const arrow = o.direction === "long" ? "▲" : "▼";
+        tag(
+          px,
+          py + (o.direction === "long" ? 16 : -16),
+          `${o.tf} ${arrow}${patternShort(o.pattern)}`,
+          TF_COLOR[o.tf] ?? C.muted,
+        );
       }
     }
 
@@ -659,43 +672,33 @@ const PriceChart: React.FC<Props> = ({
           else g.lineTo(px, py);
         });
         g.stroke();
-        const lineLabel = sel.type === "bullFlag" ? "flag" : "neckline";
-        if (sel.line) {
-          const x1 = x(sel.line.x1);
-          const x2 = x(sel.line.x2);
-          const y1 = y(sel.line.p1);
-          const y2 = y(sel.line.p2);
-          if (x1 !== null && x2 !== null && y1 !== null && y2 !== null) {
-            g.setLineDash([4, 4]);
-            g.beginPath();
-            g.moveTo(x1, y1);
-            g.lineTo(x2, y2);
-            g.stroke();
-            g.setLineDash([]);
-            g.fillStyle = color;
-            g.fillText(`${sel.tf} ${lineLabel}`, x1 + 4, y1 - 10);
-          }
-        } else {
-          const n1 = x(sel.points[0].x);
-          const n2 = x(sel.entryX);
-          const yn = sel.neckline != null ? y(sel.neckline) : null;
-          if (n1 !== null && n2 !== null && yn !== null) {
-            g.setLineDash([4, 4]);
-            g.beginPath();
-            g.moveTo(n1, yn);
-            g.lineTo(n2, yn);
-            g.stroke();
-            g.setLineDash([]);
-            g.fillStyle = color;
-            g.fillText(`${sel.tf} ${lineLabel}`, n1 + 4, yn - 10);
-          }
-        }
-      } else {
+      }
+      for (const ln of sel.lines) {
+        const x1 = x(ln.x1);
+        const x2 = x(ln.x2);
+        const y1 = y(ln.p1);
+        const y2 = y(ln.p2);
+        if (x1 === null || x2 === null || y1 === null || y2 === null) continue;
+        g.setLineDash([4, 4]);
+        g.beginPath();
+        g.moveTo(x1, y1);
+        g.lineTo(x2, y2);
+        g.stroke();
+        g.setLineDash([]);
+        g.fillStyle = color;
+        if (ln.label) g.fillText(`${sel.tf} ${ln.label.toLowerCase()}`, x1 + 4, y1 - 10);
+      }
+      if (sel.points.length < 3) {
+        // Candlestick patterns: a box around their candles.
+        const first = sel.blocks[0];
         const last = sel.blocks[sel.blocks.length - 1];
-        const x1 = x(last.from);
+        const x1 = x(Math.min(first.from, sel.startX));
         const x2 = x(last.to);
-        const yHigh = y(sel.high);
-        const yLow = y(sel.low);
+        const i0 = Math.max(0, Math.round(Math.min(first.from, sel.startX) + 0.5));
+        const i1 = Math.min(cs.length - 1, Math.round(last.to - 0.5));
+        const span = cs.slice(i0, i1 + 1);
+        const yHigh = span.length ? y(Math.max(...span.map((c) => c.high))) : null;
+        const yLow = span.length ? y(Math.min(...span.map((c) => c.low))) : null;
         if (x1 !== null && x2 !== null && yHigh !== null && yLow !== null) {
           const pad = Math.max(0, (barW * 1.4 - (x2 - x1)) / 2);
           g.strokeRect(x1 - pad, yHigh - 6, x2 - x1 + pad * 2, yLow - yHigh + 12);
@@ -723,7 +726,7 @@ const PriceChart: React.FC<Props> = ({
 
   useEffect(() => {
     requestAnimationFrame(() => drawRef.current());
-  }, [zones, others, layers]);
+  }, [levels, heatmap, others, layers]);
 
   // Selected setup: plan price lines, history markers, scroll into view.
   useEffect(() => {
@@ -736,14 +739,14 @@ const PriceChart: React.FC<Props> = ({
       .filter((m) => m.result !== "open" || m.current)
       .map((m) => ({
         time: t(m.time),
-        position: m.direction === "down" ? ("aboveBar" as const) : ("belowBar" as const),
-        shape: m.direction === "down" ? ("arrowDown" as const) : ("arrowUp" as const),
+        position: m.direction === "long" ? ("belowBar" as const) : ("aboveBar" as const),
+        shape: m.direction === "long" ? ("arrowUp" as const) : ("arrowDown" as const),
         color: m.result === "win" ? C.up : m.result === "loss" ? C.down : C.muted,
         text: m.current ? "now" : m.result === "win" ? "W" : m.result === "loss" ? "L" : "–",
       }))
       .sort((a, b) => (a.time as number) - (b.time as number));
     markersRef.current?.setMarkers(layers.pattern ? ms : []);
-    if (plan && layers.pattern) {
+    if (selected && plan && layers.pattern) {
       const add = (priceValue: number, color: string, title: string, style: LineStyle) =>
         priceLinesRef.current.push(
           main.api.createPriceLine({
@@ -758,24 +761,15 @@ const PriceChart: React.FC<Props> = ({
       add(plan.target, C.up, "Target", LineStyle.Dashed);
       add(plan.entry, C.signal, "Entry", LineStyle.Solid);
       add(plan.stop, C.down, "Stop", LineStyle.Dashed);
-    }
-    const len = propsRef.current.candles.length;
-    if (selected && plan && layers.pattern) {
+      const len = propsRef.current.candles.length;
       const span = Math.max(110, selected.entryX - selected.startX + 40);
       chart.timeScale().setVisibleLogicalRange({
         from: Math.max(0, selected.startX - (span - (selected.entryX - selected.startX)) * 0.7),
         to: Math.min(len + 10, selected.entryX + 50),
       });
-    } else if (focusTime !== null && layers.pattern) {
-      const at = propsRef.current.candles.findIndex((c) => c.openTime === focusTime);
-      if (at >= 0)
-        chart.timeScale().setVisibleLogicalRange({
-          from: Math.max(0, at - 90),
-          to: Math.min(len + 10, at + 40),
-        });
     }
     requestAnimationFrame(() => drawRef.current());
-  }, [selected, plan, markers, focusTime, layers.pattern, chartType]);
+  }, [selected, plan, markers, layers.pattern, chartType]);
 
   // Legend values: hovered bar, else the latest (forming candle when live).
   const n = candles.length;

@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useResearchScan } from "../../custom-hooks/useScan";
+import { useCatalog, useStats } from "../../custom-hooks/useAnalysisApi";
 import { useSetupAlerts } from "../../custom-hooks/useSetupAlerts";
 import { SetupAlertService, type TelegramStatus } from "../../services/SetupAlertService";
-import { setupKey as keyOf } from "../../utils/setupAnalysis";
-import { PATTERN_LABELS } from "../../utils/patterns";
-import { LOCATION_LABELS } from "../../utils/setupAnalysis";
-import { parseSetupKey } from "../../utils/setupLibrary";
+import { LOCATIONS, locationLabel, parseSetupKey, setupKey as keyOf } from "../../utils/setupKeys";
+import { patternLabel } from "../../utils/patternLabels";
+import { statsByKey } from "../../utils/setupLibrary";
 import {
   ALERT_INTERVALS,
   setupName,
@@ -16,15 +15,13 @@ import {
 } from "../../utils/setupAlerts";
 import { loadWatchlist } from "../../utils/watchlistStorage";
 import { pct, price } from "../../utils/format";
-import type { PatternType, SetupLocation } from "../../types/analysis";
+import type { Direction, LocationFilter } from "../../types/analysis";
 import type { CandleInterval } from "../../types/marketData";
 import { Chip, CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
 import { BRAND } from "../../brand";
 import styles from "./AlertsPage.module.scss";
 
-const PATTERNS = Object.keys(PATTERN_LABELS) as PatternType[];
-const LOCATIONS = Object.keys(LOCATION_LABELS) as SetupLocation[];
-const ALL_SETUPS = PATTERNS.flatMap((t) => LOCATIONS.map((l) => keyOf(t, l)));
+const LOCATION_CHOICES: readonly LocationFilter[] = ["*", ...LOCATIONS];
 
 const TELEGRAM_TEXT: Record<TelegramStatus, string> = {
   unknown: "Checking the backend…",
@@ -68,7 +65,25 @@ const AlertsPage: React.FC = () => {
   const initialSetup = parseSetupKey(params.get("setup"));
   const [symbol, setSymbol] = useState(params.get("symbol") ?? watchlist[0] ?? "BTC-USDT");
   const [setup, setSetup] = useState(
-    initialSetup ? keyOf(initialSetup.type, initialSetup.location) : ALL_SETUPS[0],
+    initialSetup
+      ? keyOf(initialSetup.pattern, initialSetup.direction, initialSetup.location)
+      : keyOf("doubleBottom", "long", "*"),
+  );
+  const setupInfo = parseSetupKey(setup) ?? {
+    pattern: "doubleBottom",
+    direction: "long" as Direction,
+    location: "*" as LocationFilter,
+  };
+  const catalog = useCatalog().data;
+  const patternChoices = useMemo(
+    () =>
+      (catalog?.patterns ?? []).flatMap((p) =>
+        (p.bias === "either" ? (["long", "short"] as const) : [p.bias]).map((d) => ({
+          value: `${p.id}|${d}`,
+          label: `${d === "long" ? "▲" : "▼"} ${p.label}${p.bias === "either" ? (d === "long" ? " (up)" : " (down)") : ""}`,
+        })),
+      ),
+    [catalog],
   );
   const [interval, setTf] = useState<CandleInterval>(
     ALERT_INTERVALS.find((i) => i === params.get("tf")) ?? "4h",
@@ -80,9 +95,10 @@ const AlertsPage: React.FC = () => {
   const [test, setTest] = useState<Delivery | "sending" | null>(null);
 
   const coins = useMemo(() => [...new Set([symbol, ...watchlist])], [symbol, watchlist]);
-  const { scan, loading } = useResearchScan(interval);
-  const record = scan?.pooled.get(setup) ?? null;
-  const setupInfo = parseSetupKey(setup)!;
+  const statsRes = useStats(interval, interval);
+  const loading = statsRes.data === null && statsRes.error === null;
+  const pooledMap = useMemo(() => statsByKey(statsRes.data), [statsRes.data]);
+  const record = pooledMap.get(setup) ?? null;
 
   const save = () => {
     const rule = svc.addRule({ symbol, setupKey: setup, interval, telegram, inApp, edgeOnly });
@@ -112,8 +128,9 @@ const AlertsPage: React.FC = () => {
       </div>
 
       <p className={styles.banner} role="note">
-        Until the Phase 1b backend ships, alerts are checked only while a {BRAND.name} tab is open
-        (every minute; new candles are fetched as they close). {TELEGRAM_TEXT[alerts.telegram]}
+        Alerts are checked every minute while a {BRAND.name} tab is open, against setups the
+        analysis service confirms on closed candles (same-timeframe zones and order blocks).{" "}
+        {TELEGRAM_TEXT[alerts.telegram]}
       </p>
 
       <div className={styles.layout}>
@@ -155,17 +172,48 @@ const AlertsPage: React.FC = () => {
           <fieldset className={styles.group}>
             <legend>Setup</legend>
             <div className={styles.pills}>
-              {ALL_SETUPS.map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  className={styles.pill}
-                  aria-pressed={k === setup}
-                  onClick={() => setSetup(k)}
+              <label>
+                <span className="sr-only">Pattern and direction</span>
+                <select
+                  value={`${setupInfo.pattern}|${setupInfo.direction}`}
+                  onChange={(e) => {
+                    const [pattern, d] = e.target.value.split("|");
+                    setSetup(keyOf(pattern, d === "short" ? "short" : "long", setupInfo.location));
+                  }}
                 >
-                  {setupName(k)}
-                </button>
-              ))}
+                  {patternChoices.length === 0 && (
+                    <option value={`${setupInfo.pattern}|${setupInfo.direction}`}>
+                      {patternLabel(setupInfo.pattern)}
+                    </option>
+                  )}
+                  {patternChoices.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span className="sr-only">Location</span>
+                <select
+                  value={setupInfo.location}
+                  onChange={(e) =>
+                    setSetup(
+                      keyOf(
+                        setupInfo.pattern,
+                        setupInfo.direction,
+                        LOCATION_CHOICES.find((l) => l === e.target.value) ?? "*",
+                      ),
+                    )
+                  }
+                >
+                  {LOCATION_CHOICES.map((l) => (
+                    <option key={l} value={l}>
+                      {locationLabel(l, setupInfo.direction)}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </fieldset>
 
@@ -216,7 +264,7 @@ const AlertsPage: React.FC = () => {
             ) : (
               <span className={styles.mute}>
                 {loading
-                  ? `Measuring ${PATTERN_LABELS[setupInfo.type].toLowerCase()} on ${interval}…`
+                  ? `Loading the record of ${patternLabel(setupInfo.pattern).toLowerCase()} on ${interval}…`
                   : `No resolved cases of this setup on ${interval} yet, so the alert would arrive without a track record.`}
               </span>
             )}
@@ -298,7 +346,7 @@ const AlertsPage: React.FC = () => {
             ) : (
               <ul className={styles.list}>
                 {alerts.rules.map((r) => {
-                  const rec = r.interval === interval ? scan?.pooled.get(r.setupKey) : undefined;
+                  const rec = r.interval === interval ? pooledMap.get(r.setupKey) : undefined;
                   return (
                     <li key={r.id}>
                       <div className={styles.grow}>

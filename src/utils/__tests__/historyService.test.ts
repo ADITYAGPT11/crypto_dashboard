@@ -5,7 +5,6 @@ import {
   nextClose,
   toBinanceSymbol,
 } from "../../services/HistoryService";
-import { buildScan } from "../setupAnalysis";
 
 const H4 = INTERVAL_MS["4h"];
 
@@ -85,40 +84,41 @@ describe("HistoryService refresh", () => {
   });
 });
 
-describe("buildScan", () => {
-  it("pools occurrences across symbols and keeps per-symbol stats", () => {
-    // Waves plus a strong high-volume up candle every 40 bars: yields patterns and zones.
-    const series = (seed: number) =>
-      Array.from({ length: 400 }, (_, i) => {
-        const j = i + seed;
-        const p = 100 + 8 * Math.sin(j / 9) + 3 * Math.sin(j / 2.3);
-        const c = {
+describe("HistoryService fallback", () => {
+  it("uses the analysis service's candles when Binance fails", async () => {
+    const fallbackCalls: string[] = [];
+    const svc = new HistoryService(
+      async () => {
+        throw new Error("Binance history HTTP 451");
+      },
+      () => 3 * H4,
+      async (symbol, tf, limit) => {
+        fallbackCalls.push(`${symbol}|${tf}|${limit}`);
+        return [0, 1, 2, 3].map((i) => ({
           openTime: i * H4,
-          open: p - 0.3,
-          high: p + 1 + (j % 5) * 0.4,
-          low: p - 1 - (j % 7) * 0.3,
-          close: p,
-          volume: 100 + ((j * 37) % 200),
-        };
-        if (j % 40 === 21)
-          Object.assign(c, { open: p - 7, low: p - 7.2, high: p + 0.2, volume: 900 });
-        return c;
-      });
-    const scan = buildScan([
-      { symbol: "AAA-USDT", candles: series(0) },
-      { symbol: "BBB-USDT", candles: series(17) },
-    ]);
-    expect(scan.analyses.size).toBe(2);
-    let pooledN = 0;
-    for (const s of scan.pooled.values()) pooledN += s.n + s.expired;
-    let total = 0;
-    for (const a of scan.analyses.values()) {
-      total += a.occurrences.filter((o) => o.outcome.result !== "open").length;
-    }
-    expect(total).toBeGreaterThan(0); // the fixture must actually produce patterns
-    expect(pooledN).toBe(total);
-    for (const c of scan.current) {
-      expect(c.pooled.n).toBeGreaterThanOrEqual(c.own.n);
-    }
+          open: 1,
+          high: 2,
+          low: 0.5,
+          close: 1.5,
+          volume: 10,
+        }));
+      },
+    );
+    const h = await svc.load("BTC-USDT", "4h", 1);
+    expect(fallbackCalls).toEqual(["BTC-USDT|4h|1500"]);
+    expect(h.candles.map((c) => c.openTime)).toEqual([0, H4, 2 * H4]); // forming candle dropped
+  });
+
+  it("reports the exchange's error when the fallback fails too", async () => {
+    const svc = new HistoryService(
+      async () => {
+        throw new Error("network");
+      },
+      () => 0,
+      async () => {
+        throw new Error("service offline");
+      },
+    );
+    await expect(svc.load("BTC-USDT", "4h", 1)).rejects.toThrow("network");
   });
 });

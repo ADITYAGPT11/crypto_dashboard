@@ -9,7 +9,8 @@
  *   lower view the entry sits after the last lower candle of that block.
  */
 import type { Candle, CandleInterval } from "../types/marketData";
-import type { PatternType, SetupOccurrence, Zone } from "../types/analysis";
+import type { OccurrenceOut } from "../api/schema";
+import type { Direction, FairValueGap, OrderBlock, PatternId, Zone } from "../types/analysis";
 import { INTERVAL_TO_MS } from "./candleUtils";
 
 export const TF_MS: Record<CandleInterval, number> = INTERVAL_TO_MS;
@@ -46,95 +47,127 @@ export function spanOf(view: readonly Candle[], viewMs: number, open: number, du
   return { from: logicalAt(view, viewMs, open), to: logicalAt(view, viewMs, open + durMs) };
 }
 
+export interface ViewLine {
+  x1: number;
+  p1: number;
+  x2: number;
+  p2: number;
+  label: string;
+}
+
 export interface ViewPattern {
-  type: PatternType;
+  pattern: PatternId;
+  direction: Direction;
   tf: CandleInterval;
   /** Key points at the middle of their source candle. */
-  points: { x: number; price: number }[];
+  points: { x: number; price: number; label: string }[];
   /** Source candles of the key points and the confirmation, as view ranges. */
   blocks: Span[];
   /** Where the signal exists: close of the confirmation candle. */
   entryX: number;
-  /** Start of the pattern (first key candle). */
+  /** Start of the pattern (first candle of the formation). */
   startX: number;
-  neckline?: number;
-  /** Sloped neckline / flag line between two view positions. */
-  line?: { x1: number; p1: number; x2: number; p2: number };
-  low: number;
-  /** Highest high of the confirmation candle and the one before (box top). */
-  high: number;
+  /** Necklines, trendlines and flag lines. */
+  lines: ViewLine[];
+  /** The pattern's extreme (low for longs, high for shorts): where its tag sits. */
+  extreme: number;
 }
 
-/** Map an occurrence detected on `source` candles onto the view. */
+/** Map an occurrence detected on `tf` candles onto the view (everything is by time). */
 export function toViewPattern(
-  occ: SetupOccurrence,
+  occ: OccurrenceOut,
   tf: CandleInterval,
-  source: readonly Candle[],
   view: readonly Candle[],
   viewTf: CandleInterval,
 ): ViewPattern {
   const ms = TF_MS[tf];
   const vms = TF_MS[viewTf];
-  const span = (i: number) => spanOf(view, vms, source[i].openTime, ms);
-  const hit = occ.hit;
-  const keys = [...new Set([...hit.points.map((p) => p.index), hit.index])].sort((a, b) => a - b);
-  const conf = span(hit.index);
+  const span = (time: number) => spanOf(view, vms, time, ms);
+  const mid = (time: number) => {
+    const s = span(time);
+    return (s.from + s.to) / 2;
+  };
+  const keys = [...new Set([...occ.points.map((p) => p.time), occ.time])].sort((a, b) => a - b);
   return {
-    type: hit.type,
+    pattern: occ.pattern,
+    direction: occ.direction,
     tf,
-    points: hit.points.map((p) => {
-      const s = span(p.index);
-      return { x: (s.from + s.to) / 2, price: p.price };
-    }),
+    points: [...occ.points]
+      .sort((a, b) => a.time - b.time)
+      .map((p) => ({ x: mid(p.time), price: p.price, label: p.label })),
     blocks: keys.map(span),
-    entryX: conf.to,
-    startX: span(keys[0]).from,
-    neckline: hit.neckline,
-    line: hit.line
-      ? (() => {
-          const a = span(hit.line.from.index);
-          const b = span(hit.line.to.index);
-          return {
-            x1: (a.from + a.to) / 2,
-            p1: hit.line.from.price,
-            x2: (b.from + b.to) / 2,
-            p2: hit.line.to.price,
-          };
-        })()
-      : undefined,
-    low: hit.low,
-    high: Math.max(source[hit.index].high, source[Math.max(0, hit.index - 1)].high),
+    entryX: span(occ.time).to,
+    startX: span(occ.startTime).from,
+    lines: occ.lines.map((l) => ({
+      x1: mid(l.a.time),
+      p1: l.a.price,
+      x2: mid(l.b.time),
+      p2: l.b.price,
+      label: l.label,
+    })),
+    extreme: occ.extreme,
   };
 }
 
-export interface ViewZone {
-  kind: Zone["kind"];
+export type LevelLayer = "zone" | "orderBlock" | "fvg";
+
+export interface ViewLevel {
+  layer: LevelLayer;
+  /** demand / supply for zones, bullish / bearish for order blocks and gaps. */
+  kind: "demand" | "supply" | "bullish" | "bearish";
   tf: CandleInterval;
   low: number;
   high: number;
   from: number;
   /** null while intact (extends to the right edge). */
   to: number | null;
+  /** Untested zone / unmitigated block. */
+  fresh: boolean;
 }
 
-/** Map zones detected on `source` candles onto the view. */
-export function toViewZones(
-  zones: readonly Zone[],
+/** Map zones, order blocks and gaps detected on `tf` candles onto the view. */
+export function toViewLevels(
+  levels: { zones: Zone[]; orderBlocks: OrderBlock[]; fvgs: FairValueGap[] },
   tf: CandleInterval,
-  source: readonly Candle[],
   view: readonly Candle[],
   viewTf: CandleInterval,
-): ViewZone[] {
+): ViewLevel[] {
   const ms = TF_MS[tf];
   const vms = TF_MS[viewTf];
-  return zones.map((z) => ({
-    kind: z.kind,
-    tf,
-    low: z.low,
-    high: z.high,
-    from: logicalAt(view, vms, source[z.startIndex].openTime),
-    to: z.endIndex === null ? null : logicalAt(view, vms, source[z.endIndex].openTime + ms),
-  }));
+  const at = (time: number) => logicalAt(view, vms, time);
+  const end = (time: number | null) => (time === null ? null : at(time + ms));
+  return [
+    ...levels.zones.map((z) => ({
+      layer: "zone" as const,
+      kind: z.kind,
+      tf,
+      low: z.low,
+      high: z.high,
+      from: at(z.startTime),
+      to: end(z.endTime),
+      fresh: z.tests === 0,
+    })),
+    ...levels.orderBlocks.map((b) => ({
+      layer: "orderBlock" as const,
+      kind: b.kind,
+      tf,
+      low: b.low,
+      high: b.high,
+      from: at(b.time),
+      to: end(b.endTime),
+      fresh: b.mitigatedTime === null,
+    })),
+    ...levels.fvgs.map((g) => ({
+      layer: "fvg" as const,
+      kind: g.kind,
+      tf,
+      low: g.low,
+      high: g.high,
+      from: at(g.time),
+      to: end(g.filledTime),
+      fresh: true,
+    })),
+  ];
 }
 
 /** Open time of the view candle in which a source candle closes (for markers). */

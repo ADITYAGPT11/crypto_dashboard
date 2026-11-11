@@ -1,207 +1,193 @@
-"""FastAPI app: pattern detection on a coin and the past performance of each pattern."""
+"""FastAPI app: ``/api/v1/...``. Read-only market analysis; no orders, no keys."""
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable
-from contextlib import asynccontextmanager
-from dataclasses import asdict
+import asyncio
+import contextlib
+import logging
+from collections.abc import AsyncGenerator
+from concurrent.futures import ProcessPoolExecutor
 from typing import Annotated
 
-import httpx
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query
 
+from tcs.analysis.catalog import PATTERN_IDS, RULESET_VERSION
+from tcs.analysis.types import LOCATIONS
+from tcs.api import convert
 from tcs.api.schemas import (
-    BracketOut,
-    EventOut,
-    ForwardOut,
-    OutcomeOut,
-    PatternInfoOut,
-    PatternsOut,
-    PatternStatsOut,
+    AnalysisOut,
+    CandlesOut,
+    CatalogOut,
+    HealthOut,
+    ScannerOut,
+    SetupDetailOut,
     StatsOut,
-    StatsResponse,
 )
-from tcs.common.symbols import normalize_symbol, validate_interval
-from tcs.marketdata.binance_history import BinanceHistory, HistorySource
-from tcs.research.patterns.catalog import KINDS, Kind, catalog
-from tcs.research.patterns.outcome import BracketParams
-from tcs.research.patterns.service import Occurrence, PatternResearch, stats_of
-from tcs.research.patterns.stats import PatternStats
+from tcs.api.service import BadRequest, Service, now_ms
+from tcs.common.timeframes import TF_MS, Timeframe, last_closed_open, parse_timeframe
+from tcs.common.universe import is_canonical
+from tcs.config import Settings
+from tcs.jobs.stats_job import STATS_TFS, run_stats
 
-KindsQuery = Annotated[
-    str, Query(description="Comma-separated: chart, candlestick", pattern=r"^[a-z,]+$")
-]
-StopQuery = Annotated[float, Query(gt=0, le=10, description="Stop distance in ATR")]
-TargetQuery = Annotated[float, Query(gt=0, le=20, description="Target distance in ATR")]
-MaxBarsQuery = Annotated[int, Query(ge=1, le=500, description="Candles before a trade expires")]
+log = logging.getLogger(__name__)
+#: How often the scheduler looks for statistics that need a new run.
+SCHEDULE_EVERY_S = 300
 
 
-def _kinds(raw: str) -> tuple[Kind, ...]:
-    asked = {k.strip() for k in raw.split(",") if k.strip()}
-    bad = asked - set(KINDS)
-    if bad or not asked:
-        raise HTTPException(422, f"kinds must be from {', '.join(KINDS)}")
-    return tuple(k for k in KINDS if k in asked)
-
-
-def _symbol_interval(symbol: str, interval: str) -> tuple[str, str]:
+def _tf(value: str) -> Timeframe:
     try:
-        return normalize_symbol(symbol), validate_interval(interval)
+        return parse_timeframe(value)
     except ValueError as err:
         raise HTTPException(422, str(err)) from err
 
 
-def _bracket(p: BracketParams) -> BracketOut:
-    return BracketOut(
-        stop_atr=p.stop_atr,
-        target_atr=p.target_atr,
-        max_bars=p.max_bars,
-        break_even=1 / (1 + p.reward_r),
+def _symbol(value: str) -> str:
+    s = value.upper()
+    if not is_canonical(s):
+        raise HTTPException(422, "symbol must be BASE-QUOTE, e.g. BTC-USDT")
+    return s
+
+
+def _stale(svc: Service, tf: Timeframe, now: int) -> bool:
+    """A run is due when none exists for this ruleset or a newer candle closed since it ended."""
+    run = svc.store.run(RULESET_VERSION, tf)
+    if run is None:
+        return True
+    if run["status"] == "running":
+        return False
+    finished = run["finished_at"] or 0
+    if run["status"] == "failed":
+        return now - finished > 3_600_000
+    return (
+        last_closed_open(now, tf) + TF_MS[tf] > finished + TF_MS[tf] and now - finished >= TF_MS[tf]
     )
 
 
-def _event(o: Occurrence, open_times: dict[str, list[int]] | None = None) -> EventOut:
-    info = catalog()[o.event.pattern]
-    out = o.outcome
-    exit_time = None
-    if out.exit_index is not None and open_times is not None and o.symbol in open_times:
-        exit_time = open_times[o.symbol][out.exit_index]
-    return EventOut(
-        pattern=info.name,
-        label=info.label,
-        kind=info.kind,
-        direction="bullish" if o.event.direction > 0 else "bearish",
-        open_time=o.open_time,
-        entry=out.entry,
-        stop=out.stop,
-        target=out.target,
-        atr=out.atr,
-        outcome=OutcomeOut(
-            result=out.result,
-            exit_time=exit_time,
-            bars=out.bars,
-            r=out.r,
-            move_pct=out.move_pct,
-        ),
+async def _scheduler(svc: Service, pool: ProcessPoolExecutor) -> None:
+    loop = asyncio.get_running_loop()
+    while True:
+        for tf in STATS_TFS:
+            if _stale(svc, tf, now_ms()):
+                log.info("statistics run for %s starting", tf)
+                try:
+                    await loop.run_in_executor(pool, run_stats, svc.settings, tf)
+                except Exception:
+                    log.exception("statistics run for %s failed", tf)
+        await asyncio.sleep(SCHEDULE_EVERY_S)
+
+
+def create_app(settings: Settings | None = None, service: Service | None = None) -> FastAPI:
+    settings = settings or Settings()
+    svc = service or Service(settings)
+
+    @contextlib.asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
+        # Interrupted runs (process killed) restart from scratch.
+        for tf in STATS_TFS:
+            r = svc.store.run(RULESET_VERSION, tf)
+            if r and r["status"] == "running":
+                svc.store.finish_run(RULESET_VERSION, tf, now_ms(), "failed", r["meta"])
+        task: asyncio.Task[None] | None = None
+        pool: ProcessPoolExecutor | None = None
+        if settings.schedule:
+            pool = ProcessPoolExecutor(max_workers=1)
+            task = asyncio.create_task(_scheduler(svc, pool))
+        try:
+            yield
+        finally:
+            if task:
+                task.cancel()
+            if pool:
+                pool.shutdown(wait=False, cancel_futures=True)
+
+    app = FastAPI(
+        title="TCS analysis API",
+        version="0.1.0",
+        description="Pattern detection, demand/supply zones, order blocks and setup statistics. "
+        "Read-only: the system confirms, a human trades.",
+        lifespan=lifespan,
     )
+    r = APIRouter(prefix="/api/v1")
 
-
-def _stats(s: PatternStats) -> StatsOut:
-    d = asdict(s)
-    d["forward"] = [ForwardOut(**f) for f in d["forward"]]
-    return StatsOut(**d)
-
-
-async def _upstream[T](coro: Awaitable[T]) -> T:
-    """Map history failures to 502 so the UI can say "unavailable" instead of crashing."""
-    try:
-        return await coro
-    except httpx.HTTPError as err:
-        raise HTTPException(502, f"history unavailable: {err}") from err
-
-
-def create_app(history: HistorySource | None = None) -> FastAPI:
-    source: HistorySource = history if history is not None else BinanceHistory()
-
-    @asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        yield
-        if isinstance(source, BinanceHistory):
-            await source.aclose()
-
-    app = FastAPI(title="TCS backend", version="0.1.0", lifespan=lifespan)
-    research = PatternResearch(source)
-
-    @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok"}
-
-    @app.get("/patterns/catalog")
-    async def pattern_catalog() -> list[PatternInfoOut]:
-        return [PatternInfoOut(**asdict(p)) for p in catalog().values()]
-
-    @app.get("/patterns/{symbol}/{interval}")
-    async def patterns(
-        symbol: str,
-        interval: str,
-        kinds: KindsQuery = "chart",
-        recent_bars: Annotated[int, Query(ge=1, le=50)] = 3,
-        since_bars: Annotated[int, Query(ge=1, le=5000)] = 500,
-        stop_atr: StopQuery = 1.0,
-        target_atr: TargetQuery = 2.0,
-        max_bars: MaxBarsQuery = 30,
-    ) -> PatternsOut:
-        """Patterns that completed on this coin's recent candles (closed candles only)."""
-        sym, tf = _symbol_interval(symbol, interval)
-        params = BracketParams(stop_atr, target_atr, max_bars)
-        analysis, occ = await _upstream(research.occurrences(sym, tf, _kinds(kinds), params))
-        c = analysis.candles
-        n = len(c)
-        times = {sym: c.open_time.tolist()}
-        evs = [_event(o, times) for o in occ if o.event.index >= n - since_bars]
-        return PatternsOut(
-            symbol=sym,
-            interval=tf,
-            candles=n,
-            last_open_time=int(c.open_time[-1]) if n else None,
-            bracket=_bracket(params),
-            current=[_event(o, times) for o in occ if o.event.index >= n - recent_bars],
-            events=evs,
+    @r.get("/health")
+    def health() -> HealthOut:
+        return HealthOut(
+            ok=True,
+            ruleset=RULESET_VERSION,
+            runs={tf: convert.run(svc.store.run(RULESET_VERSION, tf)) for tf in STATS_TFS},
         )
 
-    @app.get("/patterns/{symbol}/{interval}/stats")
-    async def pattern_stats(
-        symbol: str,
-        interval: str,
-        patterns: Annotated[
-            str | None,
-            Query(description="Comma-separated pattern names; omit for every pattern that fired"),
-        ] = None,
-        kinds: KindsQuery = "chart",
-        stop_atr: StopQuery = 1.0,
-        target_atr: TargetQuery = 2.0,
-        max_bars: MaxBarsQuery = 30,
-        recent: Annotated[int, Query(ge=0, le=100)] = 20,
-    ) -> StatsResponse:
-        """How each pattern performed before: on this coin and pooled across the universe."""
-        sym, tf = _symbol_interval(symbol, interval)
-        params = BracketParams(stop_atr, target_atr, max_bars)
-        wanted = {p.strip() for p in patterns.split(",") if p.strip()} if patterns else None
-        if wanted:
-            unknown = wanted - set(catalog())
-            if unknown:
-                raise HTTPException(422, f"unknown patterns: {', '.join(sorted(unknown))}")
-        res = await _upstream(research.pooled(sym, tf, _kinds(kinds), params))
-        own_analysis = await research.analysis(sym, tf, _kinds(kinds))
-        times = {sym: own_analysis.candles.open_time.tolist()}
-        # Every pattern x direction we scanned is one test, whether or not the caller asked for it.
-        tests = len(res.pooled)
-        empty = stats_of([], tests)
-        rows: list[PatternStatsOut] = []
-        for (name, direction), pooled in sorted(res.pooled.items()):
-            if wanted is not None and name not in wanted:
-                continue
-            info = catalog()[name]
-            own = res.own.get((name, direction), [])
-            latest = sorted(own, key=lambda o: o.open_time, reverse=True)[:recent]
-            rows.append(
-                PatternStatsOut(
-                    pattern=name,
-                    label=info.label,
-                    kind=info.kind,
-                    direction="bullish" if direction > 0 else "bearish",
-                    own=_stats(stats_of(own, tests) if own else empty),
-                    pooled=_stats(stats_of(pooled, tests)),
-                    recent=[_event(o, times) for o in latest],
-                )
-            )
-        return StatsResponse(
-            symbol=sym,
-            interval=tf,
-            bracket=_bracket(params),
-            symbols=list(res.symbols),
-            unavailable=list(res.unavailable),
-            stats=rows,
-        )
+    @r.get("/patterns")
+    def patterns() -> CatalogOut:
+        return svc.catalog()
 
+    @r.get("/candles/{symbol}")
+    def candles(
+        symbol: str, tf: str = "4h", limit: Annotated[int, Query(ge=50, le=5000)] = 3000
+    ) -> CandlesOut:
+        return svc.candles(_symbol(symbol), _tf(tf), limit)
+
+    @r.get("/analysis/{symbol}")
+    def analysis(
+        symbol: str,
+        tf: str = "4h",
+        zone_tf: Annotated[str | None, Query(alias="zoneTf")] = None,
+        limit: Annotated[int, Query(ge=100, le=5000)] = 3000,
+    ) -> AnalysisOut:
+        t = _tf(tf)
+        try:
+            return svc.analysis(_symbol(symbol), t, _tf(zone_tf) if zone_tf else t, limit)
+        except BadRequest as err:
+            raise HTTPException(422, str(err)) from err
+
+    @r.get("/stats")
+    def stats(
+        tf: str = "4h", zone_tf: Annotated[str | None, Query(alias="zoneTf")] = None
+    ) -> StatsOut:
+        t = _tf(tf)
+        return svc.stats(t, _tf(zone_tf) if zone_tf else t)
+
+    @r.get("/stats/setup")
+    def setup(
+        pattern: str,
+        direction: str,
+        tf: str = "4h",
+        zone_tf: Annotated[str | None, Query(alias="zoneTf")] = None,
+        location: str = "*",
+    ) -> SetupDetailOut:
+        if pattern not in PATTERN_IDS:
+            raise HTTPException(422, f"unknown pattern {pattern!r}")
+        if location != "*" and location not in LOCATIONS:
+            raise HTTPException(422, f"unknown location {location!r}")
+        t = _tf(tf)
+        try:
+            return svc.setup(t, _tf(zone_tf) if zone_tf else t, pattern, direction, location)
+        except BadRequest as err:
+            raise HTTPException(422, str(err)) from err
+
+    @r.post("/stats/run")
+    async def run_now(tf: str = "4h") -> dict[str, str]:
+        t = _tf(tf)
+        if t not in STATS_TFS:
+            raise HTTPException(422, f"statistics run on {', '.join(STATS_TFS)}")
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, run_stats, settings, t)
+        return {"status": "started", "tf": t}
+
+    @r.get("/scanner")
+    def scanner(
+        tf: str = "4h",
+        zone_tf: Annotated[str | None, Query(alias="zoneTf")] = None,
+        symbols: str = "",
+        bars: Annotated[int, Query(ge=1, le=20)] = 3,
+    ) -> ScannerOut:
+        t = _tf(tf)
+        extra = [_symbol(s) for s in symbols.split(",") if s.strip()][:30]
+        universe = list(dict.fromkeys([*extra, *settings.universe]))
+        try:
+            return svc.scanner(t, _tf(zone_tf) if zone_tf else t, universe, bars)
+        except BadRequest as err:
+            raise HTTPException(422, str(err)) from err
+
+    app.include_router(r)
     return app

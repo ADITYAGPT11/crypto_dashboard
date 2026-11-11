@@ -24,7 +24,8 @@ jobs:
       - name: Backend bundles
         run: npx vp build --ssr src/backend/index.ts --outDir dist-backend
 
-  backend:
+  analysis-service:
+    name: Python analysis service
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -34,13 +35,11 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.32"
-      - name: Install (locked)
+      - name: Install (Python 3.12, locked)
         run: uv sync --locked
-      - name: Format
-        run: uv run ruff format --check .
-      - name: Lint
-        run: uv run ruff check .
-      - name: Type-check
+      - name: Format and lint (ruff)
+        run: uv run ruff format --check . && uv run ruff check .
+      - name: Type-check (pyright, strict)
         run: uv run pyright
-      - name: Tests (incl. no-look-ahead)
-        run: uv run pytest -q
+      - name: Tests (rules, invariants, golden snapshot, API, generated TS types)
+        run: uv run pytest
