@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node scripts/start.mjs",
     "dev": "vp dev",
     "build": "tsc -b && vp build",
     "lint": "vp lint .",

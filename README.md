@@ -17,9 +17,11 @@ Requires Node 22.5+ and [uv](https://docs.astral.sh/uv/) (it installs Python 3.1
 
 ```bash
 npm ci
-npm run api        # analysis service on :8000 (first start backfills history, then measures setups)
-npm run dev        # http://localhost:3000 (in a second terminal)
+npm start          # everything: web app, analysis service, Telegram prototype → http://localhost:3000
 ```
+
+The first start downloads two years of history and measures every setup in the background
+(about 15 minutes); the pages say "not measured yet" until then. Ctrl+C stops everything.
 
 | Script              | What it does                                                           |
 | ------------------- | ---------------------------------------------------------------------- |
