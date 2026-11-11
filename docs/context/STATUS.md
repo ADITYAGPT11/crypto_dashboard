@@ -1,110 +1,93 @@
 # Project status
 
-_Last verified: 2026-11-02 · branch `claude/ecstatic-gauss-sqnz3z`_
+_Last verified: 2026-11-11 · branch `claude/eloquent-maxwell-vyoqfw`_
 
 ## Phase
 
-**Phase 1a: Dashboard, Chart, Pattern stats, Risk and Alerts built (browser-side analysis).** The owner's priority
-features run on real Binance history in the browser. The Python backend and QuestDB (Phase 1b)
-are next; detection and statistics move server-side there. No confirmations yet (by design).
+**Phase 1b started: the Python analysis service owns every rule.** Pattern detection, zones,
+order blocks, outcomes and statistics run in `backend/` (Python 3.12, FastAPI, TA-Lib, SQLite).
+The chart asks it for the recent candles' analysis (refetched after every candle close); a
+background job measures every setup over one to two years of the research coins with the same
+code. The browser draws, streams live candles and order books, and sizes trades. No
+confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-1. Owner picks the product name (one constant in `src/brand.ts` + `index.html` title) and reviews
-   Dashboard v2; check Fear & Greed and CoinGecko load on the owner's machine.
-2. More detectors: bull flag, inverse head & shoulders, morning star; HVN/VAL as locations.
-3. Keep CI green: `.github/workflows/ci.yml` runs on every PR.
-4. Phase 1b backend: Python collector + QuestDB, so history is stored and pooled across 20+ coins,
-   and setup alerts run server-side.
-5. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
+1. Owner: run `npm run api` + `npm run dev` on a machine that reaches Binance, let the first
+   statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
+   rule set in `docs/product/patterns.md`.
+2. Owner picks the product name (`src/brand.ts` + `index.html` title).
+3. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
+4. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
+5. Random-entry baseline per setup (does a pattern beat chance with the same stop/target?).
+6. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
 
 ## Health
 
-Verified 2026-11-02 from a clean `npm ci`:
+Verified 2026-11-11:
 
-| Check                                                      | State                                                                                                                                                                                                                |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check` (`vp check`: format + lint + types)        | ✅ 207 files formatted; 0 errors or warnings in 157 files (backend included)                                                                                                                                         |
-| `npm test`                                                 | ✅ 321 tests, 28 files                                                                                                                                                                                               |
-| `npm run build` (`tsc -b` app + node + backend, then Vite) | ✅ chart code in its own chunk                                                                                                                                                                                       |
-| `npm run dev`                                              | ✅ <http://localhost:3000>; Dashboard, Chart, Pattern stats, Risk, Alerts load with no page errors or sideways scroll (browser test at 1440 px and 400 px, mocked Binance history); `/api` proxy reaches the backend |
-| `npm run backend`                                          | ✅ bundles `src/backend` and starts on :3001; `/health` OK, SQLite file created under `./data/`                                                                                                                      |
+| Check                                                            | State                                                                                                                                                                                                       |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
+| `npm test`                                                       | ✅ 303 tests, 29 files                                                                                                                                                                                      |
+| `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 89 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                      |
+| `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
+| `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
+| Liquidity heatmap                                                | ✅ with a real OKX book replayed through a mocked socket; ❌ not exercised live (Binance geo-blocked, OKX WebSocket port 8443 blocked in the sandbox)                                                       |
 
 ## What exists
 
-- **Dashboard** (`/`), top: market overview for the 10 research coins (`components/MarketOverview/`):
-  ticker strip; ⌘K coin search with per-exchange price and listing; exchange connection chips;
-  floating bubbles (size = 24h volume, colour = 24h / 7d change); sentiment (Fear & Greed gauge,
-  avg funding, long/short ratio, OI 24h, breadth, BTC dominance; no combined score); market
-  monitor table (price, 24h/7d, volume, 7d volatility, ATR, trend 4h/1d, funding, OI, corr. BTC,
-  sortable); 30-day correlation matrix; liquidations (Binance stream since page open); BTC
-  volatility regime + trading sessions; gainers/losers; data health. Each source fails on its
-  own and shows "unavailable".
-- **Dashboard** (`/`), below: scanner over watchlist + 10 liquid coins on 4h. Shows setups confirmed on
-  the last 3 closed candles with pooled win rate, n, Wilson 95% range, break-even marker and
-  verdict; a table of how every setup has performed; the pattern-to-confirmation pipeline;
-  watchlist cards with a live price and 7-day sparkline.
-- **Chart** (`/chart/:symbol`), TradingView-style, on Lightweight Charts + free packages:
-  - Top bar: symbol, favourite timeframes + menu of every Binance interval 1m–1W (star to
-    favourite), chart type (candles, hollow, Heikin Ashi, bars, line, area), **Indicators**
-    dialog, Overlays (patterns, zones, volume profile), % and log scale, snapshot, fullscreen.
-  - Indicators from `indicatorts`: MA, EMA, Bollinger, rolling VWAP, Parabolic SAR, Volume,
-    RSI, MACD, Stochastic, ATR, OBV; panes for oscillators; legend per pane with values under the
-    crosshair and hover controls (hide, settings with Inputs/Style tabs, remove). Saved per browser.
-  - Drawing tools from `lightweight-charts-drawing` on a left rail (trend line, ray, horizontal
-    and vertical line, channel, rectangle, Fibonacci, price range, long position, text, brush,
-    magnet, hide all, remove all); drawings saved per symbol. Hidden on phones.
-  - Live forming candle from the Binance kline stream (drawn only; analysis uses closed candles).
-  - Detection settings: pattern timeframes (1h/4h/1d) and zone source chosen separately from the
-    view; higher-TF patterns drawn as blocks with the signal at their close; setup card for the
-    selected setup; `SetupStatsService` measures every timeframe in the background.
-- **Pattern stats** (`/stats`): setup library on 1h / 4h / 1d (KPIs, n, win rate, Wilson range vs
-  break-even, avg win/loss, expectancy, verdict), verdict filter and sort, a per-coin breakdown
-  per row, the path to a confirmation and the overfitting guards.
-- **Risk** (`/risk`): position size, notional, leverage, reward:risk, fees, break-even and expected
-  value at the setup's pooled win rate and range. Pre-filled from the Chart's "Size this trade";
-  account size, risk % and fee remembered in this browser. Long and short.
-- **Alerts** (`/alerts`): "tell me when [coin] prints a [setup] on [TF]" with the record shown
-  before saving; rules and firings in this browser; checked every minute while a TCS tab is open
-  (history refetched when a candle closes); each firing tracked to its outcome; in-app banner;
-  Telegram via the backend prototype through the dev `/api` proxy when it runs and is configured.
-- **Analysis engine** (`src/utils/`, pure + tested): volume profile, zones, chart patterns
-  in-house (double bottom, inverse head and shoulders with a sloped neckline, bull flag), candlestick patterns via the `candlestick` package (hammer, inverted hammer,
-  bullish engulfing, bullish harami, tweezer bottom, three white soldiers) with our context
-  filters, outcome resolution, setup statistics, multi-coin scan.
-- **History** (`src/services/HistoryService.ts`): ~3,000 closed candles per coin from Binance
-  USDⓈ-M public REST, cached until a newer candle closes.
-- **Markets** (`/markets`): the earlier dashboard (price table, order book, spread panel, alert
-  rule builder). Its chart panel now links to the Chart page.
-- **Backend prototype** (`src/backend/`): Express + `node:sqlite` + Telegram client; type-checked
-  and linted with the app, starts with `npm run backend`. Replaced by the Python backend in Phase 1b.
+- **Analysis service** (`backend/src/tcs/`, `npm run api`): `analysis/` the rule set
+  (`engine.analyze` is the single entry point; catalogue and `RULESET_VERSION` in `catalog.py`;
+  rules written out in `docs/product/patterns.md`); `jobs/stats_job.py` background statistics;
+  `marketdata/` Binance REST + `data.binance.vision` archive backfill; `store/sqlite.py`;
+  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner}`.
+  `src/api/schema.ts` is generated from it (`npm run api:types`; a test fails when stale).
+- **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
+  live forming candle) plus the service's patterns (direction arrows, outlines, necklines,
+  trendlines), demand/supply zones, order blocks, fair value gaps, volume profile and a
+  **liquidity heatmap** layer with a pools table. Detection settings per pattern (from the
+  catalogue) and level source. Setup card: pooled record, the pattern's any-location baseline,
+  this coin only, last cases across coins, plan, context checks.
+- **Pattern stats** (`/stats`): every pattern × direction × location on 1h/4h/1d with a level
+  source and location filter, per-coin breakdown, run progress.
+- **Dashboard** (`/`): market overview (unchanged), scanner from the service (last 3 closed
+  candles), top setups by cases, watchlist.
+- **Risk** (`/risk`) and **Alerts** (`/alerts`): records from the service; alert rules match
+  scanner results (same-timeframe levels); old stored rule keys are upgraded.
+- **History** (`HistoryService`): Binance REST from the browser, falling back to the service's
+  stored candles.
+- **Markets** (`/markets`) and the **Node prototype** (`src/backend/`, Telegram) are unchanged.
 
 ## Known issues
 
-- **Live candle and drawings not exercised against real Binance** (exchange hosts blocked in the
-  dev sandbox; tested with mocked history and the drawing flow in a headless browser).
-  Indicators use closed candles only (the forming candle is drawn, not computed).
-
-- **Detection settings apply to the Chart only.** Dashboard, Pattern stats and Alerts still use
-  same-timeframe zones on their own timeframe. 1h history is ~125 days, so 1h setups often show
-  "too few cases".
-
-1. **Delta funding-rate units unverified** (shown with an "units unverified" tag). Delta prices are
-   USD-quoted: they share the asset's row with a "USD" tag and are left out of the spread panel.
-2. **Setup alerts are browser-side**: they run only while a TCS tab is open; rules live in this
-   browser's storage. Telegram works only with `npm run dev` + `npm run backend` (the `/api` proxy
-   is dev-only) and a bot configured via `POST /telegram/config`. Not tested against real Telegram.
-3. **Statistics are gross and browser-side**: before fees; limited to ~500 days × 10–12 coins on
-   4h, so several setups show "too few cases". Phase 1b stores more history; Phase 2 adds costs.
-4. **Pooled stats take a few seconds** on first load (≈24 REST requests); no progress bar yet.
-5. Order book and trade prints: Binance only. Delta: no candles, no 24 h stats.
-6. `.idx/dev.nix` lists Svelte/Vue extensions.
-7. **Dashboard v2 live sources unverified**: Binance REST shapes are tested with fixtures; Fear &
-   Greed (alternative.me) and BTC dominance (CoinGecko) are unchecked against the live APIs and
-   CORS. Liquidation totals start from page open and undercount (Binance sends ≤1/coin/s).
-8. The Markets page's older price-rule alerts are separate from setup alerts and still browser-only.
+1. **Live data not exercised from the sandbox**: Binance REST/WS are geo-blocked there and
+   OKX's WebSocket port is closed, so live candles, the REST tail and live order books were
+   tested with fixtures, the archive and a replayed real OKX book. Where Binance REST is blocked
+   the service's data ends at the last archived day and the chart says how many candles behind.
+2. **Statistics need a first run**: until the background job finishes (minutes), Pattern stats,
+   the setup card and the scanner show "not measured yet".
+3. **Setup alerts run in the browser** (every minute while a tab is open) and use same-timeframe
+   levels; Telegram still goes through the Node prototype (`npm run backend`).
+4. **Statistics are gross** (no fees/slippage) and in-sample; Phase 2 adds costs and
+   out-of-sample tests. Many setups have too few cases per bucket on 1d.
+5. **Order-book depth is shallow**: OKX sends 400 levels, Binance 1000, so pools are near the
+   price (for BTC tens to hundreds of dollars away). The heatmap starts when the page opens.
+6. Delta funding-rate units unverified; Delta prices are USD-quoted (tagged, left out of spreads).
+7. Dashboard v2 sources Fear & Greed and CoinGecko unverified against the live APIs.
+8. `.idx/dev.nix` lists Svelte/Vue extensions; the Markets page's price-rule alerts are separate.
 
 ## History
+
+- 2026-11-11: **Python analysis service** (`backend/`) is the one rule set: 11 chart patterns
+  (bearish twins by mirroring), 10 TA-Lib candlestick patterns with our context, demand/supply
+  zones, BOS/CHoCH, order blocks, fair value gaps; background statistics over 1–2 years per
+  (pattern TF, level TF, location); FastAPI `/api/v1`. Chart, Pattern stats, Dashboard, Alerts and
+  Risk read it; the TypeScript detectors and the `candlestick` package are gone. Order-book
+  liquidity heatmap (Binance + OKX full depth). Found and fixed a look-ahead in zone
+  de-duplication (an older zone's _final_ state decided whether a new zone counted) by the new
+  invariant tests.
 
 - 2026-11-03: Bull flag and inverse head and shoulders detectors (in-house, ATR-scaled,
   measured-move targets, no-look-ahead tests); available in detection settings, stats and alerts.

@@ -1,16 +1,16 @@
 import { useEffect, useId, useRef, useState } from "react";
+import type { CatalogOut, RunOut } from "../../api/schema";
 import type { CandleInterval } from "../../types/marketData";
-import type { PatternType } from "../../types/analysis";
-import { PATTERN_LABELS } from "../../utils/patterns";
 import {
   DETECTION_TFS,
-  PATTERN_TYPES,
-  PRESET,
   ZONE_OPTIONS,
+  tfsFor,
+  zoneTfFor,
   type DetectionConfig,
   type ZoneSourceOption,
 } from "../../utils/detectionConfig";
-import type { ContextStats } from "../../services/SetupStatsService";
+import { useStats } from "../../custom-hooks/useAnalysisApi";
+import { shortDate } from "../../utils/format";
 import { TfBadge } from "./TfBadge";
 import styles from "./ChartPage.module.scss";
 
@@ -22,11 +22,11 @@ const ZONE_LABEL: Record<ZoneSourceOption, string> = {
 
 /** A dropdown of timeframe checkboxes for one pattern. */
 function TfDropdown({
-  pattern,
+  label,
   value,
   onChange,
 }: {
-  pattern: PatternType;
+  label: string;
   value: CandleInterval[];
   onChange: (next: CandleInterval[]) => void;
 }) {
@@ -56,7 +56,7 @@ function TfDropdown({
         className={styles.ddBtn}
         aria-expanded={open}
         aria-controls={id}
-        aria-label={`${PATTERN_LABELS[pattern]}: detect on ${value.join(", ") || "off"}`}
+        aria-label={`${label}: detect on ${value.join(", ") || "off"}`}
         onClick={() => setOpen((o) => !o)}
       >
         <span className={styles.ddVal}>
@@ -70,7 +70,7 @@ function TfDropdown({
       </button>
       {open && (
         <fieldset id={id} className={styles.ddMenu}>
-          <legend className="sr-only">Detect {PATTERN_LABELS[pattern]} on</legend>
+          <legend className="sr-only">Detect {label} on</legend>
           {DETECTION_TFS.map((tf) => (
             <label key={tf}>
               <input
@@ -92,44 +92,84 @@ function TfDropdown({
   );
 }
 
-/** Detection timeframes per pattern, zone source, and background measuring progress. */
+function runLabel(run: RunOut | null | undefined, error: string | null): string {
+  if (error) return "service offline";
+  if (!run) return "not measured yet";
+  if (run.status === "running") return `${run.done}/${run.coins.length} coins…`;
+  if (run.status === "failed") return "failed · retrying";
+  return `ready · ${run.coins.length - run.failed.length} coins · ${shortDate(run.finishedAt ?? run.startedAt)}`;
+}
+
+function RunRow({ tf, zones }: { tf: CandleInterval; zones: ZoneSourceOption }) {
+  const zoneTf = zoneTfFor(tf, zones);
+  const s = useStats(tf, zoneTf);
+  return (
+    <li>
+      <span>
+        {tf} patterns · {zoneTf} levels
+      </span>
+      <span className={styles.num}>{runLabel(s.data?.run, s.error)}</span>
+    </li>
+  );
+}
+
+/** Detection timeframes per pattern, level source, and background measuring progress. */
 const DetectionSettings: React.FC<{
   config: DetectionConfig;
   onChange: (cfg: DetectionConfig) => void;
-  progress: { label: string; stats: ContextStats | null }[];
-}> = ({ config, onChange, progress }) => {
+  catalog: CatalogOut | null;
+}> = ({ config, onChange, catalog }) => {
   const zoneId = useId();
+  const groups = [
+    { kind: "chart" as const, title: "Chart patterns" },
+    { kind: "candlestick" as const, title: "Candlestick patterns" },
+  ];
   return (
     <section className={`${styles.card} ${styles.feature}`} aria-labelledby="det-title">
       <div className={styles.cardHead}>
         <h2 id="det-title">Detection settings</h2>
         <p>
-          Preset{" "}
-          <b>
-            {PRESET.id} · {PRESET.name}
-          </b>{" "}
-          (rules frozen {PRESET.frozen}). Choose where each pattern is looked for; the view
-          timeframe above only changes the candles you see.
+          Rules <b>{catalog?.ruleset ?? "…"}</b>, run by the analysis service. Choose where each
+          pattern is looked for; the view timeframe above only changes the candles you see.
         </p>
       </div>
-      <h3 className={styles.sub}>Detect each pattern on</h3>
-      <div className={styles.setRows}>
-        {PATTERN_TYPES.map((p) => (
-          <div key={p} className={styles.setRow}>
-            <span>{PATTERN_LABELS[p]}</span>
-            <TfDropdown
-              pattern={p}
-              value={config.patterns[p]}
-              onChange={(next) =>
-                onChange({ ...config, patterns: { ...config.patterns, [p]: next } })
-              }
-            />
-          </div>
-        ))}
-      </div>
+      {!catalog && <p className={styles.mute}>Loading the pattern catalogue…</p>}
+      {groups.map((g) => {
+        const list = (catalog?.patterns ?? []).filter((p) => p.kind === g.kind);
+        const on = list.filter((p) => tfsFor(config, p).length > 0).length;
+        return (
+          <details key={g.kind} className={styles.group}>
+            <summary className={styles.sub}>
+              {g.title}{" "}
+              <span className={styles.mute}>
+                {on} of {list.length} on
+              </span>
+            </summary>
+            <div className={styles.setRows}>
+              {list.map((p) => (
+                <div key={p.id} className={styles.setRow}>
+                  <span title={`${p.summary} Source: ${p.source}.`}>
+                    {p.label}{" "}
+                    <span className={styles.mute}>
+                      {p.bias === "long" ? "▲" : p.bias === "short" ? "▼" : "▲▼"}
+                    </span>
+                  </span>
+                  <TfDropdown
+                    label={p.label}
+                    value={tfsFor(config, p)}
+                    onChange={(next) =>
+                      onChange({ ...config, patterns: { ...config.patterns, [p.id]: next } })
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          </details>
+        );
+      })}
       <h3 className={styles.sub}>Location</h3>
       <div className={styles.setRow}>
-        <label htmlFor={zoneId}>Demand zones from</label>
+        <label htmlFor={zoneId}>Zones and order blocks from</label>
         <select
           id={zoneId}
           className={styles.select}
@@ -145,22 +185,13 @@ const DetectionSettings: React.FC<{
       </div>
       <h3 className={styles.sub}>Statistics (all coins, measured in the background)</h3>
       <ul className={styles.progress}>
-        {progress.map(({ label, stats }) => (
-          <li key={label}>
-            <span>{label}</span>
-            <span className={styles.num}>
-              {!stats || stats.state === "queued"
-                ? "queued"
-                : stats.state === "running"
-                  ? `${stats.done}/${stats.total} coins…`
-                  : `ready · ${stats.total - stats.failed.length} coins`}
-            </span>
-          </li>
+        {DETECTION_TFS.map((tf) => (
+          <RunRow key={tf} tf={tf} zones={config.zones} />
         ))}
       </ul>
       <p className={styles.note}>
-        Each timeframe and zone source is its own setup with its own statistics, so these choices
-        never tune a rule. Editable rule versions (v2) come later and will be labelled exploratory.
+        Each timeframe and level source is its own setup with its own statistics, so these choices
+        never tune a rule. Rule changes ship as a new rule-set version, measured from scratch.
       </p>
     </section>
   );

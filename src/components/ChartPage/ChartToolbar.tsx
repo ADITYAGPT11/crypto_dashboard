@@ -36,8 +36,11 @@ function usePopover() {
 
 const LAYERS: [keyof Layers, string][] = [
   ["pattern", "Patterns"],
-  ["zones", "Zones"],
+  ["zones", "Demand / supply zones"],
+  ["orderBlocks", "Order blocks"],
+  ["fvg", "Fair value gaps"],
   ["vp", "Volume profile"],
+  ["heatmap", "Liquidity heatmap"],
 ];
 
 interface Props {

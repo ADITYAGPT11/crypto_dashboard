@@ -3,12 +3,15 @@ import react from "@vitejs/plugin-react";
 
 // https://vite.dev/config/
 export default defineConfig({
-  fmt: {},
+  // backend/ is Python: formatted by ruff (npm run api:check), not oxfmt.
+  fmt: { ignorePatterns: ["backend/**"] },
   plugins: lazyPlugins(() => [react()]),
   server: {
     port: 3000,
-    // Dev only: the browser reaches the backend prototype (:3001) as /api, same origin.
+    // Dev only, same origin for the browser: /api/v1 is the Python analysis service
+    // (:8000, `npm run api`); the rest of /api is the Node prototype (:3001, `npm run backend`).
     proxy: {
+      "/api/v1": { target: "http://localhost:8000" },
       "/api": {
         target: "http://localhost:3001",
         rewrite: (path: string) => path.replace(/^\/api/, ""),

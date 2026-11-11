@@ -3,6 +3,11 @@
 The **target** system: what we're building towards and the chosen stack. For what exists in code
 _today_, see `PROJECT_MAP.md`. For module behaviour, see `docs/product/modules/`.
 
+> **Built so far (2026-11-11):** `backend/` exists with `tcs/{common,analysis,marketdata,store,jobs,api}`
+> as below, but on **SQLite** (QuestDB arrives with the collector) and as **one API process plus a
+> worker process** for the statistics job. The frontend is still at the repo root (`src/`), not
+> `apps/web/`. See DECISIONS 2026-11-11.
+
 Guiding rule: **start with the fewest moving parts**; add infrastructure only when a real,
 measured need appears. The decision log for each choice is in `DECISIONS.md`.
 
@@ -165,7 +170,7 @@ in the lockfile.
 | Logging        | structlog                                                                                               | JSON logs with context (exchange, symbol)          | P1    |
 | CLI            | typer                                                                                                   | `tcs …` commands                                   | P1    |
 | Dataframes     | **polars**, numpy                                                                                       | Features and analytics                             | P2    |
-| Indicators     | TA-Lib (or pandas-ta)                                                                                   | Standard TA                                        | P2    |
+| Indicators     | **TA-Lib** ✅ adopted (0.8.3)                                                                           | ATR/EMA/SMA + candlestick shapes for the rule set  | P1    |
 | Backtesting    | **vectorbt** (screening); own event-driven engine _or_ NautilusTrader (validation, decided at P2 start) | Fast idea screening, then realistic validation     | P2    |
 | Statistics     | scipy, statsmodels, arch                                                                                | Tests, regressions, cointegration, GARCH           | P2    |
 | Reports        | quantstats, plotly                                                                                      | Strategy tear sheets                               | P2    |
@@ -179,7 +184,7 @@ in the lockfile.
 | Package                                                                     | Why                                                                                                                                                   | Phase  |
 | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | **vitest** (via Vite+) ✅ adopted (191 tests)                               | Tests                                                                                                                                                 | done   |
-| openapi-typescript                                                          | Types generated from the backend schema                                                                                                               | P1     |
+| `tcs ts-types` ✅ (openapi-typescript rejected: needs TS 5)                 | Types generated from the backend schema into `src/api/schema.ts`                                                                                      | done   |
 | @tanstack/react-query                                                       | Request/response data (reports, history, candles): caching, refetch, retries. _Not_ for live ticks; those stay on WebSocket + `LiveMarketDataService` | P3     |
 | **lightweight-charts** (TradingView) ✅ adopted (5.2, attribution required) | Candles + indicators                                                                                                                                  | done   |
 | express, `@electric-sql/pglite`                                             | Backend prototype only; pglite unused. Removed when the Python backend lands                                                                          | remove |

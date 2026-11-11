@@ -7,13 +7,16 @@
  * and carries the setup's pooled record so the message is evidence, not a bare signal.
  */
 import type { CandleInterval } from "../types/marketData";
-import type { OutcomeResult, Verdict } from "../types/analysis";
+import type { OutcomeResult, SetupOccurrence, SetupStats, Verdict } from "../types/analysis";
 import type { AlertTrigger } from "../types/alertRules";
-import { LOCATION_LABELS } from "./setupAnalysis";
-import { PATTERN_LABELS } from "./patterns";
-import type { CurrentSetup, Scan } from "./setupAnalysis";
-import { setupKey } from "./setupAnalysis";
-import { parseSetupKey } from "./setupLibrary";
+import { patternLabel } from "./patternLabels";
+import { locationLabel, normalizeSetupKey, parseSetupKey, setupKey } from "./setupKeys";
+
+/** A setup confirmed on a recent closed candle, with its pooled record (null = not measured). */
+export interface CurrentSetup {
+  occurrence: SetupOccurrence;
+  pooled: SetupStats | null;
+}
 
 /** Rule symbol meaning "any coin on my watchlist". */
 export const WATCHLIST = "WATCHLIST";
@@ -85,11 +88,17 @@ export function matchFirings(
   const out: SetupAlertFiring[] = [];
   for (const rule of rules) {
     if (rule.paused || rule.interval !== interval) continue;
+    const want = parseSetupKey(rule.setupKey);
+    if (!want) continue;
     for (const { occurrence: o, pooled } of current) {
-      const key = setupKey(o.hit.type, o.location);
-      if (key !== rule.setupKey || !ruleCovers(rule, o.symbol, watchlist)) continue;
+      const key = setupKey(o.pattern, o.direction, o.location);
+      const matches =
+        o.pattern === want.pattern &&
+        o.direction === want.direction &&
+        (want.location === "*" || o.location === want.location);
+      if (!matches || !ruleCovers(rule, o.symbol, watchlist)) continue;
       if (o.time + ms < rule.createdAt) continue; // closed before the rule existed
-      if (rule.edgeOnly && pooled.verdict !== "edge") continue;
+      if (rule.edgeOnly && pooled?.verdict !== "edge") continue;
       const id = `${rule.id}|${o.symbol}|${o.time}`;
       if (known.has(id) || out.some((f) => f.id === id)) continue;
       out.push({
@@ -100,16 +109,18 @@ export function matchFirings(
         interval,
         time: o.time,
         firedAt: now,
-        entry: o.hit.entry,
-        stop: o.hit.stop,
-        target: o.hit.target,
-        record: {
-          n: pooled.n,
-          wins: pooled.wins,
-          winRate: pooled.winRate,
-          ci: pooled.ci,
-          verdict: pooled.verdict,
-        },
+        entry: o.entry,
+        stop: o.stop,
+        target: o.target,
+        record: pooled
+          ? {
+              n: pooled.n,
+              wins: pooled.wins,
+              winRate: pooled.winRate,
+              ci: pooled.ci,
+              verdict: pooled.verdict,
+            }
+          : { n: 0, wins: 0, winRate: 0, ci: [0, 1], verdict: "tooFew" },
         outcome: o.outcome.result,
         telegram: rule.telegram ? "offline" : "off",
         unseen: rule.inApp,
@@ -119,20 +130,24 @@ export function matchFirings(
   return out;
 }
 
-/** The latest outcome of a fired setup, read from a newer scan (unchanged if not found). */
-export function resolveOutcome(firing: SetupAlertFiring, scan: Scan): OutcomeResult {
-  const occ = scan.analyses
-    .get(firing.symbol)
-    ?.occurrences.find(
-      (o) => o.time === firing.time && setupKey(o.hit.type, o.location) === firing.setupKey,
-    );
+/** The latest outcome of a fired setup, from the coin's newer analysis (unchanged if not found). */
+export function resolveOutcome(
+  firing: SetupAlertFiring,
+  occurrences: readonly SetupOccurrence[],
+): OutcomeResult {
+  const occ = occurrences.find(
+    (o) =>
+      o.time === firing.time && setupKey(o.pattern, o.direction, o.location) === firing.setupKey,
+  );
   return occ?.outcome.result ?? firing.outcome;
 }
 
-/** "Double bottom in demand zone" for a valid key, the raw key otherwise. */
+/** "Long double bottom in demand zone" for a valid key, the raw key otherwise. */
 export function setupName(key: string): string {
   const s = parseSetupKey(key);
-  return s ? `${PATTERN_LABELS[s.type]} ${LOCATION_LABELS[s.location]}` : key;
+  return s
+    ? `${s.direction === "long" ? "Long" : "Short"} ${patternLabel(s.pattern).toLowerCase()} ${locationLabel(s.location, s.direction)}`
+    : key;
 }
 
 const VERDICT_TEXT: Record<Verdict, string> = {
@@ -159,7 +174,7 @@ export function toTrigger(f: SetupAlertFiring): AlertTrigger {
       record: `${r.wins} of ${r.n} won (${pctText(r.winRate)}, 95% range ${pctText(r.ci[0])}–${pctText(r.ci[1])})`,
       verdict: VERDICT_TEXT[r.verdict],
     },
-    reason: `${f.symbol} printed a ${setupName(f.setupKey).toLowerCase()} on a closed ${f.interval} candle. Past record is before fees; you decide and trade.`,
+    reason: `${f.symbol} printed a ${setupName(f.setupKey).toLowerCase()} setup on a closed ${f.interval} candle. Past record is before fees; you decide and trade.`,
   };
 }
 
@@ -187,14 +202,14 @@ export function parseRules(value: unknown): SetupAlertRule[] {
     const v = obj(raw);
     if (!v || typeof v.id !== "string" || typeof v.symbol !== "string") continue;
     const tf = interval(v.interval);
-    const key = typeof v.setupKey === "string" ? v.setupKey : null;
-    if (!tf || !parseSetupKey(key)) continue;
+    const key = typeof v.setupKey === "string" ? normalizeSetupKey(v.setupKey) : null;
+    if (!tf || !key) continue;
     if (v.symbol !== WATCHLIST && !SYMBOL_FORMAT.test(v.symbol)) continue;
     if (out.some((r) => r.id === v.id)) continue;
     out.push({
       id: v.id,
       symbol: v.symbol,
-      setupKey: key!,
+      setupKey: key,
       interval: tf,
       telegram: v.telegram === true,
       inApp: v.inApp !== false,
@@ -223,14 +238,15 @@ export function parseFirings(value: unknown): SetupAlertFiring[] {
     if (!tf || nums.some((n) => typeof n !== "number" || !Number.isFinite(n))) continue;
     if (typeof v.id !== "string" || typeof v.ruleId !== "string") continue;
     if (typeof v.symbol !== "string" || typeof v.setupKey !== "string") continue;
-    if (!parseSetupKey(v.setupKey)) continue;
+    const setupKeyNow = normalizeSetupKey(v.setupKey);
+    if (!setupKeyNow) continue;
     const ci = Array.isArray(rec.ci) && rec.ci.length === 2 ? rec.ci : null;
     if (!ci || ci.some((n) => typeof n !== "number")) continue;
     out.push({
       id: v.id,
       ruleId: v.ruleId,
       symbol: v.symbol,
-      setupKey: v.setupKey,
+      setupKey: setupKeyNow,
       interval: tf,
       time: v.time as number,
       firedAt: v.firedAt as number,

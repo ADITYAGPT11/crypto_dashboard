@@ -1,9 +1,9 @@
 import { useEffect, useId, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useResearchScan } from "../../custom-hooks/useScan";
-import { LOCATION_LABELS } from "../../utils/setupAnalysis";
-import { PATTERN_LABELS } from "../../utils/patterns";
-import { parseSetupKey } from "../../utils/setupLibrary";
+import { useStats } from "../../custom-hooks/useAnalysisApi";
+import { locationLabel, parseSetupKey, setupKey as keyOf } from "../../utils/setupKeys";
+import { patternLabel } from "../../utils/patternLabels";
+import { statsByKey } from "../../utils/setupLibrary";
 import {
   computePosition,
   expectedValue,
@@ -64,8 +64,9 @@ const RiskPage: React.FC = () => {
   const [params] = useSearchParams();
   const symbol = params.get("symbol") ?? "";
   const setup = parseSetupKey(params.get("setup"));
-  const setupKey = setup ? `${setup.type}|${setup.location}` : null;
+  const setupKey = setup ? keyOf(setup.pattern, setup.direction, setup.location) : null;
   const tf = INTERVALS.find((i) => i === params.get("tf")) ?? "4h";
+  const zoneTf = INTERVALS.find((i) => i === params.get("zoneTf")) ?? tf;
   const base = symbol.split("-")[0] || "units";
 
   const [draft, setDraft] = useState<Draft>(() => {
@@ -91,8 +92,9 @@ const RiskPage: React.FC = () => {
     }
   }, [account, riskPct, feePct]);
 
-  const { scan, loading } = useResearchScan(tf, 0, setupKey !== null);
-  const pooled = setupKey && scan ? (scan.pooled.get(setupKey) ?? null) : null;
+  const statsRes = useStats(tf, zoneTf);
+  const loading = statsRes.data === null && statsRes.error === null;
+  const pooled = setupKey ? (statsByKey(statsRes.data).get(setupKey) ?? null) : null;
   const ids = useId();
 
   return (
@@ -112,8 +114,8 @@ const RiskPage: React.FC = () => {
           <div>
             <span className={styles.lbl}>Setup</span>
             <b>
-              {symbol || "Any coin"} · {tf} · {PATTERN_LABELS[setup.type]}{" "}
-              {LOCATION_LABELS[setup.location]}
+              {symbol || "Any coin"} · {tf} · {setup.direction === "long" ? "Long" : "Short"}{" "}
+              {patternLabel(setup.pattern)} {locationLabel(setup.location, setup.direction)}
             </b>
           </div>
           <div>
@@ -123,7 +125,7 @@ const RiskPage: React.FC = () => {
                 ? `${pooled.wins} of ${pooled.n} · ${pct(pooled.winRate)} (${pct(pooled.ci[0])}–${pct(pooled.ci[1])})`
                 : loading
                   ? "Loading…"
-                  : "Not found on this timeframe"}
+                  : (statsRes.error ?? "Not found on this timeframe")}
             </span>
           </div>
           {pooled && <VerdictChip verdict={pooled.verdict} />}

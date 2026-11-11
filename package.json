@@ -17,7 +17,6 @@
     "api:check": "cd backend && uv run ruff format --check . && uv run ruff check . && uv run pyright && uv run pytest"
   },
   "dependencies": {
-    "candlestick": "3.0.0",
     "eventemitter3": "^5.0.4",
     "express": "^4.18.2",
     "indicatorts": "2.2.2",

@@ -1,6 +1,8 @@
+import type { AnalysisOut, ScannerOut } from "../api/schema";
+import { apiGet } from "../api/client";
 import type { CandleInterval } from "../types/marketData";
-import type { Scan } from "../utils/setupAnalysis";
-import { buildScan } from "../utils/setupAnalysis";
+import type { SetupOccurrence } from "../types/analysis";
+import { normalizeSetupKey, toStats } from "../utils/setupKeys";
 import {
   FIRINGS_STORAGE_KEY,
   MAX_FIRINGS,
@@ -12,13 +14,13 @@ import {
   parseRules,
   resolveOutcome,
   toTrigger,
+  type CurrentSetup,
   type Delivery,
   type SetupAlertFiring,
   type SetupAlertRule,
 } from "../utils/setupAlerts";
 import { loadWatchlist } from "../utils/watchlistStorage";
 import { BRAND } from "../brand";
-import { HistoryService, RESEARCH_UNIVERSE } from "./HistoryService";
 
 export type TelegramStatus = "unknown" | "configured" | "notConfigured" | "offline";
 
@@ -31,8 +33,13 @@ export interface SetupAlertSnapshot {
 }
 
 export interface SetupAlertDeps {
-  /** Pooled scan for one interval; `sig` changes whenever the underlying history does. */
-  scanFor: (interval: CandleInterval) => Promise<{ scan: Scan; sig: string }>;
+  /** Setups on the last closed candles (backend scanner); `sig` changes when they do. */
+  scanFor: (
+    interval: CandleInterval,
+    watchlist: string[],
+  ) => Promise<{ current: CurrentSetup[]; sig: string }>;
+  /** A coin's recent occurrences with their outcomes so far (to track fired alerts). */
+  occurrencesFor: (symbol: string, interval: CandleInterval) => Promise<SetupOccurrence[]>;
   /** JSON request to the backend (dev proxy `/api` → :3001). Throws when unreachable. */
   request: (path: string, init?: RequestInit) => Promise<unknown>;
   watchlist: () => string[];
@@ -42,17 +49,34 @@ export interface SetupAlertDeps {
 
 const CHECK_EVERY_MS = 60_000;
 
-async function defaultScanFor(interval: CandleInterval) {
-  const symbols = [...new Set([...loadWatchlist(), ...RESEARCH_UNIVERSE])];
-  const svc = HistoryService.getInstance();
-  const loaded = await Promise.allSettled(symbols.map((s) => svc.load(s, interval)));
-  const histories = loaded.flatMap((r) =>
-    r.status === "fulfilled" && r.value.candles.length > 0
-      ? [{ symbol: r.value.symbol, candles: r.value.candles }]
-      : [],
-  );
-  const sig = histories.map((h) => `${h.symbol}:${h.candles.length}`).join(",");
-  return { scan: buildScan(histories), sig };
+/** Alerts use same-timeframe levels: a rule names a timeframe, not a level source. */
+async function defaultScanFor(interval: CandleInterval, watchlist: string[]) {
+  const body = await apiGet<ScannerOut>("/scanner", {
+    tf: interval,
+    zoneTf: interval,
+    symbols: watchlist.join(","),
+    bars: 3,
+  });
+  const current: CurrentSetup[] = body.items.map((i) => {
+    const o: SetupOccurrence = { ...i.occurrence, symbol: i.symbol };
+    return {
+      occurrence: o,
+      pooled: i.pooled ? toStats(o.pattern, o.direction, o.location, i.pooled) : null,
+    };
+  });
+  const sig = current
+    .map((c) => `${c.occurrence.symbol}:${c.occurrence.pattern}:${c.occurrence.time}`)
+    .join(",");
+  return { current, sig: `${body.run?.finishedAt ?? 0}|${sig}` };
+}
+
+async function defaultOccurrencesFor(symbol: string, interval: CandleInterval) {
+  const a = await apiGet<AnalysisOut>(`/analysis/${symbol}`, {
+    tf: interval,
+    zoneTf: interval,
+    limit: 500,
+  });
+  return a.occurrences.map((o) => ({ ...o, symbol }));
 }
 
 async function defaultRequest(path: string, init?: RequestInit): Promise<unknown> {
@@ -74,10 +98,10 @@ function browserStorage(): SetupAlertDeps["storage"] {
 }
 
 /**
- * Runs setup alerts in the browser while a TCS tab is open (Phase 1a). Each check
- * reuses cached history until a new candle closes, matches rules against the setups
- * detected now, tracks the outcome of earlier firings, and sends Telegram messages
- * through the backend prototype when it runs. Phase 1b moves all of this server-side.
+ * Runs setup alerts while a TCS tab is open. Each check asks the analysis service
+ * (Python) which setups confirmed on the last closed candles, matches rules against
+ * them, tracks the outcome of earlier firings, and sends Telegram messages through
+ * the Node backend prototype when it runs. Server-side alerts come later (ROADMAP).
  */
 export class SetupAlertService {
   private static instance: SetupAlertService | null = null;
@@ -91,6 +115,7 @@ export class SetupAlertService {
   constructor(deps: Partial<SetupAlertDeps> = {}) {
     this.deps = {
       scanFor: defaultScanFor,
+      occurrencesFor: defaultOccurrencesFor,
       request: defaultRequest,
       watchlist: loadWatchlist,
       now: Date.now,
@@ -141,7 +166,15 @@ export class SetupAlertService {
   addRule(rule: Omit<SetupAlertRule, "id" | "createdAt" | "paused">): SetupAlertRule | null {
     if (this.snap.rules.length >= MAX_RULES) return null;
     const now = this.deps.now();
-    const full: SetupAlertRule = { ...rule, id: newRuleId(now), createdAt: now, paused: false };
+    const setupKey = normalizeSetupKey(rule.setupKey);
+    if (!setupKey) return null;
+    const full: SetupAlertRule = {
+      ...rule,
+      setupKey,
+      id: newRuleId(now),
+      createdAt: now,
+      paused: false,
+    };
     this.update({ rules: [...this.snap.rules, full] });
     void this.check();
     return full;
@@ -210,24 +243,39 @@ export class SetupAlertService {
     const fresh: SetupAlertFiring[] = [];
     let firings = this.snap.firings;
     for (const interval of intervals) {
-      let result: { scan: Scan; sig: string };
+      let result: { current: CurrentSetup[]; sig: string };
       try {
-        result = await this.deps.scanFor(interval);
+        result = await this.deps.scanFor(interval, this.deps.watchlist());
       } catch {
-        continue; // history unavailable; try again next check
+        continue; // analysis service unavailable; try again next check
       }
       if (this.lastSig.get(interval) === result.sig) continue;
       this.lastSig.set(interval, result.sig);
+      const open = [
+        ...new Set(
+          firings
+            .filter((f) => f.interval === interval && f.outcome === "open")
+            .map((f) => f.symbol),
+        ),
+      ];
+      const occBySymbol = new Map<string, SetupOccurrence[]>();
+      for (const symbol of open) {
+        try {
+          occBySymbol.set(symbol, await this.deps.occurrencesFor(symbol, interval));
+        } catch {
+          // keep the outcome as it was; retried at the next check
+        }
+      }
       firings = firings.map((f) =>
-        f.interval === interval && f.outcome === "open"
-          ? { ...f, outcome: resolveOutcome(f, result.scan) }
+        f.interval === interval && f.outcome === "open" && occBySymbol.has(f.symbol)
+          ? { ...f, outcome: resolveOutcome(f, occBySymbol.get(f.symbol)!) }
           : f,
       );
       const known = new Set([...firings, ...fresh].map((f) => f.id));
       fresh.push(
         ...matchFirings(
           this.snap.rules,
-          result.scan.current,
+          result.current,
           interval,
           this.deps.watchlist(),
           known,

@@ -1,57 +1,60 @@
 /**
- * Contracts for chart analysis: volume profile, supply/demand zones, pattern
- * detection and setup statistics. Everything is plain data so the same logic
- * can be unit-tested on fixtures and later ported to the Python backend.
+ * Analysis results as the frontend uses them. Detection, locations, outcomes and
+ * statistics are computed by the Python backend (`backend/src/tcs/analysis`), the
+ * one rule set behind both the chart and the background statistics; these types
+ * wrap the generated API types in `src/api/schema.ts`.
  */
+import type {
+  CaseOut,
+  FvgOut,
+  OccurrenceOut,
+  OrderBlockOut,
+  StructureOut,
+  SummaryOut,
+  ZoneOut,
+} from "../api/schema";
 
-export type PatternType =
-  | "doubleBottom"
-  | "bullishEngulfing"
-  | "hammer"
-  | "invertedHammer"
-  | "bullishHarami"
-  | "tweezersBottom"
-  | "threeWhiteSoldiers"
-  | "bullFlag"
-  | "inverseHeadShoulders";
-export type SetupLocation = "demandZone" | "openSpace";
-export type OutcomeResult = "win" | "loss" | "expired" | "open";
-export type Verdict = "edge" | "noEdge" | "tooFew";
+/** A pattern id from the backend's catalogue (`/api/v1/patterns`), e.g. "doubleBottom". */
+export type PatternId = string;
+export type Direction = OccurrenceOut["direction"];
+export type SetupLocation = OccurrenceOut["location"];
+/** A location, or "*" for every location together (the pattern's baseline). */
+export type LocationFilter = SetupLocation | "*";
+export type OutcomeResult = OccurrenceOut["outcome"]["result"];
+export type Verdict = SummaryOut["verdict"];
 
-export interface PricePoint {
-  index: number;
-  price: number;
+export type Zone = ZoneOut;
+export type OrderBlock = OrderBlockOut;
+export type FairValueGap = FvgOut;
+export type StructureBreak = StructureOut;
+export type SetupCase = CaseOut;
+
+/** A detected setup on one coin (times are candle open times, ms). */
+export interface SetupOccurrence extends OccurrenceOut {
+  symbol: string;
 }
 
-/** A detected pattern, confirmed on candle `index` (never using later candles). */
-export interface PatternHit {
-  type: PatternType;
-  index: number;
-  entry: number;
-  stop: number;
-  target: number;
-  /** Lowest price of the pattern (used to place it relative to zones). */
-  low: number;
-  /** Key points for drawing (e.g. the two lows and the neckline peak). */
-  points: PricePoint[];
-  /** Horizontal neckline (double bottom). */
-  neckline?: number;
-  /** A drawn line that may slope: inverse H&S neckline, bull-flag resistance. */
-  line?: { from: PricePoint; to: PricePoint };
-}
-
-export interface Zone {
-  kind: "demand" | "supply";
-  low: number;
-  high: number;
-  /** Base candle the zone is drawn from. */
-  startIndex: number;
-  /** Impulse candle that created the zone; the zone exists from here on. */
-  formedIndex: number;
-  /** Candle that closed through the zone, or null while it is intact. */
-  endIndex: number | null;
-  tests: number;
-  held: number;
+/** Statistics of one setup (pattern × direction × location), pooled or for one coin. */
+export interface SetupStats {
+  key: string;
+  pattern: PatternId;
+  direction: Direction;
+  location: LocationFilter;
+  n: number;
+  wins: number;
+  losses: number;
+  expired: number;
+  winRate: number;
+  /** Wilson 95% interval on the win rate. */
+  ci: [number, number];
+  /** Win rate needed to break even given the average win size. */
+  breakEven: number;
+  avgWinPct: number;
+  avgLossPct: number;
+  /** Mean result per resolved case in R, before fees. */
+  expectancyR: number;
+  medianBars: number;
+  verdict: Verdict;
 }
 
 export interface VolumeProfile {
@@ -67,47 +70,4 @@ export interface VolumeProfile {
   hvn: number[];
   /** Low-volume nodes inside the value area (prices), thinnest first. */
   lvn: number[];
-}
-
-export interface Outcome {
-  result: OutcomeResult;
-  exitIndex: number | null;
-  /** Percent move from entry to exit (positive on wins, negative on losses). */
-  movePct: number;
-  /** Result in R: (target − entry) / (entry − stop) on wins, −1 on losses. */
-  r: number;
-  bars: number;
-}
-
-export interface SetupOccurrence {
-  symbol: string;
-  hit: PatternHit;
-  location: SetupLocation;
-  outcome: Outcome;
-  /** Open time (ms) of the confirmation candle. */
-  time: number;
-}
-
-export interface SetupStats {
-  key: string;
-  type: PatternType;
-  location: SetupLocation;
-  /** Resolved cases (wins + losses). */
-  n: number;
-  wins: number;
-  losses: number;
-  expired: number;
-  winRate: number;
-  /** Wilson 95% interval on the win rate. */
-  ci: [number, number];
-  /** Win rate needed to break even given the average win and loss sizes. */
-  breakEven: number;
-  avgWinPct: number;
-  avgLossPct: number;
-  /** Mean result per resolved case in R, before fees. */
-  expectancyR: number;
-  medianBars: number;
-  verdict: Verdict;
-  /** Most recent resolved occurrences, newest first. */
-  recent: SetupOccurrence[];
 }

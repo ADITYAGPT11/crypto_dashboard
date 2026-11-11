@@ -1,10 +1,10 @@
-import type { SetupOccurrence, SetupStats } from "../../types/analysis";
+import type { RunOut } from "../../api/schema";
+import type { SetupCase, SetupOccurrence, SetupStats } from "../../types/analysis";
 import { CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
-import { PATTERN_LABELS } from "../../utils/patterns";
 import { Link } from "react-router-dom";
-import { PRESET } from "../../utils/detectionConfig";
 import { TfBadge } from "./TfBadge";
-import { LOCATION_LABELS, MAX_HOLD_BARS, MIN_SAMPLE, setupKey } from "../../utils/setupAnalysis";
+import { patternLabel } from "../../utils/patternLabels";
+import { locationLabel, setupKey } from "../../utils/setupKeys";
 import { pct, price, shortDate, signedPct, signedR } from "../../utils/format";
 import styles from "./ChartPage.module.scss";
 
@@ -15,33 +15,53 @@ export interface Check {
 
 interface Props {
   occurrence: SetupOccurrence;
-  /** Timeframe the pattern was detected on, and where its zones came from. */
+  /** Timeframe the pattern was detected on, and where its levels came from. */
   interval: string;
   zoneTf: string;
-  /** Coins measured so far (pooling runs in the background). */
-  measured?: { done: number; total: number };
   isCurrent: boolean;
+  /** This setup across every coin (background statistics). */
   pooled: SetupStats | null;
+  /** The same pattern at any location: does the location add anything? */
+  baseline: SetupStats | null;
   own: SetupStats | null;
-  coins: number;
-  pooling: boolean;
+  recent: SetupCase[];
+  run: RunOut | null;
+  statsError: string | null;
+  ruleset: string | null;
+  maxHoldBars: number;
+  minSample: number;
   checks: Check[];
 }
 
+function runText(run: RunOut | null, error: string | null): string {
+  if (error) return error;
+  if (!run)
+    return "Statistics not measured yet: the background job starts with the analysis service.";
+  if (run.status === "running")
+    return `Measuring in the background: ${run.done}/${run.coins.length} coins…`;
+  if (run.status === "failed") return "The last statistics run failed; it retries within the hour.";
+  return "No past cases of this setup yet.";
+}
+
 const SetupCard: React.FC<Props> = ({
-  occurrence,
+  occurrence: o,
   interval,
   zoneTf,
-  measured,
   isCurrent,
   pooled,
+  baseline,
   own,
-  coins,
-  pooling,
+  recent,
+  run,
+  statsError,
+  ruleset,
+  maxHoldBars,
+  minSample,
   checks,
 }) => {
-  const { hit, location, outcome } = occurrence;
-  const rr = (hit.target - hit.entry) / (hit.entry - hit.stop);
+  const long = o.direction === "long";
+  const rr = Math.abs(o.target - o.entry) / Math.abs(o.entry - o.stop);
+  const { outcome } = o;
   const resultLabel =
     outcome.result === "win"
       ? `Won ${signedPct(outcome.movePct)}`
@@ -50,24 +70,29 @@ const SetupCard: React.FC<Props> = ({
         : outcome.result === "expired"
           ? "Expired"
           : "Still open";
+  const coins = run?.coins.length ?? 0;
+  const years = run ? Math.round((run.days / 365) * 10) / 10 : null;
+  const key = setupKey(o.pattern, o.direction, o.location);
 
   return (
     <section className={`${styles.card} ${styles.feature}`} aria-labelledby="setup-title">
       <div className={styles.setupHead}>
         <div>
           <span className={styles.lbl}>
-            {isCurrent ? "Setup on a recent candle" : `Setup on ${shortDate(occurrence.time)}`} ·
-            preset {PRESET.id}
+            {isCurrent ? "Setup on a recent candle" : `Setup on ${shortDate(o.time)}`}
+            {ruleset ? ` · rules ${ruleset}` : ""}
           </span>
           <h2 id="setup-title">
-            <TfBadge tf={interval} /> {PATTERN_LABELS[hit.type]}{" "}
+            <TfBadge tf={interval} />{" "}
+            <span className={long ? styles.up : styles.down}>{long ? "Long" : "Short"}</span> ·{" "}
+            {patternLabel(o.pattern)}{" "}
             <span className={styles.mute}>
-              {location === "demandZone" ? (
+              {locationLabel(o.location, o.direction)}
+              {o.location !== "openSpace" && (
                 <>
-                  in a <TfBadge tf={zoneTf} /> demand zone
+                  {" "}
+                  (<TfBadge tf={zoneTf} />)
                 </>
-              ) : (
-                LOCATION_LABELS[location]
               )}
             </span>
           </h2>
@@ -78,13 +103,14 @@ const SetupCard: React.FC<Props> = ({
       <div className={styles.big}>
         <div>
           <span className={styles.lbl}>
-            Win rate · {coins} coins{" "}
+            Win rate · {coins} coins{years ? ` · ${years} y` : ""}{" "}
             <Explain title="How win rate is measured">
-              A case wins when the target is hit before the stop within {MAX_HOLD_BARS} candles (a
-              candle touching both counts as a loss). The range is the 95% Wilson interval: where
-              the true rate plausibly lies. The amber tick is the break-even win rate for this
-              setup's average win size. Edge candidate means the whole range sits above break-even,
-              with at least {MIN_SAMPLE} cases.
+              A case wins when the target is hit before the stop within {maxHoldBars} candles (a
+              candle touching both counts as a loss). Every past case of this exact setup (pattern,
+              direction, location, timeframes) across the research coins is counted by the same
+              rules that drew it here. The range is the 95% Wilson interval; the amber tick is the
+              break-even win rate for this setup's average win size. Edge candidate means the whole
+              range sits above break-even, with at least {minSample} cases.
             </Explain>
           </span>
           {pooled ? (
@@ -99,21 +125,17 @@ const SetupCard: React.FC<Props> = ({
               <CiBar stats={pooled} />
             </>
           ) : (
-            <small>
-              {pooling
-                ? measured
-                  ? `Measuring in the background: ${measured.done}/${measured.total} coins…`
-                  : `Pooling across ${coins} coins…`
-                : "No pooled cases yet"}
-            </small>
+            <small>{runText(run, statsError)}</small>
           )}
         </div>
         <div>
-          <span className={styles.lbl}>Avg move</span>
-          {pooled ? (
+          <span className={styles.lbl}>Same pattern, any location</span>
+          {baseline ? (
             <>
-              <span className={`${styles.num} ${styles.up}`}>{signedPct(pooled.avgWinPct)}</span>
-              <small>on wins · losses {signedPct(pooled.avgLossPct)}</small>
+              <span className={styles.num}>{pct(baseline.winRate)}</span>
+              <small>
+                {baseline.wins} of {baseline.n} · range {pct(baseline.ci[0])}–{pct(baseline.ci[1])}
+              </small>
             </>
           ) : (
             <small>—</small>
@@ -128,7 +150,7 @@ const SetupCard: React.FC<Props> = ({
               </span>
               <small>
                 range {pct(own.ci[0])}–{pct(own.ci[1])}
-                {own.n < MIN_SAMPLE ? " · too few alone" : ""}
+                {own.n < minSample ? " · too few alone" : ""}
               </small>
             </>
           ) : (
@@ -144,7 +166,10 @@ const SetupCard: React.FC<Props> = ({
               >
                 {signedR(pooled.expectancyR)}
               </span>
-              <small>median {pooled.medianBars} candles to result</small>
+              <small>
+                avg win {signedPct(pooled.avgWinPct)} · loss {signedPct(pooled.avgLossPct)} · median{" "}
+                {pooled.medianBars} candles
+              </small>
             </>
           ) : (
             <small>—</small>
@@ -155,15 +180,15 @@ const SetupCard: React.FC<Props> = ({
       <dl className={styles.plan}>
         <div>
           <dt>Entry</dt>
-          <dd>{price(hit.entry)}</dd>
+          <dd>{price(o.entry)}</dd>
         </div>
         <div>
           <dt>Stop</dt>
-          <dd className={styles.down}>{price(hit.stop)}</dd>
+          <dd className={styles.down}>{price(o.stop)}</dd>
         </div>
         <div>
           <dt>Target</dt>
-          <dd className={styles.up}>{price(hit.target)}</dd>
+          <dd className={styles.up}>{price(o.target)}</dd>
         </div>
         <div>
           <dt>Reward : risk</dt>
@@ -175,9 +200,8 @@ const SetupCard: React.FC<Props> = ({
       <h3 className={styles.sub}>
         Confluence{" "}
         <Explain title="Confluence">
-          Independent reasons agreeing: location (demand zone), volume on the confirmation candle,
-          trend (EMA 50) and where most volume traded (point of control). Location is measured
-          separately in the statistics; the other checks are context.
+          Independent reasons agreeing. Location (zone / order block) is part of the measured setup;
+          volume, trend (EMA 50) and the point of control are context shown here, not measured.
         </Explain>
       </h3>
       <ul className={styles.checks}>
@@ -194,32 +218,30 @@ const SetupCard: React.FC<Props> = ({
         ))}
       </ul>
 
-      {pooled && pooled.recent.length > 0 && (
+      {recent.length > 0 && (
         <>
-          <h3 className={styles.sub}>Last {pooled.recent.length} cases (all coins)</h3>
+          <h3 className={styles.sub}>Last {Math.min(recent.length, 8)} cases (all coins)</h3>
           <div className={styles.outcomes} aria-hidden="true">
-            {pooled.recent.map((o) => (
+            {recent.slice(0, 8).map((c) => (
               <span
-                key={`${o.symbol}${o.time}`}
-                className={o.outcome.result === "win" ? styles.w : styles.l}
+                key={`${c.symbol}${c.time}`}
+                className={c.result === "win" ? styles.w : styles.l}
               >
-                {o.outcome.result === "win" ? "W" : "L"}
+                {c.result === "win" ? "W" : "L"}
               </span>
             ))}
           </div>
           <table className={styles.tbl}>
             <caption className="sr-only">Most recent resolved cases of this setup</caption>
             <tbody>
-              {pooled.recent.map((o) => (
-                <tr key={`${o.symbol}${o.time}`}>
-                  <td className={styles.mute}>{shortDate(o.time)}</td>
-                  <td>{o.symbol}</td>
-                  <td
-                    className={`${styles.r} ${o.outcome.result === "win" ? styles.up : styles.down}`}
-                  >
-                    {signedPct(o.outcome.movePct)}
+              {recent.slice(0, 8).map((c) => (
+                <tr key={`${c.symbol}${c.time}`}>
+                  <td className={styles.mute}>{shortDate(c.time)}</td>
+                  <td>{c.symbol}</td>
+                  <td className={`${styles.r} ${c.result === "win" ? styles.up : styles.down}`}>
+                    {signedPct(c.movePct)}
                   </td>
-                  <td className={`${styles.r} ${styles.mute}`}>{o.outcome.bars} bars</td>
+                  <td className={`${styles.r} ${styles.mute}`}>{c.bars} bars</td>
                 </tr>
               ))}
             </tbody>
@@ -231,23 +253,20 @@ const SetupCard: React.FC<Props> = ({
         <Link
           className={styles.btn}
           to={`/risk?${new URLSearchParams({
-            symbol: occurrence.symbol,
-            setup: setupKey(hit.type, location),
+            symbol: o.symbol,
+            setup: key,
             tf: interval,
-            entry: String(Number(hit.entry.toPrecision(8))),
-            stop: String(Number(hit.stop.toPrecision(8))),
-            target: String(Number(hit.target.toPrecision(8))),
+            zoneTf,
+            entry: String(Number(o.entry.toPrecision(8))),
+            stop: String(Number(o.stop.toPrecision(8))),
+            target: String(Number(o.target.toPrecision(8))),
           }).toString()}`}
         >
           Size this trade
         </Link>
         <Link
           className={styles.btn}
-          to={`/alerts?${new URLSearchParams({
-            symbol: occurrence.symbol,
-            setup: setupKey(hit.type, location),
-            tf: interval,
-          }).toString()}`}
+          to={`/alerts?${new URLSearchParams({ symbol: o.symbol, setup: key, tf: interval }).toString()}`}
         >
           Alert me next time
         </Link>
