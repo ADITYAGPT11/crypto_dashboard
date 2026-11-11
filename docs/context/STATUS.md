@@ -1,26 +1,29 @@
 # Project status
 
-_Last verified: 2026-11-02 · branch `claude/ecstatic-gauss-sqnz3z`_
+_Last verified: 2026-11-04 · branch `claude/ta-patterns-backend`_
 
 ## Phase
 
 **Phase 1a: Dashboard, Chart, Pattern stats, Risk and Alerts built (browser-side analysis).** The owner's priority
-features run on real Binance history in the browser. The Python backend and QuestDB (Phase 1b)
-are next; detection and statistics move server-side there. No confirmations yet (by design).
+features run on real Binance history in the browser. **Phase 1b has started:** the Python backend
+(`backend/`) runs the ta_patterns pattern library and its statistics, shown on the Chart. QuestDB
+and the collector are next. No confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-1. Owner picks the product name (one constant in `src/brand.ts` + `index.html` title) and reviews
+1. Owner: run `npm run dev` + `npm run backend:py` against real Binance and spot-check the
+   Pattern library (does each pattern look like its name on the chart?). Never run live here.
+2. Owner picks the product name (one constant in `src/brand.ts` + `index.html` title) and reviews
    Dashboard v2; check Fear & Greed and CoinGecko load on the owner's machine.
-2. More detectors: bull flag, inverse head & shoulders, morning star; HVN/VAL as locations.
-3. Keep CI green: `.github/workflows/ci.yml` runs on every PR.
-4. Phase 1b backend: Python collector + QuestDB, so history is stored and pooled across 20+ coins,
+3. More detectors: bull flag, inverse head & shoulders, morning star; HVN/VAL as locations.
+4. Keep CI green: `.github/workflows/ci.yml` runs on every PR.
+5. Phase 1b backend: Python collector + QuestDB, so history is stored and pooled across 20+ coins,
    and setup alerts run server-side.
-5. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
+6. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
 
 ## Health
 
-Verified 2026-11-02 from a clean `npm ci`:
+Verified 2026-11-04 from a clean `npm ci` and `uv sync --locked`:
 
 | Check                                                      | State                                                                                                                                                                                                                |
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -28,6 +31,8 @@ Verified 2026-11-02 from a clean `npm ci`:
 | `npm test`                                                 | ✅ 321 tests, 28 files                                                                                                                                                                                               |
 | `npm run build` (`tsc -b` app + node + backend, then Vite) | ✅ chart code in its own chunk                                                                                                                                                                                       |
 | `npm run dev`                                              | ✅ <http://localhost:3000>; Dashboard, Chart, Pattern stats, Risk, Alerts load with no page errors or sideways scroll (browser test at 1440 px and 400 px, mocked Binance history); `/api` proxy reaches the backend |
+| Backend `uv run pytest` / `ruff` / `pyright`               | ✅ 20 tests (incl. no-look-ahead over the whole pipeline); ruff + pyright clean                                                                                                                                      |
+| `npm run backend:py` + Chart                               | ✅ Pattern library list, card, markers and plan lines in a headless browser at 1440 px and 400 px, no page errors (synthetic history: Binance blocked in the sandbox)                                                |
 | `npm run backend`                                          | ✅ bundles `src/backend` and starts on :3001; `/health` OK, SQLite file created under `./data/`                                                                                                                      |
 
 ## What exists
@@ -58,6 +63,13 @@ Verified 2026-11-02 from a clean `npm ci`:
   - Detection settings: pattern timeframes (1h/4h/1d) and zone source chosen separately from the
     view; higher-TF patterns drawn as blocks with the signal at their close; setup card for the
     selected setup; `SetupStatsService` measures every timeframe in the background.
+- **Pattern library** (Chart sidebar + card under the chart), from the Python backend: ta_patterns
+  detectors on the view timeframe (chart formations by default; short-term and candlesticks on a
+  toggle), newest first with "Now" for the last 3 candles. Picking one draws its past cases on this
+  coin as ▲/▼ W/L markers with entry/stop/target lines, and shows pooled (10 coins) and this-coin
+  win rate, Wilson range, break-even, corrected verdict, expectancy and the move 5/10/20 candles
+  later; past cases are clickable for a visual check. Same 1-ATR stop / 2-ATR target for every
+  pattern. Backend not running → the panel says how to start it; the rest of the Chart is unchanged.
 - **Pattern stats** (`/stats`): setup library on 1h / 4h / 1d (KPIs, n, win rate, Wilson range vs
   break-even, avg win/loss, expectancy, verdict), verdict filter and sort, a per-coin breakdown
   per row, the path to a confirmation and the overfitting guards.
@@ -80,6 +92,15 @@ Verified 2026-11-02 from a clean `npm ci`:
   and linted with the app, starts with `npm run backend`. Replaced by the Python backend in Phase 1b.
 
 ## Known issues
+
+- **Pattern library not run against real Binance** (blocked in the dev sandbox): tested with
+  synthetic gapless candles end to end. Which ta_patterns detectors fire, and how often, on real
+  crypto is unverified. First stats load scans 11 coins (~10 s), cached until the next close.
+  Needs `npm run backend:py` next to `npm run dev` (the `/tcs` proxy is dev-only).
+- **Library stats use one bracket for all patterns** (1 ATR stop, 2 ATR target), not each
+  pattern's textbook target; adjustable via the API (`stop_atr`, `target_atr`, `max_bars`), not
+  in the UI yet. Gross, before fees.
+- npm marks `indicatorts` 2.2.2 (chart indicators) deprecated; it still works. Re-audit.
 
 - **Live candle and drawings not exercised against real Binance** (exchange hosts blocked in the
   dev sandbox; tested with mocked history and the drawing flow in a headless browser).
@@ -105,6 +126,12 @@ Verified 2026-11-02 from a clean `npm ci`:
 8. The Markets page's older price-rule alerts are separate from setup alerts and still browser-only.
 
 ## History
+
+- 2026-11-04: Python backend scaffolded (`backend/`: uv, FastAPI, CI job). Pattern library from
+  ta_patterns (MIT, audited: no look-ahead on any of 300 detectors): events on the completing
+  candle, ATR-bracket outcomes, Wilson stats pooled over 10 coins with a multiple-testing
+  correction (random-walk test: 2 false edges without it, 0 with). Chart shows the patterns, their
+  past cases and stats.
 
 - 2026-11-03: Bull flag and inverse head and shoulders detectors (in-house, ATR-scaled,
   measured-move targets, no-look-ahead tests); available in detection settings, stats and alerts.

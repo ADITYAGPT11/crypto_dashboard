@@ -58,7 +58,8 @@ flowchart LR
 ## Phase 1 · Backend + history (M1, M2)
 
 - [x] Decide backend stack: Python 3.12 + FastAPI + QuestDB (see DECISIONS, ARCHITECTURE)
-- [ ] Monorepo layout per `ARCHITECTURE.md`: move frontend to `apps/web`, scaffold `backend/` with uv
+- [x] Scaffold `backend/` with uv (FastAPI, tests, CI job) (2026-11-04)
+- [ ] Monorepo layout per `ARCHITECTURE.md`: move frontend to `apps/web`
 - [ ] Collector service: Binance + OKX (+ Delta) via CCXT; health + gap detection
 - [ ] `infra/docker-compose.yml`: QuestDB + backend + web
 - [ ] QuestDB tables: candles 1m, funding, OI

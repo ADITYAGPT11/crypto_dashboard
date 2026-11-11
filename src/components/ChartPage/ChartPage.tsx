@@ -54,6 +54,10 @@ import {
 } from "../../utils/indicatorRegistry";
 import SetupCard, { type Check } from "./SetupCard";
 import DetectionSettings from "./DetectionSettings";
+import PatternLibrary, { PatternLibraryCard } from "../PatternLibrary";
+import { usePatternLibrary } from "../../custom-hooks/usePatternLibrary";
+import type { LibraryEvent, LibraryKind } from "../../types/patternLibrary";
+import { indexStats, libraryMarkers, statsKey } from "../../utils/patternLibrary";
 import { TfBadge } from "./TfBadge";
 import styles from "./ChartPage.module.scss";
 
@@ -130,6 +134,16 @@ const ChartPage: React.FC = () => {
   };
 
   const [selId, setSelId] = useState<string | null>(null);
+
+  // Pattern library (Python backend, ta_patterns) on the view timeframe. A pick belongs to
+  // one symbol x timeframe x kind, so switching any of them clears it without an effect.
+  const [libKind, setLibKind] = useState<LibraryKind>("chart");
+  const lib = usePatternLibrary(symbol, viewTf, libKind);
+  const libScope = `${symbol}|${viewTf}|${libKind}`;
+  const [libPick, setLibPick] = useState<{ scope: string; event: LibraryEvent } | null>(null);
+  const libSel = libPick?.scope === libScope ? libPick.event : null;
+  const selectLib = (event: LibraryEvent | null) =>
+    setLibPick(event ? { scope: libScope, event } : null);
 
   // Every timeframe needed: the view, each pattern timeframe and its zone source.
   const patternTfs = useMemo(() => activeTfs(config), [config]);
@@ -244,7 +258,18 @@ const ChartPage: React.FC = () => {
         : [],
     [recent, selected, candles, viewTf, candlesOf],
   );
+  const libStats = useMemo(() => indexStats(lib.entry?.stats?.stats ?? []), [lib.entry]);
+  const libMarkerList: ViewMarker[] | null = useMemo(() => {
+    if (!libSel || !candles.length) return null;
+    const cases = libStats.get(statsKey(libSel.pattern, libSel.direction))?.recent ?? [];
+    return libraryMarkers(cases, libSel, candles);
+  }, [libSel, libStats, candles]);
+  const libPlan = useMemo(
+    () => (libSel ? { entry: libSel.entry, stop: libSel.stop, target: libSel.target } : null),
+    [libSel],
+  );
   const markers: ViewMarker[] = useMemo(() => {
+    if (libMarkerList) return libMarkerList;
     if (!selected || !candles.length) return [];
     return history.flatMap((o) => {
       const time = viewBarTimeForClose(
@@ -254,7 +279,7 @@ const ChartPage: React.FC = () => {
       );
       return time === null ? [] : [{ time, result: o.outcome.result, current: o === selected.occ }];
     });
-  }, [history, selected, selCandles, candles]);
+  }, [libMarkerList, history, selected, selCandles, candles]);
 
   // Zones shown: those the selected setup was located with (else the view's own source).
   const zoneTf = selected?.zoneTf ?? zoneTfFor(viewTf, config.zones);
@@ -469,10 +494,11 @@ const ChartPage: React.FC = () => {
                 indicators={indicators}
                 onIndicator={onIndicator}
                 zones={viewZones}
-                selected={viewSelected}
-                plan={selected ? selected.occ.hit : null}
+                selected={libSel ? null : viewSelected}
+                plan={libSel ? libPlan : selected ? selected.occ.hit : null}
                 others={viewOthers}
                 markers={markers}
+                focusTime={libSel?.open_time ?? null}
                 layers={layers}
                 tool={tool}
                 onToolChange={setTool}
@@ -495,9 +521,19 @@ const ChartPage: React.FC = () => {
                 Volume by price
               </span>
               <span>Shaded blocks = the higher-timeframe candles of the selected pattern</span>
-              <span>▲ W / L = past outcomes of the selected setup</span>
+              <span>▲ / ▼ W / L = past outcomes of the selected setup (▼ = short)</span>
             </div>
           </div>
+
+          {libSel && (
+            <PatternLibraryCard
+              symbol={symbol}
+              interval={viewTf}
+              entry={lib.entry}
+              selected={libSel}
+              onSelect={selectLib}
+            />
+          )}
 
           <div className={styles.grid2}>
             <section className={styles.card} aria-labelledby="levels-title">
@@ -578,6 +614,16 @@ const ChartPage: React.FC = () => {
         </div>
 
         <aside className={styles.col} aria-label="Setups">
+          <PatternLibrary
+            symbol={symbol}
+            interval={viewTf}
+            kind={libKind}
+            onKind={setLibKind}
+            entry={lib.entry}
+            onRetry={lib.retry}
+            selected={libSel}
+            onSelect={selectLib}
+          />
           <DetectionSettings config={config} onChange={setConfig} progress={progress} />
           <section className={styles.card} aria-labelledby="pat-title">
             <div className={styles.cardHead}>
@@ -609,8 +655,13 @@ const ChartPage: React.FC = () => {
                   <li key={foundId(f)}>
                     <button
                       type="button"
-                      aria-pressed={selected !== null && foundId(f) === foundId(selected)}
-                      onClick={() => setSelId(foundId(f))}
+                      aria-pressed={
+                        !libSel && selected !== null && foundId(f) === foundId(selected)
+                      }
+                      onClick={() => {
+                        setSelId(foundId(f));
+                        selectLib(null);
+                      }}
                     >
                       <b>
                         <TfBadge tf={f.tf} /> {PATTERN_LABELS[f.occ.hit.type]}{" "}
@@ -649,7 +700,7 @@ const ChartPage: React.FC = () => {
               </p>
             )}
           </section>
-          {selected && (
+          {selected && !libSel && (
             <SetupCard
               occurrence={selected.occ}
               interval={selected.tf}

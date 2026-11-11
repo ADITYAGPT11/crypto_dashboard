@@ -31,3 +31,9 @@ dist-ssr
 # Backend build output and local database
 dist-backend
 data/
+
+# Python backend
+backend/.venv
+__pycache__/
+.pytest_cache/
+.ruff_cache/
