@@ -98,7 +98,7 @@ function browserStorage(): SetupAlertDeps["storage"] {
 }
 
 /**
- * Runs setup alerts while a TCS tab is open. Each check asks the analysis service
+ * Runs setup alerts while a GreenMTM tab is open. Each check asks the analysis service
  * (Python) which setups confirmed on the last closed candles, matches rules against
  * them, tracks the outcome of earlier firings, and sends Telegram messages through
  * the Node backend prototype when it runs. Server-side alerts come later (ROADMAP).

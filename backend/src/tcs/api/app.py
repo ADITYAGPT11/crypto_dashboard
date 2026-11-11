@@ -101,7 +101,7 @@ def create_app(settings: Settings | None = None, service: Service | None = None)
                 pool.shutdown(wait=False, cancel_futures=True)
 
     app = FastAPI(
-        title="TCS analysis API",
+        title="GreenMTM analysis API",
         version="0.1.0",
         description="Pattern detection, demand/supply zones, order blocks and setup statistics. "
         "Read-only: the system confirms, a human trades.",

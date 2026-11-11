@@ -16,11 +16,10 @@ confirmations yet (by design).
 1. Owner: run `npm start` on a machine that reaches Binance, let the first
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
-2. Owner picks the product name (`src/brand.ts` + `index.html` title).
-3. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
-4. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
-5. Random-entry baseline per setup (does a pattern beat chance with the same stop/target?).
-6. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
+2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
+3. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
+4. Random-entry baseline per setup (does a pattern beat chance with the same stop/target?).
+5. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
 
 ## Health
 
@@ -84,6 +83,8 @@ Verified 2026-11-11:
 
 ## History
 
+- 2026-11-11: Product named **GreenMTM** (owner); logo `public/greenmtm.svg` (favicon and top
+  bar), no tagline. The Python package stays `tcs` internally.
 - 2026-11-11: Chart follows the market: forming candle from Binance's kline stream, or OKX's when
   Binance is silent for 15 s, with a Live / Live · OKX / No live ticks badge; closed history
   refetched after each candle close; the view scrolls to a pattern only when it is clicked

@@ -1,4 +1,6 @@
-# Crypto Dashboard → Trade Confirmation System
+# GreenMTM
+
+<img src="public/greenmtm.svg" width="72" alt="GreenMTM logo" />
 
 Building an intelligent, research-driven trading system that generates **high-confidence trade
 confirmations** from deep research, historical backtesting, forward testing, mathematical edge,

@@ -20,24 +20,13 @@ const TopNav: React.FC = () => {
   return (
     <header className={styles.top}>
       <div className={styles.left}>
-        <div className={styles.brand}>
-          <svg
-            width="26"
-            height="26"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#4C9AFF"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M3 17l5-5 4 4 8-8" />
-            <path d="M14 8h6v6" />
-          </svg>
-          <b>{BRAND.name}</b>
-          <small>{BRAND.tagline}</small>
-        </div>
+        <NavLink to="/" className={styles.brand} aria-label={`${BRAND.name} home`}>
+          <img src={BRAND.logo} width="28" height="28" alt="" />
+          <b>
+            <span className={styles.lead}>{BRAND.lead}</span>
+            {BRAND.rest}
+          </b>
+        </NavLink>
         <nav className={styles.nav} aria-label="Main">
           {LINKS.map((l) => (
             <NavLink
