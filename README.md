@@ -23,16 +23,17 @@ npm start          # everything: web app, analysis service, Telegram prototype â
 The first start downloads two years of history and measures every setup in the background
 (about 15 minutes); the pages say "not measured yet" until then. Ctrl+C stops everything.
 
-| Script              | What it does                                                           |
-| ------------------- | ---------------------------------------------------------------------- |
-| `npm run dev`       | Vite+ dev server on <http://localhost:3000>                            |
-| `npm test`          | Unit tests (Vitest)                                                    |
-| `npm run check`     | Format + lint + type-check                                             |
-| `npm run build`     | Type-check + production build into `dist/`                             |
-| `npm run preview`   | Serve the production build                                             |
-| `npm run backend`   | Bundle and start the backend prototype (Express + SQLite) on port 3001 |
-| `npm run api`       | Python analysis service (FastAPI) on port 8000 + background statistics |
-| `npm run api:check` | Python format, lint, strict types and tests                            |
+| Script              | What it does                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| `npm start`         | Web app + analysis service + Telegram prototype in one terminal (`--no-telegram` skips Telegram) |
+| `npm run dev`       | Vite+ dev server on <http://localhost:3000>                                                      |
+| `npm test`          | Unit tests (Vitest)                                                                              |
+| `npm run check`     | Format + lint + type-check                                                                       |
+| `npm run build`     | Type-check + production build into `dist/`                                                       |
+| `npm run preview`   | Serve the production build                                                                       |
+| `npm run backend`   | Bundle and start the backend prototype (Express + SQLite) on port 3001                           |
+| `npm run api`       | Python analysis service (FastAPI) on port 8000 + background statistics                           |
+| `npm run api:check` | Python format, lint, strict types and tests                                                      |
 
 No API keys or `.env` are needed for the dashboard; only public exchange endpoints are used.
 

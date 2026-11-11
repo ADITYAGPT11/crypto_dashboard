@@ -71,6 +71,9 @@ price table, spread (arbitrage), order book, alerts.
 
 **Entry / shell**
 
+- `scripts/start.mjs` (`npm start`): runs `api`, `dev` and `backend` together, prefixed output,
+  one failing never stops the others (except the web app), Ctrl+C stops the process trees
+
 - `index.html` → `src/main.tsx` → `src/App.tsx`: `TopNav` + routes `/` (Dashboard),
   `/chart/:symbol` (Chart, lazy-loaded), `/markets` (older dashboard), `/about`
 - `src/styles/tokens.css` (`--t-*` design tokens, dark), `src/styles/_page.scss` (page mixins)

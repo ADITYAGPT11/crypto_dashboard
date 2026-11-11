@@ -13,7 +13,7 @@ confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-1. Owner: run `npm run api` + `npm run dev` on a machine that reaches Binance, let the first
+1. Owner: run `npm start` on a machine that reaches Binance, let the first
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
 2. Owner picks the product name (`src/brand.ts` + `index.html` title).
@@ -33,6 +33,7 @@ Verified 2026-11-11:
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
 | `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 89 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                      |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
+| `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three (checked: no process left)                                                                                             |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
 | Liquidity heatmap                                                | ✅ with a real OKX book replayed through a mocked socket; ❌ not exercised live (Binance geo-blocked, OKX WebSocket port 8443 blocked in the sandbox)                                                       |
 

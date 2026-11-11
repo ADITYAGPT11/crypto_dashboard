@@ -32,6 +32,7 @@ wins: fix the file in the same change.
 
 ```bash
 npm ci              # install (Node 22.5+, needed for node:sqlite in the backend)
+npm start           # all of it: web :3000 + Python api :8000 + Node prototype :3001 (scripts/start.mjs)
 npm run dev         # dev server on http://localhost:3000
 npm test            # Vitest unit tests (vp test)
 npm run check       # format + lint + typecheck (vp check); `npx vp check --fix` to fix
