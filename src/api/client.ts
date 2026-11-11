@@ -24,7 +24,7 @@ export class ApiError extends Error {
 }
 
 export const OFFLINE_HINT =
-  "The analysis service isn't running. Start it with `npm run api` (Python backend on :8000).";
+  "The analysis service isn't running. Start everything with `npm start` (it needs uv: see the terminal for the install command).";
 
 export type Query = Record<string, string | number | undefined>;
 
