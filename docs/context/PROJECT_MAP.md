@@ -122,7 +122,8 @@ helpers: `volumeProfile` (visible-range histogram, key volume levels), `timefram
 → view positions for patterns, zones, blocks, gaps), `setupKeys` (`pattern|direction|location`,
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
 sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync), `liquidityHeatmap`
-(buckets, per-bar frames, pools). Types: `src/types/analysis.ts` wraps the generated
+(buckets, per-bar frames, pools), `overlaySettings` (layers + which levels are key; display
+only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
 `src/api/schema.ts`; client `src/api/client.ts`.
 `src/services/HistoryService.ts`: closed-candle history from Binance REST (fallback: the
 service's `/api/v1/candles`) + `RESEARCH_UNIVERSE`.
@@ -149,7 +150,7 @@ names), `connection.ts`, `alertRules.ts`
 `Regime`, `Movers`, `DataHealth`), `StatsPage/`, `RiskPage/`, `AlertsPage/`,
 `AlertToast/`, `ChartPage/` (`PriceChart` with panes/legend/drawings, `ChartToolbar`,
 `DrawingToolbar`, `IndicatorsDialog`, `IndicatorSettings`, `Modal`, `icons`, `DetectionSettings`,
-`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`) (`PriceChart`: Lightweight Charts +
+`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
 overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
 `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,

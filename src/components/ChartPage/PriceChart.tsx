@@ -46,6 +46,8 @@ export interface Layers {
   vp: boolean;
   pattern: boolean;
   heatmap: boolean;
+  /** Text labels on zones and blocks. */
+  labels: boolean;
 }
 
 /** Past case of the selected setup, already placed on a view bar. */
@@ -572,7 +574,7 @@ const PriceChart: React.FC<Props> = ({
         g.strokeStyle = `rgba(${rgb},0.45)`;
         g.strokeRect(x1 + 0.5, yTop + 0.5, x2 - x1 - 1, yBot - yTop - 1);
       }
-      if (intact && z.layer !== "fvg") {
+      if (ly.labels && intact && z.layer !== "fvg") {
         const name =
           z.layer === "orderBlock" ? `${bull ? "bull" : "bear"} OB` : bull ? "demand" : "supply";
         g.fillStyle = z.layer === "orderBlock" ? "rgba(76,154,255,0.95)" : `rgba(${rgb},0.9)`;

@@ -48,7 +48,9 @@ Verified 2026-11-11:
 - **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
   live forming candle) plus the service's patterns (direction arrows, outlines, necklines,
   trendlines), demand/supply zones, order blocks, fair value gaps, volume profile and a
-  **liquidity heatmap** layer with a pools table. Detection settings per pattern (from the
+  **liquidity heatmap** layer with a pools table. Only **key levels** are drawn (Overlays →
+  Display settings, saved per browser): intact, nearest 2 of each kind, zones ≥ 2 ATR departure,
+  overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options. Detection settings per pattern (from the
   catalogue) and level source. Setup card: pooled record, the pattern's any-location baseline,
   this coin only, last cases across coins, plan, context checks.
 - **Pattern stats** (`/stats`): every pattern × direction × location on 1h/4h/1d with a level
@@ -81,6 +83,8 @@ Verified 2026-11-11:
 
 ## History
 
+- 2026-11-11: Chart shows key levels only, configurable in Display settings (owner feedback:
+  too many zones, order blocks and labels). Display only; locations and statistics unchanged.
 - 2026-11-11: PR #6 (ta_patterns Pattern library, 2026-11-04) merged into this branch and
   replaced by the single rule set at the owner's request (DECISIONS 2026-11-11).
 - 2026-11-11: **Python analysis service** (`backend/`) is the one rule set: 11 chart patterns

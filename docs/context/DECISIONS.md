@@ -305,3 +305,12 @@ measured. ta_patterns' uniform 1-ATR/2-ATR bracket and its separate panel next t
 detectors were two rule sets at once. Kept from #6: the Bonferroni idea for the verdict is noted
 for Phase 2 (ROADMAP), the uv version pin in CI and the JS lint ignoring `backend/`. Its code
 stays in git history (`cfb4719`).
+
+### 2026-11-11 · The chart draws key levels only; the filter never touches statistics
+
+Why: owner feedback, too many zones, order blocks and labels. A year of 1d history leaves dozens
+of intact levels; drawing them all hides the few price is near. Default: intact, the nearest 2 of
+each kind, zones with a departure of at least 2 ATR, overlapping levels merged (stronger kept),
+the selected pattern plus 3 recent tags. All adjustable and saved per browser
+(`src/utils/overlaySettings.ts`). It is a display filter in TypeScript on purpose: setups are
+still located against every level by the Python rules, so the numbers do not depend on it.
