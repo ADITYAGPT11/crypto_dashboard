@@ -11,7 +11,10 @@
     "preview": "vp preview",
     "backend": "vp build --ssr src/backend/index.ts --outDir dist-backend && node dist-backend/index.js",
     "check": "vp check",
-    "test": "vp test"
+    "test": "vp test",
+    "api": "cd backend && uv run tcs serve",
+    "api:types": "cd backend && uv run tcs ts-types > ../src/api/schema.ts && cd .. && vp fmt src/api/schema.ts",
+    "api:check": "cd backend && uv run ruff format --check . && uv run ruff check . && uv run pyright && uv run pytest"
   },
   "dependencies": {
     "candlestick": "3.0.0",
