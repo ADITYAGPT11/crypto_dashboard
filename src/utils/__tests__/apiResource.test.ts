@@ -60,7 +60,7 @@ describe("api client", () => {
       }),
     ).rejects.toMatchObject({ status: null });
     const proxyDown = async () => new Response("proxy error", { status: 502 });
-    await expect(apiGet("/x", {}, proxyDown)).rejects.toThrow(/npm run api/);
+    await expect(apiGet("/x", {}, proxyDown)).rejects.toThrow(/npm start/);
     const bad = async () =>
       new Response(JSON.stringify({ detail: "unknown pattern" }), { status: 422 });
     const err = await apiGet("/x", {}, bad).catch((e: unknown) => e);
