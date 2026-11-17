@@ -190,17 +190,18 @@ overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `Pri
 
 ## Endpoints used
 
-- Binance WS: `wss://stream.binance.com:9443/stream`, `wss://fstream.binance.com/stream`
+- Binance WS: spot `wss://stream.binance.com:443/stream`; futures `wss://fstream.binance.com/public/stream`
+  (depth, bookTicker) and `/market/stream` (aggTrade, kline, markPrice): split since March 2026
 - Binance REST: `api.binance.com/api/v3/{exchangeInfo,klines,ticker/24hr}`,
   `fapi.binance.com/fapi/v1/{klines,ticker/24hr}`
-- OKX WS: `wss://ws.okx.com:8443/ws/v5/public` (tickers, funding-rate, `candle*` channels)
+- OKX WS: `wss://ws.okx.com/ws/v5/public` (port 443; 8443 is often blocked by proxies) (tickers, funding-rate, `candle*` channels)
 - OKX REST: `www.okx.com/api/v5/{public/instruments,market/candles,market/ticker}`
 - Delta India WS: `wss://public-socket.india.delta.exchange`
 - Binance futures REST: `fapi.binance.com/fapi/v1/{ticker/24hr,premiumIndex}`,
-  `/futures/data/{openInterestHist,globalLongShortAccountRatio}`; WS `fstream…/ws/!forceOrder@arr`
+  `/futures/data/{openInterestHist,globalLongShortAccountRatio}`; WS `fstream…/market/ws/!forceOrder@arr`
 - `api.alternative.me/fng/?limit=8` (Fear & Greed), `api.coingecko.com/api/v3/global` (dominance)
 - Telegram Bot API `api.telegram.org` (backend prototype only)
-- Order books (heatmap): Binance `fstream…/stream?streams=<sym>@depth@500ms` + REST
+- Order books (heatmap): Binance `fstream…/public/stream?streams=<sym>@depth@500ms` + REST
   `fapi…/fapi/v1/depth?limit=1000`; OKX WS `books` channel (contract size from
   `public/instruments`)
 - Analysis service (Python): Binance `fapi…/fapi/v1/klines`, `data.binance.vision`

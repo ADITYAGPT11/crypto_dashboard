@@ -41,9 +41,10 @@ OKX_PING_S = 25.0
 #: Symbols the chart may add on top of the configured ones (each costs two sockets).
 MAX_SYMBOLS = 6
 
-BINANCE_WS = "wss://fstream.binance.com/stream?streams={sym}@depth@500ms"
+# Order-book streams moved to /public (Binance futures WebSocket split, March 2026).
+BINANCE_WS = "wss://fstream.binance.com/public/stream?streams={sym}@depth@500ms"
 BINANCE_DEPTH = "https://fapi.binance.com/fapi/v1/depth"
-OKX_WS = "wss://ws.okx.com:8443/ws/v5/public"
+OKX_WS = "wss://ws.okx.com/ws/v5/public"
 OKX_INSTRUMENTS = "https://www.okx.com/api/v5/public/instruments"
 
 Exchange = Literal["BINANCE", "OKX"]

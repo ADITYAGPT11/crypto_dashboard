@@ -356,3 +356,12 @@ would be ~250 MB a day for 10 coins. BTC and ETH are recorded from the start
 coins (two sockets each), until the process restarts. The browser puts the recorded minutes in
 front of its own 2 s samples and adopts the recorded bucket size so both share columns. New
 dependency: `websockets` (BSD-3, TOOLING).
+
+### 2026-11-17 · Exchange sockets on port 443, Binance futures split by path
+
+Why: a live run found Binance's futures WebSocket split (March 2026: order-book streams on
+`/public`, market streams on `/market`; the old path accepts subscriptions and sends nothing) and
+proxies dropping OKX's 8443 and Binance spot's 9443. Both exchanges serve the same streams on
+443, so we use 443 everywhere. `BinanceAdapter` keeps its public API (spot / futures) and routes
+each stream to its socket internally (`binanceSocketFor`); futures connection state follows the
+`/market` socket. Exchanges now connect independently, as the guardrail always required.

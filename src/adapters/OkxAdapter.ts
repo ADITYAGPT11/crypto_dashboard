@@ -41,7 +41,7 @@ export class OkxAdapter extends EventEmitter {
 
   constructor() {
     super();
-    this.ws = new BaseWebSocketClient("wss://ws.okx.com:8443/ws/v5/public", {
+    this.ws = new BaseWebSocketClient("wss://ws.okx.com/ws/v5/public", {
       autoReconnect: true,
     });
     this.setupHandlers();

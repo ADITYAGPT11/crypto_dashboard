@@ -154,7 +154,7 @@ export class LiquidityService {
     const sym = symbol.replace("-", "");
     const sync = new BinanceBookSync();
     const ws = this.socket(
-      `wss://fstream.binance.com/stream?streams=${sym.toLowerCase()}@depth@500ms`,
+      `wss://fstream.binance.com/public/stream?streams=${sym.toLowerCase()}@depth@500ms`,
     );
     let lastSnapshot = 0;
     let closed = false;
@@ -204,7 +204,7 @@ export class LiquidityService {
     const sync = new OkxBookSync();
     let ctVal = 0;
     let closed = false;
-    const ws = this.socket("wss://ws.okx.com:8443/ws/v5/public");
+    const ws = this.socket("wss://ws.okx.com/ws/v5/public");
     const sub = (op: "subscribe" | "unsubscribe") =>
       ws.send({ op, args: [{ channel: "books", instId }] });
     const contract = this.fetchJson(

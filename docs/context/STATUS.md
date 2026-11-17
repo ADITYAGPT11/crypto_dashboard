@@ -32,7 +32,7 @@ Verified 2026-11-11 (test counts 2026-11-17):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 337 tests, 34 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 339 tests, 34 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
 | `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 119 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
@@ -68,11 +68,12 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## Known issues
 
-1. **Live data not exercised against real exchanges from the sandbox**: Binance REST/WS are
-   geo-blocked there and OKX's WebSocket port is closed. Live candles (Binance and the OKX
-   fallback) were tested with simulated kline streams, the REST tail with the archive, and live
-   order books with a replayed real OKX book. Where Binance REST is blocked the service's data
-   ends at the last archived day and the chart says how many candles behind.
+1. **Binance REST (and spot WebSocket) refuse the dev sandbox's region** (HTTP 451, Binance's
+   own geo rule; no network setting fixes it). Everything else is verified live there since
+   2026-11-17: Binance futures WebSockets, OKX, Delta, CoinGecko, alternative.me. So in the
+   sandbox candle history comes from the archive (up to a day behind), Binance's book cannot sync
+   (no snapshot) and funding / OI / 24h volume show "–". Where Binance REST is reachable none of
+   this applies.
 2. **Statistics need a first run**: until the background job finishes (minutes), Pattern stats,
    the setup card and the scanner show "not measured yet".
 3. **Setup alerts run in the browser** (every minute while a tab is open) and use same-timeframe
@@ -82,14 +83,24 @@ Verified 2026-11-11 (test counts 2026-11-17):
 5. **Order-book depth is shallow**: OKX sends 400 levels, Binance 1000, so pools are near the
    price (for BTC tens to hundreds of dollars away). Heatmap history comes from the analysis
    service's recorder (BTC, ETH, and coins opened with the heatmap on, 7 days); without the
-   service it starts when the page opens. The recorder has not run against live exchanges yet
-   (sandbox: Binance REST 451, OKX socket reset; both fail cleanly and retry with backoff).
+   service it starts when the page opens. The recorder ran live on OKX in the sandbox (800 levels,
+   one column a minute); Binance's half needs REST for its snapshot (see issue 1).
 6. Delta funding-rate units unverified; Delta prices are USD-quoted (tagged, left out of spreads).
-7. Dashboard v2 sources Fear & Greed and CoinGecko unverified against the live APIs.
-8. `.idx/dev.nix` lists Svelte/Vue extensions; the Markets page's price-rule alerts are separate.
+7. `.idx/dev.nix` lists Svelte/Vue extensions; the Markets page's price-rule alerts are separate.
 
 ## History
 
+- 2026-11-17: **Live data fixed and verified against the real exchanges** (network access added
+  for the remaining hosts). Found by the live run: (1) Binance split its futures WebSockets in
+  March 2026 (`/public` for depth and bookTicker, `/market` for aggTrade, kline, markPrice,
+  forceOrder); the old `/stream` path stayed open but sent nothing, so live candles, trades,
+  funding and liquidations from Binance were silently empty everywhere. `BinanceAdapter` now runs
+  a socket per path and routes each stream; the heatmap, recorder and liquidation feed use the new
+  paths. (2) A Binance socket that never opened held up OKX and Delta (`connectExchanges` awaited
+  each in turn); they now connect independently. (3) OKX and Binance spot moved to port 443
+  (8443 / 9443 are dropped by many proxies). Verified in the browser with no mocks: live candle,
+  big trades (real 99th-percentile cut ≈ $130K on BTC), footprint, delta/CVD, OKX heatmap,
+  Fear & Greed, BTC dominance; the recorder wrote live OKX columns.
 - 2026-11-17: **Heatmap history survives a reload**: the analysis service records Binance + OKX
   perpetual books (`tcs/depth/`, same sync and bucketing as the browser, 2 s samples averaged
   per minute, 7 days) for BTC and ETH and any coin the chart opens with the heatmap on (≤ 6);
