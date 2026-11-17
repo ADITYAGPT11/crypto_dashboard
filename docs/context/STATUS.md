@@ -13,8 +13,8 @@ confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-0. Order-flow step 2: footprint chart (`COMPETITORS.md` §4); run the r2 statistics on 1h and 1d
-   too (only 4h was measured in the sandbox).
+0. Order-flow step 3: record order books server-side so the heatmap survives a reload
+   (`COMPETITORS.md` §4); run the r2 statistics on 1h and 1d too (only 4h was measured here).
 1. Owner: run `npm start` on a machine that reaches Binance, let the first
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
@@ -30,7 +30,7 @@ Verified 2026-11-11 (test counts 2026-11-17):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 327 tests, 33 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 334 tests, 34 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
 | `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 110 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
@@ -85,6 +85,11 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-17: **Footprint layer** (Overlays → Footprint): live Binance perp trades since the page
+  opened, binned per view bar and price row (about 12 rows per typical candle, nice step):
+  aggressive sells × buys as numbers when zoomed in, delta-coloured cells when not, 3× diagonal
+  imbalances, point of control, bar delta. Raw trades kept per symbol for the session (≤ 300k) so
+  a timeframe change rebuilds it. Verified with a mocked Binance socket. Display only.
 - 2026-11-17: **Rule set `2026.11-r2`: order-flow context measured** (`analysis/flow.py`): at each
   setup's confirmation, delta over 3 candles (with / against / neutral at ±2% of volume) and CVD
   divergence over 2 × 10 candles, written once for longs and mirrored for shorts. The stats job

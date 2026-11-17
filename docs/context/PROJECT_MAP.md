@@ -115,6 +115,7 @@ price table, spread (arbitrage), order book, alerts.
 **Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
 `useScanner`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
+`useFootprint` (live footprint per view bar and row size; session trade buffer per symbol),
 `useBigTrades` (big Binance perp taker orders, merged from aggTrade, top 1% of recent prints, ≤ 2
 renders/s), `useLiveCandle` (forming candle: Binance, OKX when Binance is silent; `utils/liveCandle`), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
 `useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
@@ -125,7 +126,8 @@ helpers: `volumeProfile` (visible-range histogram, key volume levels), `timefram
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
 sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync), `liquidityHeatmap`
 (buckets, per-bar frames, pools), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
-position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `overlaySettings` (layers + which levels are key; display
+position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `footprint`
+(rows, `FootprintBook`, diagonal imbalance), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
 `src/api/schema.ts`; client `src/api/client.ts`.
 `src/services/HistoryService.ts`: closed-candle history from Binance REST (fallback: the
@@ -154,7 +156,7 @@ names), `connection.ts`, `alertRules.ts`
 `Regime`, `Movers`, `DataHealth`), `StatsPage/`, `RiskPage/`, `AlertsPage/`,
 `AlertToast/`, `ChartPage/` (`PriceChart` with panes/legend/drawings, `ChartToolbar`,
 `DrawingToolbar`, `IndicatorsDialog`, `IndicatorSettings`, `Modal`, `icons`, `DetectionSettings`,
-`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`, `drawBigTrades`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
+`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`, `drawBigTrades`, `drawFootprint`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
 overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
 `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,

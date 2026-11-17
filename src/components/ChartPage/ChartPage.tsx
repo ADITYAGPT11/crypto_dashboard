@@ -56,6 +56,8 @@ import LiquidityPanel from "./LiquidityPanel";
 import { useLiveCandle } from "../../custom-hooks/useLiveCandle";
 import { useLiquidity } from "../../custom-hooks/useLiquidity";
 import { useBigTrades } from "../../custom-hooks/useBigTrades";
+import { useFootprint } from "../../custom-hooks/useFootprint";
+import { autoStep } from "../../utils/footprint";
 import { formatCompactUsd } from "../../utils/priceUtils";
 import { heatmapFrame, liquidityPools } from "../../utils/liquidityHeatmap";
 import {
@@ -430,6 +432,9 @@ const ChartPage: React.FC = () => {
   const liquidity = useLiquidity(layers.heatmap ? symbol : null);
   // Big taker orders (only while the layer is on).
   const bigTrades = useBigTrades(layers.bigTrades ? symbol : null);
+  // Footprint rows sized from recent candles (about 12 rows per typical candle).
+  const footprintStep = useMemo(() => autoStep(view.candles), [view.candles]);
+  const footprint = useFootprint(layers.footprint ? symbol : null, TF_MS[viewTf], footprintStep);
   const heatmap = useMemo(
     () => (layers.heatmap ? heatmapFrame(liquidity.samples, TF_MS[viewTf]) : null),
     [layers.heatmap, liquidity.samples, viewTf],
@@ -545,6 +550,7 @@ const ChartPage: React.FC = () => {
                 levels={viewLevels}
                 heatmap={heatmap}
                 bigTrades={layers.bigTrades ? bigTrades : null}
+                footprint={layers.footprint ? footprint : null}
                 selected={viewSelected}
                 plan={selected ? selected.occ : null}
                 focusKey={focus ? `${focus.id}#${focus.n}` : null}
@@ -579,6 +585,17 @@ const ChartPage: React.FC = () => {
                 <span>
                   <i style={{ background: "linear-gradient(90deg,#1b2a4a,#f0a35e)" }} />
                   Resting liquidity (order book)
+                </span>
+              )}
+              {layers.footprint && (
+                <span title="Volume by price inside each candle from Binance perpetual trades since this page opened: aggressive sells (left) × aggressive buys (right). Zoom in for numbers. Coloured edge or text = 3× diagonal imbalance; amber box = most traded row.">
+                  <i
+                    style={{
+                      background: "linear-gradient(90deg,rgba(244,112,103,.6),rgba(86,211,100,.6))",
+                    }}
+                  />
+                  Footprint: sells × buys per {price(footprintStep)} row
+                  {footprint.trades === 0 ? " (waiting for trades…)" : ""}
                 </span>
               )}
               {layers.bigTrades && (

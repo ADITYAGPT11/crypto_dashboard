@@ -28,7 +28,10 @@ import type { ViewLevel, ViewPattern } from "../../utils/timeframeMapping";
 import { patternShort } from "../../utils/patternLabels";
 import type { HeatmapFrame } from "../../utils/liquidityHeatmap";
 import { drawHeatmap } from "./drawHeatmap";
+import { TF_MS } from "../../utils/timeframeMapping";
 import { drawBigTrades } from "./drawBigTrades";
+import { drawFootprint } from "./drawFootprint";
+import type { Footprint } from "../../custom-hooks/useFootprint";
 import type { BigTrades } from "../../custom-hooks/useBigTrades";
 import { computeVolumeProfile } from "../../utils/volumeProfile";
 import {
@@ -49,6 +52,7 @@ export interface Layers {
   pattern: boolean;
   heatmap: boolean;
   bigTrades: boolean;
+  footprint: boolean;
   /** Text labels on zones and blocks. */
   labels: boolean;
 }
@@ -95,6 +99,8 @@ interface Props {
   heatmap?: HeatmapFrame | null;
   /** Big taker orders since the page opened (bubbles layer). */
   bigTrades?: BigTrades | null;
+  /** Volume by price per bar since the page opened (footprint layer). */
+  footprint?: Footprint | null;
   /** The selected setup mapped onto the view. */
   selected: ViewPattern | null;
   plan: Plan | null;
@@ -197,6 +203,7 @@ const PriceChart: React.FC<Props> = ({
   levels,
   heatmap = null,
   bigTrades = null,
+  footprint = null,
   selected,
   plan,
   focusKey = null,
@@ -225,6 +232,7 @@ const PriceChart: React.FC<Props> = ({
     levels,
     heatmap,
     bigTrades,
+    footprint,
     live,
     selected,
     others,
@@ -245,6 +253,7 @@ const PriceChart: React.FC<Props> = ({
       levels,
       heatmap,
       bigTrades,
+      footprint,
       live,
       selected,
       others,
@@ -561,6 +570,7 @@ const PriceChart: React.FC<Props> = ({
       levels: lvs,
       heatmap: hm,
       bigTrades: bt,
+      footprint: fp,
       live: lv,
       selected: sel,
       others: oth,
@@ -764,12 +774,11 @@ const PriceChart: React.FC<Props> = ({
       g.lineWidth = 1;
     }
     // Last, so live prints stay visible above zones and the pattern drawing.
-    if (ly.bigTrades && bt) {
-      // The forming bar sits right after the last closed one, whatever the clock says (the
-      // history can lag), so live prints are placed on it rather than by elapsed time.
-      const bars = lv && cs.length && lv.openTime > cs[cs.length - 1].openTime ? [...cs, lv] : cs;
-      drawBigTrades(g, bt.prints, bt.threshold, bars, vtf, x, y);
-    }
+    // The forming bar sits right after the last closed one, whatever the clock says (the
+    // history can lag), so live data is placed on it rather than by elapsed time.
+    const bars = lv && cs.length && lv.openTime > cs[cs.length - 1].openTime ? [...cs, lv] : cs;
+    if (ly.footprint && fp) drawFootprint(g, fp.bars, fp.step, bars, TF_MS[vtf], x, y, h);
+    if (ly.bigTrades && bt) drawBigTrades(g, bt.prints, bt.threshold, bars, vtf, x, y);
     g.restore();
   }
 
@@ -779,7 +788,7 @@ const PriceChart: React.FC<Props> = ({
 
   useEffect(() => {
     requestAnimationFrame(() => drawRef.current());
-  }, [levels, heatmap, bigTrades, others, layers]);
+  }, [levels, heatmap, bigTrades, footprint, others, layers]);
 
   // Selected setup: plan price lines, history markers, scroll into view.
   useEffect(() => {

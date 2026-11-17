@@ -18,6 +18,8 @@ export interface OverlaySettings {
   heatmap: boolean;
   /** Big taker orders as bubbles (live, since the page opened). */
   bigTrades: boolean;
+  /** Volume by price inside each candle, by aggressor side (live, since the page opened). */
+  footprint: boolean;
   /** Text labels on zones and blocks. */
   labels: boolean;
   /** Nearest levels of each kind shown (demand, supply, bullish OB, bearish OB, each FVG side). */
@@ -42,6 +44,7 @@ export const DEFAULT_OVERLAYS: OverlaySettings = {
   vp: true,
   heatmap: false,
   bigTrades: false,
+  footprint: false,
   labels: true,
   perKind: 2,
   minZoneAtr: 2,
@@ -71,6 +74,7 @@ export function parseOverlays(value: unknown): OverlaySettings {
     vp: flag("vp"),
     heatmap: flag("heatmap"),
     bigTrades: flag("bigTrades"),
+    footprint: flag("footprint"),
     labels: flag("labels"),
     perKind: pick(PER_KIND_CHOICES, v.perKind, 2),
     minZoneAtr: pick(ZONE_ATR_CHOICES, v.minZoneAtr, 2),
