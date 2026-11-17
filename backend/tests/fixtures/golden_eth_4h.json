@@ -1,5 +1,5 @@
 {
- "ruleset": "2026.11-r1",
+ "ruleset": "2026.11-r2",
  "candles": 2190,
  "hits": {
   "ascendingTriangle|orderBlock|loss": 1,
@@ -120,6 +120,22 @@
   "symmetricalTriangle|orderBlock|loss": 3,
   "symmetricalTriangle|orderBlock|win": 1,
   "symmetricalTriangle|zone|loss": 1
+ },
+ "flows": {
+  "long|against|div=False": 71,
+  "long|against|div=None": 1,
+  "long|against|div=True": 1,
+  "long|confirms|div=False": 75,
+  "long|confirms|div=True": 4,
+  "long|neutral|div=False": 76,
+  "long|neutral|div=None": 1,
+  "long|neutral|div=True": 6,
+  "short|against|div=False": 34,
+  "short|against|div=True": 2,
+  "short|confirms|div=False": 80,
+  "short|confirms|div=True": 9,
+  "short|neutral|div=False": 64,
+  "short|neutral|div=True": 14
  },
  "zones": 94,
  "orderBlocks": 133,

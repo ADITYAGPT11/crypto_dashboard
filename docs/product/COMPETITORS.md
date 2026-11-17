@@ -130,8 +130,10 @@ gets a mirrored twin and invariant tests, and shows up in Pattern stats; display
 
 1. **Delta, CVD and big trades on the chart.** ✅ Display shipped 2026-11-17: delta is exact per
    candle from kline taker volume; big trades are merged from `aggTrade` (live only, since the
-   page opened). Next (1b): feed "CVD divergence" and "delta confirms" into setup context checks
-   in the analysis service and measure whether they change the win rate.
+   page opened). 1b ✅: measured as setup context (rule set r2). First result (4h, 10 coins,
+   2 years): delta with the trade lifts the pooled win rate from 34% (against) to 40%, CVD
+   divergence from 37% to 41%, but no bucket turns expectancy positive and per setup the
+   differences are at chance level. Order flow helps a little at the margin; it is not an edge.
 2. **Footprint chart** for the visible range (live trades + `aggTrades` archive for history).
 3. **Server-side heatmap recording** (Parking lot) so history survives a reload and depth can be
    studied; deeper books via snapshot + diff sync.

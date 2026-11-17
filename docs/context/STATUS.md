@@ -13,8 +13,8 @@ confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-0. Order-flow step 1b: measure CVD divergence / "delta confirms" as setup context in the analysis
-   service (taker volume is stored now); then step 2, the footprint chart (`COMPETITORS.md` §4).
+0. Order-flow step 2: footprint chart (`COMPETITORS.md` §4); run the r2 statistics on 1h and 1d
+   too (only 4h was measured in the sandbox).
 1. Owner: run `npm start` on a machine that reaches Binance, let the first
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
@@ -30,9 +30,9 @@ Verified 2026-11-11 (test counts 2026-11-17):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 323 tests, 32 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 327 tests, 33 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 95 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                      |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 110 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -85,6 +85,16 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-17: **Rule set `2026.11-r2`: order-flow context measured** (`analysis/flow.py`): at each
+  setup's confirmation, delta over 3 candles (with / against / neutral at ±2% of volume) and CVD
+  divergence over 2 × 10 candles, written once for longs and mirrored for shorts. The stats job
+  keeps pooled records per context; `/stats?context=`, setup detail `contexts`, occurrence and
+  case `flow`. Setup card has an Order flow section (now + each bucket vs the setup's rate);
+  Pattern stats has an Order flow filter. First run (4h, 10 coins, 2 years, archive data): over
+  every setup pooled, delta with the trade won 40.3% (38.5–42.2%) vs against 34.4% (32.5–36.3%),
+  CVD divergence 41.1% vs 36.9% without; expectancy stays negative in every bucket, and per
+  setup 1 of 61 measurable buckets differs from its setup (chance level). Golden fixture now
+  carries taker volume (same prices, checked against the archive).
 - 2026-11-17: **Order flow on the chart (step 1)**: Volume Delta and CVD indicators (Binance taker
   buy volume from klines, live on the forming candle, blank where the source has none) and a
   **Big trades** layer (Overlays): Binance perp taker orders merged from aggTrade, top 1% of

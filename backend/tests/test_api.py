@@ -33,7 +33,15 @@ class FakeSource:
         n = (end - start) // TF_MS[tf] + 1
         walk = random_walk(seed, n=n, tf=tf)
         return [
-            Candle(start + i * TF_MS[tf], c.open, c.high, c.low, c.close, c.volume, c.volume * 0.4)
+            Candle(
+                start + i * TF_MS[tf],
+                c.open,
+                c.high,
+                c.low,
+                c.close,
+                c.volume,
+                c.volume * (0.3 + 0.04 * ((i * 7) % 10)),
+            )
             for i, c in enumerate(walk.candles())
         ]
 
@@ -70,7 +78,7 @@ def test_candles_carry_taker_buy_volume(client: TestClient) -> None:
     assert len(rows) == 50
     for row in rows:
         assert len(row) == 7
-        assert row[6] == pytest.approx(row[5] * 0.4)
+        assert 0.3 * row[5] <= row[6] <= 0.7 * row[5]
 
 
 def test_stats_job_pools_every_coin_and_location(client: TestClient) -> None:
@@ -130,3 +138,40 @@ def test_rejects_bad_input(client: TestClient) -> None:
         client.get("/api/v1/stats/setup", params={"pattern": "x", "direction": "long"}).status_code
         == 422
     )
+
+
+def test_setup_detail_splits_the_record_by_order_flow(client: TestClient) -> None:
+    body = client.get("/api/v1/stats", params={"tf": "4h", "zoneTf": "4h"}).json()
+    top = max((s for s in body["setups"] if s["location"] == "*"), key=lambda s: s["summary"]["n"])
+    detail = client.get(
+        "/api/v1/stats/setup",
+        params={
+            "tf": "4h",
+            "zoneTf": "4h",
+            "pattern": top["pattern"],
+            "direction": top["direction"],
+            "location": "*",
+        },
+    ).json()
+    by = {c["context"]: c["summary"]["n"] for c in detail["contexts"]}
+    assert by, "no order-flow contexts measured"
+    total = top["summary"]["n"]
+    delta = sum(n for c, n in by.items() if c.startswith("delta:"))
+    assert 0 < delta <= total  # unknown flow (no taker volume) falls outside every bucket
+    assert by.get("cvdDiv:yes", 0) + by.get("cvdDiv:no", 0) <= total
+    assert all(c["flow"] in ("confirms", "against", "neutral", None) for c in detail["recent"])
+
+
+def test_stats_can_be_restricted_to_one_context(client: TestClient) -> None:
+    every = client.get("/api/v1/stats", params={"tf": "4h", "zoneTf": "4h"}).json()
+    some = client.get(
+        "/api/v1/stats", params={"tf": "4h", "zoneTf": "4h", "context": "delta:confirms"}
+    ).json()
+    assert some["context"] == "delta:confirms"
+    n_all = {
+        (s["pattern"], s["direction"], s["location"]): s["summary"]["n"] for s in every["setups"]
+    }
+    for s in some["setups"]:
+        assert s["summary"]["n"] <= n_all[(s["pattern"], s["direction"], s["location"])]
+    bad = client.get("/api/v1/stats", params={"tf": "4h", "context": "nope"})
+    assert bad.status_code == 422

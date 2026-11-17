@@ -142,10 +142,15 @@ def create_app(settings: Settings | None = None, service: Service | None = None)
 
     @r.get("/stats")
     def stats(
-        tf: str = "4h", zone_tf: Annotated[str | None, Query(alias="zoneTf")] = None
+        tf: str = "4h",
+        zone_tf: Annotated[str | None, Query(alias="zoneTf")] = None,
+        context: str = "*",
     ) -> StatsOut:
         t = _tf(tf)
-        return svc.stats(t, _tf(zone_tf) if zone_tf else t)
+        try:
+            return svc.stats(t, _tf(zone_tf) if zone_tf else t, context)
+        except BadRequest as err:
+            raise HTTPException(422, str(err)) from err
 
     @r.get("/stats/setup")
     def setup(

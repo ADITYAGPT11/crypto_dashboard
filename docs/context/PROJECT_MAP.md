@@ -17,7 +17,8 @@ One rule set; both the chart and the background statistics call `analysis/engine
   (TA-Lib ATR/EMA/SMA), `swings.py` (pivots + `known_at`), `candlesticks.py` (TA-Lib shapes +
   context), `chart_patterns.py` (double bottom, inverse H&S, bull flag; twins by mirroring),
   `trendlines.py` (triangles, wedges), `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
-  `location.py`, `outcomes.py`, `stats.py` (Wilson, verdict), `engine.py`, `types.py`.
+  `location.py`, `outcomes.py`, `flow.py` (order-flow context: delta, CVD divergence), `stats.py`
+  (Wilson, verdict), `engine.py`, `types.py`.
   Rules in words: `docs/product/patterns.md`.
 - `marketdata/`: `binance.py` (REST klines + `data.binance.vision` zips, pacing, cooldown on
   refusal), `history.py` (`ensure`: archive months → archive days → REST tail; coverage/gaps)
@@ -124,7 +125,7 @@ helpers: `volumeProfile` (visible-range histogram, key volume levels), `timefram
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
 sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync), `liquidityHeatmap`
 (buckets, per-bar frames, pools), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
-position), `overlaySettings` (layers + which levels are key; display
+position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
 `src/api/schema.ts`; client `src/api/client.ts`.
 `src/services/HistoryService.ts`: closed-candle history from Binance REST (fallback: the

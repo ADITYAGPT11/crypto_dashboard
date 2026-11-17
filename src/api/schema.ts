@@ -36,6 +36,9 @@ export interface CaseOut {
   r: number;
   bars: number;
   exitTime: number | null;
+  deltaRatio?: number | null;
+  flow?: "confirms" | "against" | "neutral" | null;
+  cvdDivergence?: boolean | null;
 }
 
 export interface CatalogOut {
@@ -52,6 +55,11 @@ export interface CoinSummaryOut {
   summary: SummaryOut;
 }
 
+export interface ContextSummaryOut {
+  context: string;
+  summary: SummaryOut;
+}
+
 export interface CoverageOut {
   first: number | null;
   last: number | null;
@@ -60,6 +68,12 @@ export interface CoverageOut {
   behind: number;
   gaps: number;
   restOk: boolean;
+}
+
+export interface FlowOut {
+  deltaRatio: number | null;
+  flow: "confirms" | "against" | "neutral" | null;
+  cvdDivergence: boolean | null;
 }
 
 export interface FvgOut {
@@ -96,6 +110,7 @@ export interface OccurrenceOut {
   points: PointOut[];
   lines: LineOut[];
   outcome: OutcomeOut;
+  flow: FlowOut;
 }
 
 export interface OrderBlockOut {
@@ -171,6 +186,7 @@ export interface SetupDetailOut {
   location: string;
   pooled: SummaryOut | null;
   perCoin: CoinSummaryOut[];
+  contexts: ContextSummaryOut[];
   recent: CaseOut[];
 }
 
@@ -186,6 +202,7 @@ export interface StatsOut {
   tf: string;
   zoneTf: string;
   run: RunOut | null;
+  context?: string;
   setups: SetupStatOut[];
 }
 

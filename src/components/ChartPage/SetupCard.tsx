@@ -1,4 +1,4 @@
-import type { RunOut } from "../../api/schema";
+import type { ContextSummaryOut, RunOut } from "../../api/schema";
 import type { SetupCase, SetupOccurrence, SetupStats } from "../../types/analysis";
 import { CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
 import { Link } from "react-router-dom";
@@ -6,6 +6,14 @@ import { TfBadge } from "./TfBadge";
 import { patternLabel } from "../../utils/patternLabels";
 import { locationLabel, setupKey } from "../../utils/setupKeys";
 import { pct, price, shortDate, signedPct, signedR } from "../../utils/format";
+import {
+  byContext,
+  compare,
+  contextLabel,
+  contextsOf,
+  FLOW_CONTEXTS,
+  flowText,
+} from "../../utils/flowContext";
 import styles from "./ChartPage.module.scss";
 
 export interface Check {
@@ -24,6 +32,8 @@ interface Props {
   /** The same pattern at any location: does the location add anything? */
   baseline: SetupStats | null;
   own: SetupStats | null;
+  /** This setup's pooled record split by order flow at confirmation. */
+  contexts: ContextSummaryOut[];
   recent: SetupCase[];
   run: RunOut | null;
   statsError: string | null;
@@ -51,6 +61,7 @@ const SetupCard: React.FC<Props> = ({
   pooled,
   baseline,
   own,
+  contexts,
   recent,
   run,
   statsError,
@@ -73,6 +84,8 @@ const SetupCard: React.FC<Props> = ({
   const coins = run?.coins.length ?? 0;
   const years = run ? Math.round((run.days / 365) * 10) / 10 : null;
   const key = setupKey(o.pattern, o.direction, o.location);
+  const flowNow = new Set(contextsOf(o.flow));
+  const flowRows = byContext(contexts);
 
   return (
     <section className={`${styles.card} ${styles.feature}`} aria-labelledby="setup-title">
@@ -217,6 +230,70 @@ const SetupCard: React.FC<Props> = ({
           </li>
         ))}
       </ul>
+
+      <h3 className={styles.sub}>
+        Order flow{" "}
+        <Explain title="Order flow at the setup">
+          Aggressive buying minus aggressive selling (Binance taker volume) when the pattern
+          confirmed. Delta "with the setup" means the last 3 candles leaned at least 2% of volume
+          the trade's way; CVD divergence means price made a lower low (higher high for shorts)
+          while cumulative delta did not. Each row is this setup's past cases in that situation. A
+          row is marked better or worse only when its whole 95% range sits on one side of the
+          setup's overall win rate; with many rows compared, treat even that as a lead to test, not
+          an edge.
+        </Explain>
+      </h3>
+      <p className={styles.note}>
+        Now: {flowText(o.flow)}
+        {o.flow.cvdDivergence !== null &&
+          ` · ${o.flow.cvdDivergence ? "CVD divergence" : "no CVD divergence"}`}
+        .
+      </p>
+      {flowRows.size > 0 ? (
+        <table className={styles.tbl}>
+          <caption className="sr-only">
+            Win rate of this setup by order flow at confirmation
+          </caption>
+          <tbody>
+            {FLOW_CONTEXTS.filter((c) => flowRows.has(c)).map((c) => {
+              const s = flowRows.get(c)!;
+              const cmp = compare(s, pooled?.winRate ?? null, minSample);
+              return (
+                <tr key={c} className={flowNow.has(c) ? styles.rowNow : undefined}>
+                  <td>
+                    {contextLabel(c)}
+                    {flowNow.has(c) && <span className={styles.mute}> · now</span>}
+                  </td>
+                  <td className={styles.r}>
+                    {pct(s.winRate)}
+                    <small className={styles.cellSub}>
+                      {pct(s.ciLow)}–{pct(s.ciHigh)}
+                    </small>
+                  </td>
+                  <td
+                    className={`${styles.r} ${cmp === "better" ? styles.up : cmp === "worse" ? styles.down : styles.mute}`}
+                  >
+                    n {s.n}
+                    <small className={styles.cellSub}>
+                      {cmp === "better"
+                        ? "better"
+                        : cmp === "worse"
+                          ? "worse"
+                          : cmp === "tooFew"
+                            ? "too few"
+                            : "no clear diff."}
+                    </small>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ) : (
+        <p className={styles.note}>
+          No order-flow record for this setup yet (measured by the background job).
+        </p>
+      )}
 
       {recent.length > 0 && (
         <>

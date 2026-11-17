@@ -762,6 +762,7 @@ const ChartPage: React.FC = () => {
               pooled={pooled}
               baseline={baseline}
               own={own}
+              contexts={detail?.contexts ?? []}
               recent={detail?.recent ?? []}
               run={ctxStats.data?.run ?? null}
               statsError={ctxStats.error}

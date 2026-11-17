@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r1`)
+# Pattern, zone and order-block rules (rule set `2026.11-r2`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -25,6 +25,7 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
   candidate; else no edge. Gross, before fees and slippage.
 - **Setup** = pattern × direction × location × pattern timeframe × level timeframe. Pooled across
   the research coins; each coin also on its own; "any location" is the pattern's baseline.
+  Pooled records are also split by order-flow context (below).
 
 ## Location
 
@@ -39,6 +40,24 @@ Levels can come from a higher timeframe; matching is by time.
 | `zone`       | at a demand (long) or supply (short) zone          |
 | `orderBlock` | at a bullish (long) or bearish (short) order block |
 | `openSpace`  | neither                                            |
+
+## Order-flow context (`analysis/flow.py`, since r2)
+
+Measured for every setup at its confirmation candle, from Binance's per-candle taker (aggressive)
+buy volume; delta = aggressive buys − aggressive sells. Context only: the statistics are split by
+it so a setup can be compared with and without flow agreeing; it never creates a setup.
+
+| Context          | Rule (longs; shorts use the mirrored series, where buyers and sellers swap)                         |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| `delta:confirms` | Σ delta / Σ volume over the last 3 candles (confirmation included) ≥ +0.02                          |
+| `delta:against`  | that ratio ≤ −0.02                                                                                  |
+| `delta:neutral`  | in between                                                                                          |
+| `cvdDiv:yes`     | the last 10 candles made a lower low than the 10 before, while CVD's low over the last 10 is higher |
+| `cvdDiv:no`      | measurable, no divergence                                                                           |
+
+The 0.02 cut comes from the feature's own spread (median |ratio| 0.023 on real ETH 4h), not from
+outcomes. Unknown (no taker volume in the window) falls in no bucket. Context records are pooled
+across coins only (per-coin buckets would be too small).
 
 ## Chart patterns (in-house)
 

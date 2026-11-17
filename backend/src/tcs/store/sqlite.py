@@ -38,8 +38,9 @@ CREATE TABLE IF NOT EXISTS stats_runs (
 CREATE TABLE IF NOT EXISTS setup_stats (
   ruleset TEXT NOT NULL, tf TEXT NOT NULL, zone_tf TEXT NOT NULL, symbol TEXT NOT NULL,
   pattern TEXT NOT NULL, direction TEXT NOT NULL, location TEXT NOT NULL,
+  context TEXT NOT NULL DEFAULT '*',
   summary TEXT NOT NULL,
-  PRIMARY KEY (ruleset, tf, zone_tf, symbol, pattern, direction, location)
+  PRIMARY KEY (ruleset, tf, zone_tf, symbol, pattern, direction, location, context)
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS setup_cases (
@@ -56,12 +57,18 @@ def _migrate(db: sqlite3.Connection) -> None:
     """Stores made before taker volume was kept: add the column and drop the cached candles.
 
     Candles are a cache of Binance's public archive, so they are downloaded again (with taker
-    volume) the next time a chart or the statistics job asks for them. Statistics are kept.
+    volume) the next time a chart or the statistics job asks for them.
     """
     cols = {row[1] for row in db.execute("PRAGMA table_info(candles)")}
     if "taker_buy" not in cols:
         db.execute("ALTER TABLE candles ADD COLUMN taker_buy REAL")
         db.execute("DELETE FROM candles")
+    # Statistics split by order-flow context (ruleset 2026.11-r2): older rows belong to an
+    # older rule set and are recomputed anyway, so the table is rebuilt with the new key.
+    stat_cols = {row[1] for row in db.execute("PRAGMA table_info(setup_stats)")}
+    if "context" not in stat_cols:
+        db.execute("DROP TABLE setup_stats")
+        db.executescript(SCHEMA)
 
 
 class Store:
@@ -199,7 +206,7 @@ class Store:
         self,
         ruleset: str,
         tf: Timeframe,
-        stats: Sequence[tuple[str, str, str, str, str, dict[str, Any]]],
+        stats: Sequence[tuple[str, str, str, str, str, str, dict[str, Any]]],
         cases: Sequence[tuple[str, str, str, str, str, int, str, dict[str, Any]]],
     ) -> None:
         """Swap in a finished run's results atomically (readers never see half a run)."""
@@ -207,8 +214,11 @@ class Store:
             db.execute("DELETE FROM setup_stats WHERE ruleset=? AND tf=?", (ruleset, tf))
             db.execute("DELETE FROM setup_cases WHERE ruleset=? AND tf=?", (ruleset, tf))
             db.executemany(
-                "INSERT INTO setup_stats VALUES (?,?,?,?,?,?,?,?)",
-                [(ruleset, tf, z, sym, p, d, loc, json.dumps(s)) for z, sym, p, d, loc, s in stats],
+                "INSERT INTO setup_stats VALUES (?,?,?,?,?,?,?,?,?)",
+                [
+                    (ruleset, tf, z, sym, p, d, loc, ctx, json.dumps(s))
+                    for z, sym, p, d, loc, ctx, s in stats
+                ],
             )
             db.executemany(
                 "INSERT INTO setup_cases VALUES (?,?,?,?,?,?,?,?,?,?)",
@@ -219,14 +229,19 @@ class Store:
             )
 
     def stats(
-        self, ruleset: str, tf: Timeframe, zone_tf: Timeframe, symbol: str = "*"
+        self,
+        ruleset: str,
+        tf: Timeframe,
+        zone_tf: Timeframe,
+        symbol: str = "*",
+        context: str = "*",
     ) -> list[tuple[str, str, str, dict[str, Any]]]:
         rows = (
             self._conn()
             .execute(
                 "SELECT pattern, direction, location, summary FROM setup_stats "
-                "WHERE ruleset=? AND tf=? AND zone_tf=? AND symbol=?",
-                (ruleset, tf, zone_tf, symbol),
+                "WHERE ruleset=? AND tf=? AND zone_tf=? AND symbol=? AND context=?",
+                (ruleset, tf, zone_tf, symbol, context),
             )
             .fetchall()
         )
@@ -245,7 +260,28 @@ class Store:
             self._conn()
             .execute(
                 "SELECT symbol, summary FROM setup_stats WHERE ruleset=? AND tf=? AND zone_tf=? "
-                "AND pattern=? AND direction=? AND location=? AND symbol != '*'",
+                "AND pattern=? AND direction=? AND location=? AND symbol != '*' AND context='*'",
+                (ruleset, tf, zone_tf, pattern, direction, location),
+            )
+            .fetchall()
+        )
+        return [(r[0], json.loads(r[1])) for r in rows]
+
+    def contexts(
+        self,
+        ruleset: str,
+        tf: Timeframe,
+        zone_tf: Timeframe,
+        pattern: str,
+        direction: str,
+        location: str,
+    ) -> list[tuple[str, dict[str, Any]]]:
+        """Pooled record of one setup per order-flow context (``*`` excluded)."""
+        rows = (
+            self._conn()
+            .execute(
+                "SELECT context, summary FROM setup_stats WHERE ruleset=? AND tf=? AND zone_tf=? "
+                "AND pattern=? AND direction=? AND location=? AND symbol='*' AND context != '*'",
                 (ruleset, tf, zone_tf, pattern, direction, location),
             )
             .fetchall()

@@ -21,6 +21,7 @@ import { pct, shortDate, signedPct, signedR } from "../../utils/format";
 import type { CandleInterval } from "../../types/marketData";
 import type { LocationFilter } from "../../types/analysis";
 import { CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
+import { contextLabel, FLOW_CONTEXTS, isFlowContext } from "../../utils/flowContext";
 import styles from "./StatsPage.module.scss";
 
 export const STATS_INTERVALS: readonly CandleInterval[] = ["1h", "4h", "1d"];
@@ -130,9 +131,11 @@ const StatsPage: React.FC = () => {
 
   const [zones, setZones] = useState<ZoneSourceOption>(() => loadDetection().zones);
   const [where, setWhere] = useState<LocationFilter | "all">("all");
+  const flowParam = params.get("flow");
+  const flow = isFlowContext(flowParam) ? flowParam : "*";
   const zoneTf = zoneTfFor(interval, zones);
   const catalog = useCatalog().data;
-  const res = useStats(interval, zoneTf);
+  const res = useStats(interval, zoneTf, flow);
   const run = res.data?.run ?? null;
   const loading = !res.data && !res.error;
   const maxHold = catalog?.maxHoldBars ?? 30;
@@ -151,9 +154,15 @@ const StatsPage: React.FC = () => {
   const failed = run?.failed ?? [];
   const years = run ? Math.round((run.days / 365) * 10) / 10 : null;
 
+  const setQuery = (tf: CandleInterval, ctx: string) => {
+    const next: Record<string, string> = {};
+    if (tf !== "4h") next.tf = tf;
+    if (ctx !== "*") next.flow = ctx;
+    setParams(next, { replace: true });
+  };
   const pickInterval = (tf: CandleInterval) => {
     setOpen(null);
-    setParams(tf === "4h" ? {} : { tf }, { replace: true });
+    setQuery(tf, flow);
   };
 
   return (
@@ -166,6 +175,7 @@ const StatsPage: React.FC = () => {
             candles across {coins || "the research"} coins
             {years ? ` over ${years} years` : ""}, with {zoneTf} zones and order blocks. Win =
             target hit before stop within {maxHold} candles. Gross: before fees.
+            {flow !== "*" ? ` Showing only cases with ${contextLabel(flow).toLowerCase()}.` : ""}
             {run?.finishedAt ? ` Updated ${shortDate(run.finishedAt)}.` : ""}
           </p>
         </div>
@@ -208,6 +218,30 @@ const StatsPage: React.FC = () => {
             ))}
           </select>
         </label>
+        <label className={styles.sort}>
+          Order flow at confirmation{" "}
+          <Explain title="Order flow filter">
+            Only the cases where order flow (Binance taker volume) looked like this when the pattern
+            confirmed: delta over the last 3 candles at least 2% of volume with or against the
+            trade, or a CVD divergence. Pooled across coins only; the per-coin breakdown of a row
+            still shows every case. Many filters compared at once will make some look good by
+            chance: a lead to test out of sample, not an edge.
+          </Explain>
+          <select
+            value={flow}
+            onChange={(e) => {
+              setOpen(null);
+              setQuery(interval, e.target.value);
+            }}
+          >
+            <option value="*">Any</option>
+            {FLOW_CONTEXTS.map((c) => (
+              <option key={c} value={c}>
+                {contextLabel(c)}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {res.error && (
@@ -216,7 +250,7 @@ const StatsPage: React.FC = () => {
           <button
             type="button"
             className={styles.btn}
-            onClick={() => void analysisApi().stats.refresh(statsKey(interval, zoneTf))}
+            onClick={() => void analysisApi().stats.refresh(statsKey(interval, zoneTf, flow))}
           >
             Try again
           </button>

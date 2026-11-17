@@ -332,3 +332,14 @@ nothing reads them for a statistic yet. Once an order-flow rule is measured (CVD
 "delta confirms"), it goes into `backend/src/tcs/analysis/` like every rule, with a new
 `RULESET_VERSION`. Stores made before this drop their cached candles once (public archive data,
 downloaded again with taker volume on the next request); statistics are kept.
+
+### 2026-11-17 · Order flow is measured as context of a setup, not as a setup of its own
+
+Why: the competitor research found no published evidence that order-flow signals predict
+anything on their own; the question worth answering is whether they change a setup's record.
+So `analysis/flow.py` tags every occurrence (delta with / against / neutral, CVD divergence
+yes / no) and the stats job splits pooled records by tag (rule set r2). Per-coin records are not
+split: buckets would be too small. The ±2% delta cut was set from the feature's spread on real
+ETH 4h (median |ratio| 0.023), not from outcomes. The UI calls a bucket better or worse only when
+its whole Wilson range is on one side of the setup's rate, and warns that many buckets are
+compared at once (multiple-testing correction is still Phase 2).
