@@ -131,6 +131,7 @@ criteria met.
   method in `docs/product/COMPETITORS.md` §4: delta/CVD + big trades → footprint → recorded heatmap →
   liquidations, OI, estimated liquidation map → absorption / stop-run / iceberg as measured context →
   rule builder + backtester. Supersedes the old Module 10 derivatives-stats idea.
+  Step 1 display ✅ 2026-11-17 (delta, CVD, big trades); 1b measuring them as context is next.
 - Server-side order-book depth recording (heatmap history that survives a reload).
 - Angel One / Indian equities (removed in `4350c71`).
 - Auto-execution, only after Phase 4/6 evidence justifies it.

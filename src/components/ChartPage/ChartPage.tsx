@@ -55,6 +55,8 @@ import {
 import LiquidityPanel from "./LiquidityPanel";
 import { useLiveCandle } from "../../custom-hooks/useLiveCandle";
 import { useLiquidity } from "../../custom-hooks/useLiquidity";
+import { useBigTrades } from "../../custom-hooks/useBigTrades";
+import { formatCompactUsd } from "../../utils/priceUtils";
 import { heatmapFrame, liquidityPools } from "../../utils/liquidityHeatmap";
 import {
   CHART_PREFS_STORAGE_KEY,
@@ -426,6 +428,8 @@ const ChartPage: React.FC = () => {
 
   // Order-book liquidity (only while the heatmap layer is on: no sockets otherwise).
   const liquidity = useLiquidity(layers.heatmap ? symbol : null);
+  // Big taker orders (only while the layer is on).
+  const bigTrades = useBigTrades(layers.bigTrades ? symbol : null);
   const heatmap = useMemo(
     () => (layers.heatmap ? heatmapFrame(liquidity.samples, TF_MS[viewTf]) : null),
     [layers.heatmap, liquidity.samples, viewTf],
@@ -540,6 +544,7 @@ const ChartPage: React.FC = () => {
                 onIndicator={onIndicator}
                 levels={viewLevels}
                 heatmap={heatmap}
+                bigTrades={layers.bigTrades ? bigTrades : null}
                 selected={viewSelected}
                 plan={selected ? selected.occ : null}
                 focusKey={focus ? `${focus.id}#${focus.n}` : null}
@@ -574,6 +579,15 @@ const ChartPage: React.FC = () => {
                 <span>
                   <i style={{ background: "linear-gradient(90deg,#1b2a4a,#f0a35e)" }} />
                   Resting liquidity (order book)
+                </span>
+              )}
+              {layers.bigTrades && (
+                <span title="Binance perpetual taker orders in the top 1% by size of recent prints, since this page opened. One order split across many fills counts once.">
+                  <i style={{ background: "rgba(86,211,100,.5)", borderRadius: "50%" }} />
+                  <i style={{ background: "rgba(244,112,103,.5)", borderRadius: "50%" }} />
+                  {bigTrades.threshold
+                    ? `Big trades ≥ ${formatCompactUsd(bigTrades.threshold)} (bought / sold)`
+                    : "Big trades: measuring typical size…"}
                 </span>
               )}
               <span>▲ W / L = past outcomes of the selected setup</span>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -22,6 +23,8 @@ class Candle:
     low: float
     close: float
     volume: float
+    #: Base volume bought by takers (aggressive buyers); NaN when the source has none.
+    taker_buy: float = math.nan
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +39,9 @@ class Series:
     low: FloatArray
     close: FloatArray
     volume: FloatArray
+    #: Taker (aggressive) buy volume per candle, NaN where unknown; None when the source has none.
+    #: Display data for now (delta / CVD); no rule reads it yet.
+    taker_buy: FloatArray | None = None
 
     def __len__(self) -> int:
         return int(self.open_time.shape[0])
@@ -65,6 +71,7 @@ class Series:
             self.low[start:stop],
             self.close[start:stop],
             self.volume[start:stop],
+            None if self.taker_buy is None else self.taker_buy[start:stop],
         )
 
     def scaled(self, factor: float) -> Series:
@@ -78,6 +85,7 @@ class Series:
             self.low * factor,
             self.close * factor,
             self.volume,
+            self.taker_buy,
         )
 
     @staticmethod
@@ -91,6 +99,7 @@ class Series:
             np.array([c.low for c in candles], dtype=np.float64),
             np.array([c.close for c in candles], dtype=np.float64),
             np.array([c.volume for c in candles], dtype=np.float64),
+            np.array([c.taker_buy for c in candles], dtype=np.float64),
         )
 
     def candles(self) -> list[Candle]:
@@ -102,6 +111,7 @@ class Series:
                 float(self.low[i]),
                 float(self.close[i]),
                 float(self.volume[i]),
+                math.nan if self.taker_buy is None else float(self.taker_buy[i]),
             )
             for i in range(len(self))
         ]
@@ -112,6 +122,8 @@ def mirror(s: Series) -> Series:
 
     A bearish pattern on ``s`` is the bullish pattern on ``mirror(s)``, so each
     chart pattern is written once and both directions share the same rule.
-    ATR is unchanged (true range uses absolute differences).
+    ATR is unchanged (true range uses absolute differences). Aggressive buyers become
+    aggressive sellers: taker buy volume turns into taker sell volume.
     """
-    return Series(s.symbol, s.tf, s.open_time, -s.open, -s.low, -s.high, -s.close, s.volume)
+    taker = None if s.taker_buy is None else s.volume - s.taker_buy
+    return Series(s.symbol, s.tf, s.open_time, -s.open, -s.low, -s.high, -s.close, s.volume, taker)

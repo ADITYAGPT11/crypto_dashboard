@@ -28,6 +28,8 @@ import type { ViewLevel, ViewPattern } from "../../utils/timeframeMapping";
 import { patternShort } from "../../utils/patternLabels";
 import type { HeatmapFrame } from "../../utils/liquidityHeatmap";
 import { drawHeatmap } from "./drawHeatmap";
+import { drawBigTrades } from "./drawBigTrades";
+import type { BigTrades } from "../../custom-hooks/useBigTrades";
 import { computeVolumeProfile } from "../../utils/volumeProfile";
 import {
   computeInstance,
@@ -46,6 +48,7 @@ export interface Layers {
   vp: boolean;
   pattern: boolean;
   heatmap: boolean;
+  bigTrades: boolean;
   /** Text labels on zones and blocks. */
   labels: boolean;
 }
@@ -90,6 +93,8 @@ interface Props {
   levels: ViewLevel[];
   /** Resting order-book liquidity sampled since the page opened (heatmap layer). */
   heatmap?: HeatmapFrame | null;
+  /** Big taker orders since the page opened (bubbles layer). */
+  bigTrades?: BigTrades | null;
   /** The selected setup mapped onto the view. */
   selected: ViewPattern | null;
   plan: Plan | null;
@@ -128,8 +133,12 @@ const t = (ms: number) => Math.floor(ms / 1000) as UTCTimestamp;
 /** Price pane height relative to one indicator pane (TradingView-like proportions). */
 const MAIN_PANE_SHARE = 4;
 
+/** Histogram bars of indicator panes (MACD, delta): teal above zero, red below. */
+const histColor = (v: number) => (v >= 0 ? "rgba(38,166,154,0.6)" : "rgba(239,83,80,0.6)");
+
 interface IndicatorSeries {
   uid: string;
+  inst: IndicatorInstance;
   pane: number;
   isVolume: boolean;
   series: { key: string; api: ISeriesApi<SeriesType> }[];
@@ -187,6 +196,7 @@ const PriceChart: React.FC<Props> = ({
   onIndicator,
   levels,
   heatmap = null,
+  bigTrades = null,
   selected,
   plan,
   focusKey = null,
@@ -209,7 +219,17 @@ const PriceChart: React.FC<Props> = ({
   const indRef = useRef<IndicatorSeries[]>([]);
   const priceLinesRef = useRef<IPriceLine[]>([]);
   const displayRef = useRef<Candle[]>([]);
-  const propsRef = useRef({ candles, viewTf, levels, heatmap, selected, others, layers });
+  const propsRef = useRef({
+    candles,
+    viewTf,
+    levels,
+    heatmap,
+    bigTrades,
+    live,
+    selected,
+    others,
+    layers,
+  });
   const drawRef = useRef<() => void>(() => {});
   const onToolRef = useRef(onToolChange);
   const symbolRef = useRef(symbol);
@@ -219,7 +239,17 @@ const PriceChart: React.FC<Props> = ({
   const [legend, setLegend] = useState<Pick<IndicatorSeries, "uid" | "pane" | "values">[]>([]);
 
   useLayoutEffect(() => {
-    propsRef.current = { candles, viewTf, levels, heatmap, selected, others, layers };
+    propsRef.current = {
+      candles,
+      viewTf,
+      levels,
+      heatmap,
+      bigTrades,
+      live,
+      selected,
+      others,
+      layers,
+    };
     onToolRef.current = onToolChange;
   });
 
@@ -361,6 +391,24 @@ const PriceChart: React.FC<Props> = ({
       value: live.volume,
       color: live.close >= live.open ? "rgba(86,211,100,0.35)" : "rgba(244,112,103,0.35)",
     });
+    // Indicators that make sense before the close (delta, CVD) follow the forming candle.
+    let withLive: Candle[] | null = null;
+    for (const s of indRef.current) {
+      const def = INDICATOR_BY_ID.get(s.inst.id);
+      if (!def?.live) continue;
+      withLive ??= [...candles, live];
+      const values = computeInstance(s.inst, withLive);
+      for (const x of s.series) {
+        const v = values[x.key]?.[candles.length];
+        if (v === undefined || !Number.isFinite(v)) continue;
+        const kind = def.plots.find((p) => p.key === x.key)?.kind;
+        x.api.update(
+          kind === "histogram"
+            ? { time: t(live.openTime), value: v, color: histColor(v) }
+            : { time: t(live.openTime), value: v },
+        );
+      }
+    }
   }, [live, candles]);
 
   // Indicators: rebuild their series and panes when the list or candles change.
@@ -413,7 +461,7 @@ const PriceChart: React.FC<Props> = ({
                     {
                       time: t(c.openTime),
                       value: v[i],
-                      color: v[i] >= 0 ? "rgba(38,166,154,0.6)" : "rgba(239,83,80,0.6)",
+                      color: histColor(v[i]),
                     },
                   ]
                 : [],
@@ -455,6 +503,7 @@ const PriceChart: React.FC<Props> = ({
       }
       indRef.current.push({
         uid: inst.uid,
+        inst,
         pane,
         series,
         values,
@@ -511,6 +560,8 @@ const PriceChart: React.FC<Props> = ({
       viewTf: vtf,
       levels: lvs,
       heatmap: hm,
+      bigTrades: bt,
+      live: lv,
       selected: sel,
       others: oth,
       layers: ly,
@@ -712,6 +763,13 @@ const PriceChart: React.FC<Props> = ({
       }
       g.lineWidth = 1;
     }
+    // Last, so live prints stay visible above zones and the pattern drawing.
+    if (ly.bigTrades && bt) {
+      // The forming bar sits right after the last closed one, whatever the clock says (the
+      // history can lag), so live prints are placed on it rather than by elapsed time.
+      const bars = lv && cs.length && lv.openTime > cs[cs.length - 1].openTime ? [...cs, lv] : cs;
+      drawBigTrades(g, bt.prints, bt.threshold, bars, vtf, x, y);
+    }
     g.restore();
   }
 
@@ -721,7 +779,7 @@ const PriceChart: React.FC<Props> = ({
 
   useEffect(() => {
     requestAnimationFrame(() => drawRef.current());
-  }, [levels, heatmap, others, layers]);
+  }, [levels, heatmap, bigTrades, others, layers]);
 
   // Selected setup: plan price lines, history markers, scroll into view.
   useEffect(() => {

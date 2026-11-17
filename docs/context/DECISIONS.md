@@ -321,3 +321,14 @@ Owner decision: the product is **GreenMTM** (MTM = mark-to-market), no tagline. 
 tile with an M drawn as a price line whose last leg breaks out upward (`public/greenmtm.svg`,
 also the favicon). Code names stay: the Python package is `tcs` and the repo `crypto_dashboard`;
 renaming them would touch every import for no user-visible change.
+
+### 2026-11-17 · Delta, CVD and big trades are display data; candles carry taker buy volume
+
+Why: step 1 of the order-flow rebuild (`docs/product/COMPETITORS.md` §4). Binance klines report
+the taker buy volume, so delta per candle is exact without downloading every trade; candles now
+keep it (`Candle.takerBuyVolume`, `Series.taker_buy`, `/candles` 7th column, mirrored as taker
+sell). Delta and CVD are chart indicators in TypeScript and big-trade bubbles a live chart layer:
+nothing reads them for a statistic yet. Once an order-flow rule is measured (CVD divergence,
+"delta confirms"), it goes into `backend/src/tcs/analysis/` like every rule, with a new
+`RULESET_VERSION`. Stores made before this drop their cached candles once (public archive data,
+downloaded again with taker volume on the next request); statistics are kept.

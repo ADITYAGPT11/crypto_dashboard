@@ -12,7 +12,7 @@ FastAPI, numpy, TA-Lib, httpx, SQLite** (`backend/`). Node prototype: Express + 
 
 One rule set; both the chart and the background statistics call `analysis/engine.py::analyze`.
 
-- `common/`: `series.py` (column arrays, `head`/`scaled`/`mirror`), `timeframes.py`, `universe.py`
+- `common/`: `series.py` (column arrays incl. taker buy volume, `head`/`scaled`/`mirror`), `timeframes.py`, `universe.py`
 - `analysis/`: `catalog.py` (pattern ids, labels, sources, `RULESET_VERSION`), `indicators.py`
   (TA-Lib ATR/EMA/SMA), `swings.py` (pivots + `known_at`), `candlesticks.py` (TA-Lib shapes +
   context), `chart_patterns.py` (double bottom, inverse H&S, bull flag; twins by mirroring),
@@ -114,7 +114,8 @@ price table, spread (arbitrage), order book, alerts.
 **Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
 `useScanner`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
-`useLiveCandle` (forming candle: Binance, OKX when Binance is silent; `utils/liveCandle`), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
+`useBigTrades` (big Binance perp taker orders, merged from aggTrade, top 1% of recent prints, ≤ 2
+renders/s), `useLiveCandle` (forming candle: Binance, OKX when Binance is silent; `utils/liveCandle`), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
 `useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
 
 **Analysis in the browser**: none that feeds statistics (the service owns every rule). Display
@@ -122,7 +123,8 @@ helpers: `volumeProfile` (visible-range histogram, key volume levels), `timefram
 → view positions for patterns, zones, blocks, gaps), `setupKeys` (`pattern|direction|location`,
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
 sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync), `liquidityHeatmap`
-(buckets, per-bar frames, pools), `overlaySettings` (layers + which levels are key; display
+(buckets, per-bar frames, pools), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
+position), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
 `src/api/schema.ts`; client `src/api/client.ts`.
 `src/services/HistoryService.ts`: closed-candle history from Binance REST (fallback: the
@@ -151,7 +153,7 @@ names), `connection.ts`, `alertRules.ts`
 `Regime`, `Movers`, `DataHealth`), `StatsPage/`, `RiskPage/`, `AlertsPage/`,
 `AlertToast/`, `ChartPage/` (`PriceChart` with panes/legend/drawings, `ChartToolbar`,
 `DrawingToolbar`, `IndicatorsDialog`, `IndicatorSettings`, `Modal`, `icons`, `DetectionSettings`,
-`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
+`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`, `drawBigTrades`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
 overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
 `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,

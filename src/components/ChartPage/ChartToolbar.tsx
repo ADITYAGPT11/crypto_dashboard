@@ -45,6 +45,7 @@ const LAYERS: [keyof Layers, string][] = [
   ["fvg", "Fair value gaps"],
   ["vp", "Volume profile"],
   ["heatmap", "Liquidity heatmap"],
+  ["bigTrades", "Big trades (live)"],
 ];
 
 interface Props {

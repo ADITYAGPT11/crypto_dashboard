@@ -8,9 +8,11 @@ Respect the limits: klines with limit=1500 weigh 10 of 2400/min; we pace REST ca
 from __future__ import annotations
 
 import io
+import math
 import threading
 import time
 import zipfile
+from collections.abc import Sequence
 
 import httpx
 
@@ -35,8 +37,10 @@ def _client() -> httpx.Client:
     )
 
 
-def _row(r: list[str | float | int]) -> Candle:
-    return Candle(int(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5]))
+def _row(r: Sequence[str | float | int]) -> Candle:
+    """A kline row (REST array or archive CSV): column 9 is the taker buy base volume."""
+    taker = float(r[9]) if len(r) > 9 else math.nan
+    return Candle(int(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[5]), taker)
 
 
 class BinanceKlines:
@@ -110,10 +114,7 @@ class BinanceKlines:
         for line in text.splitlines():
             if not line or not line[0].isdigit():
                 continue  # header row (newer files have one)
-            p = line.split(",")
-            rows.append(
-                Candle(int(p[0]), float(p[1]), float(p[2]), float(p[3]), float(p[4]), float(p[5]))
-            )
+            rows.append(_row(line.split(",")))
         return rows
 
     def archive_month(

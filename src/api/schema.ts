@@ -20,7 +20,7 @@ export interface AnalysisOut {
 export interface CandlesOut {
   symbol: string;
   tf: string;
-  candles: [number, number, number, number, number, number][];
+  candles: [number, number, number, number, number, number, number | null][];
   coverage: CoverageOut;
 }
 

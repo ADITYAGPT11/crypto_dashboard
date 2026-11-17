@@ -19,6 +19,7 @@ const SHOW: [Flag, string][] = [
   ["fvg", "Fair value gaps"],
   ["vp", "Volume profile"],
   ["heatmap", "Liquidity heatmap"],
+  ["bigTrades", "Big trades (live)"],
   ["labels", "Labels on zones and blocks"],
 ];
 

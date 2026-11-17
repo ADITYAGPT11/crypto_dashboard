@@ -13,6 +13,8 @@ confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
+0. Order-flow step 1b: measure CVD divergence / "delta confirms" as setup context in the analysis
+   service (taker volume is stored now); then step 2, the footprint chart (`COMPETITORS.md` §4).
 1. Owner: run `npm start` on a machine that reaches Binance, let the first
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
@@ -23,14 +25,14 @@ confirmations yet (by design).
 
 ## Health
 
-Verified 2026-11-11:
+Verified 2026-11-11 (test counts 2026-11-17):
 
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 303 tests, 29 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 323 tests, 32 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 89 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                      |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 95 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                      |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -83,6 +85,13 @@ Verified 2026-11-11:
 
 ## History
 
+- 2026-11-17: **Order flow on the chart (step 1)**: Volume Delta and CVD indicators (Binance taker
+  buy volume from klines, live on the forming candle, blank where the source has none) and a
+  **Big trades** layer (Overlays): Binance perp taker orders merged from aggTrade, top 1% of
+  recent prints and ≥ $10K, bubbles sized by notional, since the page opened. Candles carry taker
+  buy volume end to end (REST, archive, SQLite, `/candles`); old stores re-download candles once.
+  Verified in headless Chromium with archive candles and a mocked Binance socket (live trades not
+  reachable from the sandbox). Display only: no statistic uses them yet.
 - 2026-11-17: Competitor research (DeepCharts, Bookmap, LuxAlgo, CoinGlass, Hyblock and others):
   `docs/product/COMPETITORS.md` with paid-plan contents, evidence on what works, how each
   feature is built from free crypto data, and a rebuild order (ROADMAP parking lot). Docs only.

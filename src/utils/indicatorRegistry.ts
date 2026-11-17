@@ -6,6 +6,7 @@
  */
 import { atr, bb, ema, macd, obv, psar, rsi, sma, stoch, vwap } from "indicatorts";
 import type { Candle } from "../types/marketData";
+import { candleDelta, cumulativeDelta } from "./orderFlow";
 
 export type IndicatorId =
   | "volume"
@@ -18,7 +19,9 @@ export type IndicatorId =
   | "macd"
   | "stoch"
   | "atr"
-  | "obv";
+  | "obv"
+  | "delta"
+  | "cvd";
 
 export interface InputDef {
   key: string;
@@ -50,6 +53,10 @@ export interface IndicatorDef {
   compute: (c: Candle[], p: Record<string, number>) => Record<string, number[]>;
   /** Candles before the first meaningful value. */
   warmup: (p: Record<string, number>) => number;
+  /** Also drawn for the forming candle (cheap, and meaningful before the candle closes). */
+  live?: boolean;
+  /** Shown under the name in the indicators dialog. */
+  note?: string;
 }
 
 const closes = (c: Candle[]) => c.map((x) => x.close);
@@ -226,6 +233,33 @@ export const INDICATORS: readonly IndicatorDef[] = [
     plots: [{ key: "obv", label: "OBV", color: "#2962FF", kind: "line" }],
     compute: (c) => ({ obv: obv(closes(c), vols(c)) }),
     warmup: () => 1,
+  },
+  {
+    id: "delta",
+    name: "Volume Delta",
+    short: "Delta",
+    category: "Volume",
+    placement: "pane",
+    inputs: [],
+    plots: [{ key: "delta", label: "Delta", color: "#26A69A", kind: "histogram" }],
+    levels: [0],
+    compute: (c) => ({ delta: c.map(candleDelta) }),
+    warmup: () => 0,
+    live: true,
+    note: "Aggressive buy − sell volume per candle (Binance taker volume; blank on other sources)",
+  },
+  {
+    id: "cvd",
+    name: "Cumulative Volume Delta",
+    short: "CVD",
+    category: "Volume",
+    placement: "pane",
+    inputs: [],
+    plots: [{ key: "cvd", label: "CVD", color: "#4C9AFF", kind: "line" }],
+    compute: (c) => ({ cvd: cumulativeDelta(c) }),
+    warmup: () => 0,
+    live: true,
+    note: "Running delta since the first loaded candle: read its slope, not its level",
   },
 ];
 

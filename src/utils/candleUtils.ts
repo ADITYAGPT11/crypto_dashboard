@@ -55,6 +55,12 @@ export function toCandle(value: unknown): Candle | null {
   }
   const volume =
     typeof v.volume === "number" && Number.isFinite(v.volume) && v.volume >= 0 ? v.volume : 0;
+  const taker = v.takerBuyVolume;
+  const takerOk =
+    typeof taker === "number" &&
+    Number.isFinite(taker) &&
+    taker >= 0 &&
+    taker <= volume * (1 + 1e-9);
   return {
     openTime,
     open,
@@ -62,6 +68,7 @@ export function toCandle(value: unknown): Candle | null {
     low,
     close,
     volume,
+    ...(takerOk ? { takerBuyVolume: taker } : {}),
     closed: typeof v.closed === "boolean" ? v.closed : undefined,
   };
 }

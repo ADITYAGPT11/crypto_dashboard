@@ -33,7 +33,7 @@ class FakeSource:
         n = (end - start) // TF_MS[tf] + 1
         walk = random_walk(seed, n=n, tf=tf)
         return [
-            Candle(start + i * TF_MS[tf], c.open, c.high, c.low, c.close, c.volume)
+            Candle(start + i * TF_MS[tf], c.open, c.high, c.low, c.close, c.volume, c.volume * 0.4)
             for i, c in enumerate(walk.candles())
         ]
 
@@ -62,6 +62,15 @@ def client(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr("tcs.api.service.now_ms", lambda: NOW)
     stats_job.run_stats(settings, "4h", now=NOW)
     return TestClient(create_app(settings, Service(settings, store, history)))
+
+
+def test_candles_carry_taker_buy_volume(client: TestClient) -> None:
+    body = client.get("/api/v1/candles/AAA-USDT", params={"tf": "4h", "limit": 50}).json()
+    rows = body["candles"]
+    assert len(rows) == 50
+    for row in rows:
+        assert len(row) == 7
+        assert row[6] == pytest.approx(row[5] * 0.4)
 
 
 def test_stats_job_pools_every_coin_and_location(client: TestClient) -> None:

@@ -41,6 +41,7 @@ const IndicatorsDialog: React.FC<{
                   key={d.id}
                   type="button"
                   className={styles.indItem}
+                  title={d.note}
                   onClick={() => onAdd(d.id)}
                 >
                   <span>{d.name}</span>
@@ -59,7 +60,10 @@ const IndicatorsDialog: React.FC<{
         })}
         {match.length === 0 && <p className={styles.mute}>No indicator matches “{q}”.</p>}
       </div>
-      <p className={styles.faint}>Calculated with indicatorts (MIT). Values use closed candles.</p>
+      <p className={styles.faint}>
+        Calculated with indicatorts (MIT) on closed candles. Delta and CVD use Binance taker volume
+        and include the forming candle.
+      </p>
     </Modal>
   );
 };

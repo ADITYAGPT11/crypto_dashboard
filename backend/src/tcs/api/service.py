@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import threading
 import time
 from collections import OrderedDict
@@ -99,6 +100,9 @@ class Service:
                 float(s.low[i]),
                 float(s.close[i]),
                 float(s.volume[i]),
+                None
+                if s.taker_buy is None or math.isnan(s.taker_buy[i])
+                else float(s.taker_buy[i]),
             )
             for i in range(len(s))
         ]

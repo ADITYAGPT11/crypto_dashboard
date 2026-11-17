@@ -7,6 +7,7 @@ one file, WAL mode so the API reads while the statistics job writes.
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
 import threading
 from collections.abc import Generator, Iterable, Sequence
@@ -23,7 +24,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS candles (
   symbol TEXT NOT NULL, tf TEXT NOT NULL, open_time INTEGER NOT NULL,
   open REAL NOT NULL, high REAL NOT NULL, low REAL NOT NULL, close REAL NOT NULL,
-  volume REAL NOT NULL,
+  volume REAL NOT NULL, taker_buy REAL,
   PRIMARY KEY (symbol, tf, open_time)
 ) WITHOUT ROWID;
 
@@ -51,6 +52,18 @@ CREATE INDEX IF NOT EXISTS setup_cases_key
 """
 
 
+def _migrate(db: sqlite3.Connection) -> None:
+    """Stores made before taker volume was kept: add the column and drop the cached candles.
+
+    Candles are a cache of Binance's public archive, so they are downloaded again (with taker
+    volume) the next time a chart or the statistics job asks for them. Statistics are kept.
+    """
+    cols = {row[1] for row in db.execute("PRAGMA table_info(candles)")}
+    if "taker_buy" not in cols:
+        db.execute("ALTER TABLE candles ADD COLUMN taker_buy REAL")
+        db.execute("DELETE FROM candles")
+
+
 class Store:
     """Thread-safe: one connection per thread, all on the same database file."""
 
@@ -60,6 +73,7 @@ class Store:
         self._local = threading.local()
         with self.tx() as db:
             db.executescript(SCHEMA)
+            _migrate(db)
 
     def _conn(self) -> sqlite3.Connection:
         conn: sqlite3.Connection | None = getattr(self._local, "conn", None)
@@ -80,10 +94,21 @@ class Store:
 
     def put_candles(self, symbol: str, tf: Timeframe, candles: Iterable[Candle]) -> int:
         rows = [
-            (symbol, tf, c.open_time, c.open, c.high, c.low, c.close, c.volume) for c in candles
+            (
+                symbol,
+                tf,
+                c.open_time,
+                c.open,
+                c.high,
+                c.low,
+                c.close,
+                c.volume,
+                None if math.isnan(c.taker_buy) else c.taker_buy,
+            )
+            for c in candles
         ]
         with self.tx() as db:
-            db.executemany("INSERT OR REPLACE INTO candles VALUES (?,?,?,?,?,?,?,?)", rows)
+            db.executemany("INSERT OR REPLACE INTO candles VALUES (?,?,?,?,?,?,?,?,?)", rows)
         return len(rows)
 
     def candle_range(self, symbol: str, tf: Timeframe) -> tuple[int, int, int] | None:
@@ -102,7 +127,8 @@ class Store:
         self, symbol: str, tf: Timeframe, since: int | None = None, until: int | None = None
     ) -> Series:
         sql = (
-            "SELECT open_time, open, high, low, close, volume FROM candles WHERE symbol=? AND tf=?"
+            "SELECT open_time, open, high, low, close, volume, taker_buy"
+            " FROM candles WHERE symbol=? AND tf=?"
         )
         args: list[Any] = [symbol, tf]
         if since is not None:
@@ -112,7 +138,8 @@ class Store:
             sql += " AND open_time <= ?"
             args.append(until)
         rows = self._conn().execute(sql + " ORDER BY open_time", args).fetchall()
-        arr = np.array(rows, dtype=np.float64).reshape(-1, 6)
+        # NULL taker volume (not stored) becomes NaN.
+        arr = np.array(rows, dtype=np.float64).reshape(-1, 7)
         return Series(
             symbol,
             tf,
@@ -122,6 +149,7 @@ class Store:
             arr[:, 3].copy(),
             arr[:, 4].copy(),
             arr[:, 5].copy(),
+            arr[:, 6].copy(),
         )
 
     # Statistics --------------------------------------------------------------

@@ -233,8 +233,9 @@ export class BinanceAdapter extends EventEmitter {
     if (!response.ok) {
       throw new Error(`Binance candles HTTP ${response.status}`);
     }
+    // Kline row: …, [5] volume, [6] close time, [7] quote volume, [8] trades, [9] taker buy volume.
     const payload = (await response.json()) as Array<
-      [number, string, string, string, string, string]
+      [number, string, string, string, string, string, number?, string?, number?, string?]
     >;
     const candles = normalizeHistory(
       (payload ?? []).map((row) => ({
@@ -244,6 +245,7 @@ export class BinanceAdapter extends EventEmitter {
         low: parseFloat(row[3]),
         close: parseFloat(row[4]),
         volume: parseFloat(row[5]),
+        takerBuyVolume: row[9] != null ? parseFloat(row[9]) : undefined,
       })),
     );
     return candles.map((candle) => ({
@@ -322,7 +324,16 @@ export class BinanceAdapter extends EventEmitter {
     if (kind.startsWith("kline_")) {
       const interval = toCanonicalInterval(kind.slice("kline_".length));
       const k = (data as { k?: Record<string, unknown> } | undefined)?.k as
-        | { t: number; o: string; h: string; l: string; c: string; v: string; x: boolean }
+        | {
+            t: number;
+            o: string;
+            h: string;
+            l: string;
+            c: string;
+            v: string;
+            V?: string;
+            x: boolean;
+          }
         | undefined;
       if (interval && k) {
         const candle = toCandle({
@@ -332,6 +343,8 @@ export class BinanceAdapter extends EventEmitter {
           low: parseFloat(k.l),
           close: parseFloat(k.c),
           volume: parseFloat(k.v),
+          // V = taker buy base volume of the candle so far (delta / CVD).
+          takerBuyVolume: k.V != null ? parseFloat(k.V) : undefined,
           closed: k.x === true,
         });
         if (candle) {

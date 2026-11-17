@@ -37,6 +37,17 @@ describe("HistoryService", () => {
     expect(h.candles[h.candles.length - 1].openTime + H4).toBeLessThanOrEqual(now);
   });
 
+  it("reads the taker buy volume (column 9) for delta", async () => {
+    const full = [0, "100", "101", "99", "100.5", "10", H4 - 1, "1005", 7, "6.5", "653", "0"];
+    const svc = new HistoryService(
+      async () => [full, row(H4, 100)],
+      () => 10 * H4,
+    );
+    const h = await svc.load("BTC-USDT", "4h", 1);
+    expect(h.candles[0].takerBuyVolume).toBe(6.5);
+    expect(h.candles[1].takerBuyVolume).toBeUndefined();
+  });
+
   it("caches successes and retries after a failure", async () => {
     let calls = 0;
     const fetcher = async () => {

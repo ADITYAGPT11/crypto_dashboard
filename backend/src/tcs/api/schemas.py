@@ -229,8 +229,9 @@ class CatalogOut(Out):
 class CandlesOut(Out):
     symbol: str
     tf: str
-    #: [open time, open, high, low, close, volume], closed candles, ascending.
-    candles: list[tuple[int, float, float, float, float, float]]
+    #: [open time, open, high, low, close, volume, taker buy volume (null: unknown)], closed
+    #: candles, ascending. Taker buy is base volume bought by aggressive buyers (delta, CVD).
+    candles: list[tuple[int, float, float, float, float, float, float | None]]
     coverage: CoverageOut
 
 
