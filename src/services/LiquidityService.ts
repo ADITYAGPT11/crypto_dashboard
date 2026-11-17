@@ -3,7 +3,8 @@
  * perpetuals, each on its own socket (one failing never blocks the other), sampled
  * every `SAMPLE_MS` into price buckets while a chart shows the heatmap.
  *
- * Runs only while subscribed; samples live in this tab (since the page opened).
+ * Runs only while subscribed; samples live in this tab (since the page opened). Older history
+ * comes from the analysis service's recorder (`useDepthHistory`).
  */
 import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
 import {
@@ -106,6 +107,15 @@ export class LiquidityService {
     this.feeds.set("BINANCE", this.binance(symbol));
     this.feeds.set("OKX", this.okx(symbol));
     this.timer = setInterval(() => this.sample(), SAMPLE_MS);
+  }
+
+  /**
+   * Use the bucket size the analysis service recorded with, unless the live books' reach is
+   * more than 2× different (then history and live could not share a column anyway).
+   */
+  preferBucket(bucket: number) {
+    if (!(bucket > 0)) return;
+    if (this.bucket === null || stableBucket(bucket, this.bucket) === bucket) this.bucket = bucket;
   }
 
   stop() {

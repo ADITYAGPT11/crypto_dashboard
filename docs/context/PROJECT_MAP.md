@@ -22,7 +22,12 @@ One rule set; both the chart and the background statistics call `analysis/engine
   Rules in words: `docs/product/patterns.md`.
 - `marketdata/`: `binance.py` (REST klines + `data.binance.vision` zips, pacing, cooldown on
   refusal), `history.py` (`ensure`: archive months → archive days → REST tail; coverage/gaps)
-- `store/sqlite.py`: candles, stats runs, setup stats, setup cases (WAL, swap per run)
+- `depth/`: `books.py` (Binance / OKX book sync, port of `depthBook.ts`), `sampler.py` (books →
+  one-minute bucket columns), `recorder.py` (`DepthRecorder`: per-symbol sockets with reconnect,
+  2 s sampling, started in the API lifespan; `TCS_DEPTH_RECORD`, `TCS_DEPTH_SYMBOLS`,
+  `TCS_DEPTH_DAYS`)
+- `store/sqlite.py`: candles, stats runs, setup stats (per order-flow context), setup cases,
+  depth columns (WAL, swap per run)
 - `jobs/stats_job.py`: per pattern TF, every coin, every allowed level TF; aggregates per coin
   and pooled, per location and any location
 - `api/`: `app.py` (routes, scheduler in a worker process), `service.py`, `schemas.py`
@@ -115,6 +120,7 @@ price table, spread (arbitrage), order book, alerts.
 **Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
 `useScanner`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
+`useDepthHistory` (recorded heatmap minutes from `/api/v1/depth`, once per enable),
 `useFootprint` (live footprint per view bar and row size; session trade buffer per symbol),
 `useBigTrades` (big Binance perp taker orders, merged from aggTrade, top 1% of recent prints, ≤ 2
 renders/s), `useLiveCandle` (forming candle: Binance, OKX when Binance is silent; `utils/liveCandle`), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
@@ -125,7 +131,7 @@ helpers: `volumeProfile` (visible-range histogram, key volume levels), `timefram
 → view positions for patterns, zones, blocks, gaps), `setupKeys` (`pattern|direction|location`,
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
 sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync), `liquidityHeatmap`
-(buckets, per-bar frames, pools), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
+(buckets, per-bar frames, pools, recorded columns → samples, history + live merge), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
 position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `footprint`
 (rows, `FootprintBook`, diagonal imbalance), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated

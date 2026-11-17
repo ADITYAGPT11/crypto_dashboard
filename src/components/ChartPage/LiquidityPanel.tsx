@@ -1,4 +1,5 @@
 import type { LiquiditySnapshot } from "../../services/LiquidityService";
+import type { DepthHistory } from "../../custom-hooks/useDepthHistory";
 import type { LiquidityPool } from "../../utils/liquidityHeatmap";
 import { Chip, Explain } from "../../common-components/Evidence";
 import { price } from "../../utils/format";
@@ -21,12 +22,25 @@ function duration(ms: number): string {
 const STATE_TONE = { live: "up", connecting: "lock", down: "down" } as const;
 
 /** Feed status and the biggest resting pools in the visible order books. */
-const LiquidityPanel: React.FC<{ liquidity: LiquiditySnapshot; pools: LiquidityPool[] }> = ({
-  liquidity,
-  pools,
-}) => {
+function historyText(h: DepthHistory, since: number | undefined, liveSince: number | undefined) {
+  if (h.status === "loading") return " · loading recorded history…";
+  if (h.status === "unavailable")
+    return " · no recorded history (the analysis service is not running): the heatmap starts now";
+  if (h.samples.length > 0 && since !== undefined && since !== liveSince)
+    return ` · recorded by the analysis service since ${new Date(since).toLocaleString()}`;
+  if (h.recording) return " · the analysis service is recording this coin from now on";
+  return "";
+}
+
+const LiquidityPanel: React.FC<{
+  liquidity: LiquiditySnapshot;
+  pools: LiquidityPool[];
+  history: DepthHistory;
+  /** First sample shown (recorded history or live). */
+  since: number | undefined;
+}> = ({ liquidity, pools, history, since }) => {
   const last = liquidity.samples[liquidity.samples.length - 1];
-  const since = liquidity.samples[0]?.time;
+  const liveSince = liquidity.samples[0]?.time;
   return (
     <section className={styles.card} aria-labelledby="liq-title">
       <div className={styles.cardHead}>
@@ -34,10 +48,11 @@ const LiquidityPanel: React.FC<{ liquidity: LiquiditySnapshot; pools: LiquidityP
         <Explain title="Liquidity heatmap">
           Resting limit orders from the full order books of Binance and OKX perpetuals, added
           together and bucketed by price ({last ? price(last.bucket) : "…"} per bucket). The chart's
-          heatmap shows the average resting size per bar since you opened this page. The table lists
-          the largest buckets on each side; a wall is at least 3× the median bucket on its side, and
-          "for" is how long it has held at least half its size. This is an observation: visible
-          orders can be pulled or spoofed, and who placed them is unknown.
+          heatmap shows the average resting size per bar: recorded by the analysis service (one
+          column per minute, kept for a week) and then live from this page every 2 seconds. The
+          table lists the largest buckets on each side; a wall is at least 3× the median bucket on
+          its side, and "for" is how long it has held at least half its size. This is an
+          observation: visible orders can be pulled or spoofed, and who placed them is unknown.
         </Explain>
         <p>
           {Object.entries(liquidity.feeds).map(([ex, f]) => (
@@ -50,12 +65,13 @@ const LiquidityPanel: React.FC<{ liquidity: LiquiditySnapshot; pools: LiquidityP
               </span>{" "}
             </span>
           ))}
-          {since ? (
+          {liveSince ? (
             <span className={styles.mute}>
               {" "}
-              · sampling every 2 s since {new Date(since).toLocaleTimeString()}
+              · sampling every 2 s since {new Date(liveSince).toLocaleTimeString()}
             </span>
           ) : null}
+          <span className={styles.mute}>{historyText(history, since, liveSince)}</span>
         </p>
       </div>
       <div className={styles.xs}>

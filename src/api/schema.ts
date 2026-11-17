@@ -70,6 +70,31 @@ export interface CoverageOut {
   restOk: boolean;
 }
 
+export interface DepthColumnOut {
+  time: number;
+  bucket: number;
+  mid: number;
+  samples: number;
+  bids: [number, number][];
+  asks: [number, number][];
+}
+
+export interface DepthFeedOut {
+  state: "connecting" | "live" | "down";
+  error: string | null;
+  levels: number;
+  since: number | null;
+}
+
+export interface DepthOut {
+  symbol: string;
+  recording: boolean;
+  symbols: string[];
+  retentionDays: number;
+  feeds: Record<string, DepthFeedOut>;
+  columns: DepthColumnOut[];
+}
+
 export interface FlowOut {
   deltaRatio: number | null;
   flow: "confirms" | "against" | "neutral" | null;

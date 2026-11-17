@@ -343,3 +343,16 @@ split: buckets would be too small. The ±2% delta cut was set from the feature's
 ETH 4h (median |ratio| 0.023), not from outcomes. The UI calls a bucket better or worse only when
 its whole Wilson range is on one side of the setup's rate, and warns that many buckets are
 compared at once (multiple-testing correction is still Phase 2).
+
+### 2026-11-17 · Order-book depth is recorded in the API process, one column per minute
+
+Why: the heatmap lost its history on every reload (step 3 of the order-flow rebuild). The
+recorder (`backend/src/tcs/depth/`) runs as asyncio tasks inside the API process rather than a
+separate collector: no new process to start, and the QuestDB collector (Phase 1) can absorb it
+later. It ports the browser's tested book sync and bucketing, samples every 2 s and stores the
+per-minute average (about 1.5 KB per coin per minute, 7 days kept), not every sample, which
+would be ~250 MB a day for 10 coins. BTC and ETH are recorded from the start
+(`TCS_DEPTH_SYMBOLS`); opening the heatmap on another coin starts recording it too, up to 6
+coins (two sockets each), until the process restarts. The browser puts the recorded minutes in
+front of its own 2 s samples and adopts the recorded bucket size so both share columns. New
+dependency: `websockets` (BSD-3, TOOLING).

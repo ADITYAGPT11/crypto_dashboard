@@ -262,3 +262,36 @@ class HealthOut(Out):
     ok: bool
     ruleset: str
     runs: dict[str, RunOut | None]
+
+
+class DepthFeedOut(Out):
+    state: Literal["connecting", "live", "down"]
+    error: str | None
+    #: Price levels in the synced book.
+    levels: int
+    #: When the feed last became live (ms), or null.
+    since: int | None
+
+
+class DepthColumnOut(Out):
+    """Average resting notional (quote currency) per price bucket over one minute."""
+
+    #: Minute open time, ms.
+    time: int
+    bucket: float
+    mid: float
+    samples: int
+    #: [bucket index (price = index x bucket), notional], bids and asks apart.
+    bids: list[tuple[int, float]]
+    asks: list[tuple[int, float]]
+
+
+class DepthOut(Out):
+    symbol: str
+    #: The analysis service is recording this symbol now.
+    recording: bool
+    #: Every symbol being recorded.
+    symbols: list[str]
+    retention_days: int
+    feeds: dict[str, DepthFeedOut]
+    columns: list[DepthColumnOut]

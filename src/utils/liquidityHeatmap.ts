@@ -206,3 +206,37 @@ export function liquidityPools(
   }
   return out.sort((a, b) => b.notional - a.notional);
 }
+
+/** One recorded minute from the analysis service (`/api/v1/depth`). */
+export interface RecordedColumn {
+  time: number;
+  bucket: number;
+  mid: number;
+  bids: [number, number][];
+  asks: [number, number][];
+}
+
+/** Recorded minutes as samples (placed mid-minute), so they share the live heatmap's maths. */
+export function columnsToSamples(columns: readonly RecordedColumn[]): BookSample[] {
+  return columns.map((c) => ({
+    time: c.time + 30_000,
+    mid: c.mid,
+    bucket: c.bucket,
+    bids: new Map(c.bids),
+    asks: new Map(c.asks),
+  }));
+}
+
+/**
+ * Recorded history followed by this tab's live samples: history only up to where live sampling
+ * began (no minute is counted twice).
+ */
+export function mergeSamples(
+  history: readonly BookSample[],
+  live: readonly BookSample[],
+): readonly BookSample[] {
+  if (history.length === 0) return live;
+  const start = live[0]?.time ?? Number.POSITIVE_INFINITY;
+  const before = history.filter((s) => s.time < start - 30_000);
+  return before.length === 0 ? live : [...before, ...live];
+}

@@ -3,8 +3,10 @@ import { LocalBook } from "../depthBook";
 import {
   bucketForBooks,
   bucketSize,
+  columnsToSamples,
   heatmapFrame,
   liquidityPools,
+  mergeSamples,
   sampleBooks,
   stableBucket,
 } from "../liquidityHeatmap";
@@ -114,5 +116,51 @@ describe("liquidityPools", () => {
     });
     expect(pools[0].multiple).toBeGreaterThan(10);
     expect(pools.filter((p) => p.wall)).toHaveLength(1);
+  });
+});
+
+describe("recorded depth history", () => {
+  const col = (time: number, bid: number) => ({
+    time,
+    bucket: 10,
+    mid: 100,
+    bids: [[9, bid]] as [number, number][],
+    asks: [[10, 5]] as [number, number][],
+  });
+
+  it("turns recorded minutes into samples placed mid-minute", () => {
+    const [s] = columnsToSamples([col(60_000, 900)]);
+    expect(s.time).toBe(90_000);
+    expect(s.bucket).toBe(10);
+    expect(s.bids.get(9)).toBe(900);
+    expect(s.asks.get(10)).toBe(5);
+  });
+
+  it("puts history before live samples without counting a minute twice", () => {
+    const history = columnsToSamples([col(0, 1), col(60_000, 2), col(120_000, 3)]);
+    const live = columnsToSamples([col(150_000, 9)]).map((s) => ({ ...s, time: 150_000 }));
+    const merged = mergeSamples(history, live);
+    expect(merged.map((s) => s.time)).toEqual([30_000, 90_000, 150_000]);
+    expect(mergeSamples([], live)).toBe(live);
+    expect(mergeSamples(history, []).length).toBe(3);
+  });
+
+  it("feeds the heatmap and pools across the reload", () => {
+    const history = columnsToSamples([col(0, 100), col(60_000, 100)]);
+    const frame = heatmapFrame(history, 60_000);
+    expect(frame?.columns.map((c) => c.time)).toEqual([0, 60_000]);
+    const pools = liquidityPools(
+      history.map((s) => ({
+        ...s,
+        bids: new Map([
+          [1, 1],
+          [2, 1],
+          [3, 1],
+          [4, 1],
+          [9, 100],
+        ]),
+      })),
+    );
+    expect(pools.find((p) => p.side === "bid")?.restingMs).toBe(60_000);
   });
 });

@@ -13,8 +13,10 @@ confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-0. Order-flow step 3: record order books server-side so the heatmap survives a reload
-   (`COMPETITORS.md` §4); run the r2 statistics on 1h and 1d too (only 4h was measured here).
+0. Owner: run `npm start` where Binance and OKX are reachable and check the depth recorder goes
+   live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
+   r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
+   the estimated liquidation map (`COMPETITORS.md` §4).
 1. Owner: run `npm start` on a machine that reaches Binance, let the first
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
@@ -30,9 +32,9 @@ Verified 2026-11-11 (test counts 2026-11-17):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 334 tests, 34 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 337 tests, 34 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 110 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 119 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -44,7 +46,7 @@ Verified 2026-11-11 (test counts 2026-11-17):
   (`engine.analyze` is the single entry point; catalogue and `RULESET_VERSION` in `catalog.py`;
   rules written out in `docs/product/patterns.md`); `jobs/stats_job.py` background statistics;
   `marketdata/` Binance REST + `data.binance.vision` archive backfill; `store/sqlite.py`;
-  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner}`.
+  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner,depth}`; `depth/` order-book recorder.
   `src/api/schema.ts` is generated from it (`npm run api:types`; a test fails when stale).
 - **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
   live forming candle) plus the service's patterns (direction arrows, outlines, necklines,
@@ -78,13 +80,22 @@ Verified 2026-11-11 (test counts 2026-11-17):
 4. **Statistics are gross** (no fees/slippage) and in-sample; Phase 2 adds costs and
    out-of-sample tests. Many setups have too few cases per bucket on 1d.
 5. **Order-book depth is shallow**: OKX sends 400 levels, Binance 1000, so pools are near the
-   price (for BTC tens to hundreds of dollars away). The heatmap starts when the page opens.
+   price (for BTC tens to hundreds of dollars away). Heatmap history comes from the analysis
+   service's recorder (BTC, ETH, and coins opened with the heatmap on, 7 days); without the
+   service it starts when the page opens. The recorder has not run against live exchanges yet
+   (sandbox: Binance REST 451, OKX socket reset; both fail cleanly and retry with backoff).
 6. Delta funding-rate units unverified; Delta prices are USD-quoted (tagged, left out of spreads).
 7. Dashboard v2 sources Fear & Greed and CoinGecko unverified against the live APIs.
 8. `.idx/dev.nix` lists Svelte/Vue extensions; the Markets page's price-rule alerts are separate.
 
 ## History
 
+- 2026-11-17: **Heatmap history survives a reload**: the analysis service records Binance + OKX
+  perpetual books (`tcs/depth/`, same sync and bucketing as the browser, 2 s samples averaged
+  per minute, 7 days) for BTC and ETH and any coin the chart opens with the heatmap on (≤ 6);
+  `/api/v1/depth/{symbol}`. The chart loads 6 h of recorded minutes ahead of its live samples
+  (pools' "for" spans the reload). Tested with fake sockets end to end; new dependency
+  `websockets` (BSD-3).
 - 2026-11-17: **Footprint layer** (Overlays → Footprint): live Binance perp trades since the page
   opened, binned per view bar and price row (about 12 rows per typical candle, nice step):
   aggressive sells × buys as numbers when zoomed in, delta-coloured cells when not, 3× diagonal

@@ -59,7 +59,8 @@ import { useBigTrades } from "../../custom-hooks/useBigTrades";
 import { useFootprint } from "../../custom-hooks/useFootprint";
 import { autoStep } from "../../utils/footprint";
 import { formatCompactUsd } from "../../utils/priceUtils";
-import { heatmapFrame, liquidityPools } from "../../utils/liquidityHeatmap";
+import { heatmapFrame, liquidityPools, mergeSamples } from "../../utils/liquidityHeatmap";
+import { useDepthHistory } from "../../custom-hooks/useDepthHistory";
 import {
   CHART_PREFS_STORAGE_KEY,
   loadJson,
@@ -429,17 +430,23 @@ const ChartPage: React.FC = () => {
   const behind = selAnalysis?.coverage.behind ?? 0;
 
   // Order-book liquidity (only while the heatmap layer is on: no sockets otherwise).
+  const depthHistory = useDepthHistory(layers.heatmap ? symbol : null);
   const liquidity = useLiquidity(layers.heatmap ? symbol : null);
   // Big taker orders (only while the layer is on).
   const bigTrades = useBigTrades(layers.bigTrades ? symbol : null);
   // Footprint rows sized from recent candles (about 12 rows per typical candle).
   const footprintStep = useMemo(() => autoStep(view.candles), [view.candles]);
   const footprint = useFootprint(layers.footprint ? symbol : null, TF_MS[viewTf], footprintStep);
-  const heatmap = useMemo(
-    () => (layers.heatmap ? heatmapFrame(liquidity.samples, TF_MS[viewTf]) : null),
-    [layers.heatmap, liquidity.samples, viewTf],
+  // Recorded history (analysis service) followed by this tab's live samples.
+  const depthSamples = useMemo(
+    () => mergeSamples(depthHistory.samples, liquidity.samples),
+    [depthHistory.samples, liquidity.samples],
   );
-  const pools = useMemo(() => liquidityPools(liquidity.samples), [liquidity.samples]);
+  const heatmap = useMemo(
+    () => (layers.heatmap ? heatmapFrame(depthSamples, TF_MS[viewTf]) : null),
+    [layers.heatmap, depthSamples, viewTf],
+  );
+  const pools = useMemo(() => liquidityPools(depthSamples), [depthSamples]);
 
   const last = candles[candles.length - 1];
   const days =
@@ -611,7 +618,14 @@ const ChartPage: React.FC = () => {
             </div>
           </div>
 
-          {layers.heatmap && <LiquidityPanel liquidity={liquidity} pools={pools} />}
+          {layers.heatmap && (
+            <LiquidityPanel
+              liquidity={liquidity}
+              pools={pools}
+              history={depthHistory}
+              since={depthSamples[0]?.time}
+            />
+          )}
 
           <div className={styles.grid2}>
             <section className={styles.card} aria-labelledby="levels-title">

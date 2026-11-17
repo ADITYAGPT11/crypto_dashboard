@@ -132,8 +132,8 @@ criteria met.
   liquidations, OI, estimated liquidation map → absorption / stop-run / iceberg as measured context →
   rule builder + backtester. Supersedes the old Module 10 derivatives-stats idea.
   Step 1 ✅ 2026-11-17 (delta, CVD, big trades on the chart; measured as setup context, r2).
-  Step 2 ✅ 2026-11-17 (live footprint layer). Next: step 3, server-side heatmap recording.
-- Server-side order-book depth recording (heatmap history that survives a reload).
+  Step 2 ✅ 2026-11-17 (live footprint layer). Step 3 ✅ 2026-11-17 (depth recorder, heatmap
+  history). Next: step 4, liquidations + OI/funding + estimated liquidation map.
 - Angel One / Indian equities (removed in `4350c71`).
 - Auto-execution, only after Phase 4/6 evidence justifies it.
 - Top news panel (needs a source: backend-fetched RSS or a free CryptoPanic key, owner to approve).

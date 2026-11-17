@@ -19,6 +19,7 @@ import numpy as np
 
 from tcs.common.series import Candle, Series
 from tcs.common.timeframes import Timeframe
+from tcs.depth.sampler import Column
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS candles (
@@ -48,6 +49,13 @@ CREATE TABLE IF NOT EXISTS setup_cases (
   pattern TEXT NOT NULL, direction TEXT NOT NULL, location TEXT NOT NULL,
   time INTEGER NOT NULL, result TEXT NOT NULL, detail TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS depth_columns (
+  symbol TEXT NOT NULL, time INTEGER NOT NULL,
+  bucket REAL NOT NULL, mid REAL NOT NULL, samples INTEGER NOT NULL,
+  bids TEXT NOT NULL, asks TEXT NOT NULL,
+  PRIMARY KEY (symbol, time)
+) WITHOUT ROWID;
+
 CREATE INDEX IF NOT EXISTS setup_cases_key
   ON setup_cases (ruleset, tf, zone_tf, pattern, direction, location, time);
 """
@@ -315,4 +323,49 @@ class Store:
         return [
             {"symbol": r[0], "location": r[1], "time": r[2], "result": r[3], **json.loads(r[4])}
             for r in self._conn().execute(sql, args).fetchall()
+        ]
+
+    # Order-book depth (heatmap history) ---------------------------------------
+
+    def put_depth(self, symbol: str, col: Column, delete_before: int | None = None) -> None:
+        """Store one minute column; drop this symbol's columns older than ``delete_before``."""
+        side = lambda m: json.dumps([[k, round(v, 2)] for k, v in sorted(m.items())])  # noqa: E731
+        with self.tx() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO depth_columns VALUES (?,?,?,?,?,?,?)",
+                (
+                    symbol,
+                    col.time,
+                    col.bucket,
+                    col.mid,
+                    col.samples,
+                    side(col.bids),
+                    side(col.asks),
+                ),
+            )
+            if delete_before is not None:
+                db.execute(
+                    "DELETE FROM depth_columns WHERE symbol=? AND time < ?", (symbol, delete_before)
+                )
+
+    def depth(self, symbol: str, since: int, until: int | None = None) -> list[Column]:
+        sql = (
+            "SELECT time, bucket, mid, samples, bids, asks FROM depth_columns "
+            "WHERE symbol=? AND time >= ?"
+        )
+        args: list[Any] = [symbol, since]
+        if until is not None:
+            sql += " AND time <= ?"
+            args.append(until)
+        rows = self._conn().execute(sql + " ORDER BY time", args).fetchall()
+        return [
+            Column(
+                int(r[0]),
+                float(r[1]),
+                float(r[2]),
+                int(r[3]),
+                {int(k): float(v) for k, v in json.loads(r[4])},
+                {int(k): float(v) for k, v in json.loads(r[5])},
+            )
+            for r in rows
         ]
