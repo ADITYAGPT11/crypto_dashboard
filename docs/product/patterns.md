@@ -110,7 +110,7 @@ under TA-Lib's definition. Doji are indecision, not a direction.
 ## Order-book liquidity (browser, observation only)
 
 Full books of Binance USDⓈ-M (REST snapshot + diff stream, Binance's documented sync) and OKX
-perpetuals (`books` channel, sequence-checked) are summed and bucketed into about 50 round price
+perpetuals (`books` channel, sequence-checked) are summed and bucketed into about 120 round price
 steps across the range the books cover, sampled every 2 s since the page opened. The heatmap shows
 the average resting size per chart bar; the pools table lists the largest buckets per side, a
 **wall** being ≥ 3× the side's median bucket. Visible orders can be pulled or spoofed and their

@@ -212,6 +212,15 @@
 .chartBox {
   position: absolute;
   inset: 0;
+  z-index: 1;
+}
+/* Liquidity heatmap: under the chart's (transparent) canvases, so candles draw on top. */
+.heat {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 0;
 }
 .overlay {
   position: absolute;

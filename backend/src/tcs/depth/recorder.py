@@ -24,10 +24,13 @@ import httpx
 
 from tcs.depth.books import (
     BinanceBookSync,
+    LocalBook,
     OkxBookSync,
+    far_book,
     parse_binance_diff,
     parse_levels,
     parse_okx_book,
+    parse_okx_full_book,
 )
 from tcs.depth.sampler import Column, MinuteSampler
 from tcs.store.sqlite import Store
@@ -46,6 +49,9 @@ BINANCE_WS = "wss://fstream.binance.com/public/stream?streams={sym}@depth@500ms"
 BINANCE_DEPTH = "https://fapi.binance.com/fapi/v1/depth"
 OKX_WS = "wss://ws.okx.com/ws/v5/public"
 OKX_INSTRUMENTS = "https://www.okx.com/api/v5/public/instruments"
+OKX_BOOKS_FULL = "https://www.okx.com/api/v5/market/books-full"
+#: OKX's full book (5 000 levels a side) refreshes the far levels this often.
+DEEP_S = 5.0
 
 Exchange = Literal["BINANCE", "OKX"]
 State = Literal["connecting", "live", "down"]
@@ -79,6 +85,10 @@ class SymbolBooks:
     okx: OkxBookSync = field(default_factory=OkxBookSync)
     feeds: dict[Exchange, Feed] = field(default_factory=lambda: {"BINANCE": Feed(), "OKX": Feed()})
     sampler: MinuteSampler = field(default_factory=MinuteSampler)
+    #: OKX contract value (base units per contract), once known.
+    okx_ct_val: float = 0.0
+    #: OKX's full REST book, for the levels beyond the live 400.
+    okx_deep: LocalBook | None = None
 
 
 def _default_connect(url: str) -> contextlib.AbstractAsyncContextManager[Socket]:
@@ -98,6 +108,7 @@ class DepthRecorder:
         fetch_json: FetchJson | None = None,
         now: Callable[[], int] = lambda: int(time.time() * 1000),
         sample_s: float = SAMPLE_S,
+        deep_s: float = DEEP_S,
     ) -> None:
         self.store = store
         self.configured = symbols
@@ -106,6 +117,7 @@ class DepthRecorder:
         self._fetch = fetch_json or self._http_json
         self._now = now
         self._sample_s = sample_s
+        self._deep_s = deep_s
         self._client: httpx.AsyncClient | None = None
         self.books: dict[str, SymbolBooks] = {}
         self._tasks: list[asyncio.Task[None]] = []
@@ -148,7 +160,12 @@ class DepthRecorder:
         if symbol in self.books:
             return
         b = self.books[symbol] = SymbolBooks()
-        for coro in (self._binance(symbol, b), self._okx(symbol, b), self._sample(symbol, b)):
+        for coro in (
+            self._binance(symbol, b),
+            self._okx(symbol, b),
+            self._okx_deep(symbol, b),
+            self._sample(symbol, b),
+        ):
             self._tasks.append(asyncio.create_task(coro))
 
     def _cutoff(self) -> int:
@@ -164,11 +181,14 @@ class DepthRecorder:
                 await asyncio.to_thread(self.store.put_depth, symbol, col, self._cutoff())
 
     def sample_once(self, symbol: str, b: SymbolBooks) -> Column | None:
-        books = []
+        books: list[LocalBook] = []
         if b.binance.ready and b.feeds["BINANCE"].state == "live":
             books.append(b.binance.book)
-        if b.okx.ready and b.feeds["OKX"].state == "live":
+        okx_live = b.okx.ready and b.feeds["OKX"].state == "live"
+        if okx_live:
             books.append(b.okx.book)
+        if okx_live and b.okx_deep is not None:
+            books.append(far_book(b.okx_deep, list(books)))
         b.feeds["BINANCE"].levels = len(b.binance.book.bids) + len(b.binance.book.asks)
         b.feeds["OKX"].levels = len(b.okx.book.bids) + len(b.okx.book.asks)
         return b.sampler.sample(books, self._now())
@@ -247,6 +267,20 @@ class DepthRecorder:
 
         await self._reconnecting(feed, f"{symbol} BINANCE", session)
 
+    async def _okx_deep(self, symbol: str, b: SymbolBooks) -> None:
+        inst = f"{symbol}-SWAP"
+        while True:
+            await asyncio.sleep(self._deep_s)
+            if not b.okx_ct_val > 0:
+                continue
+            try:
+                body = await self._fetch(OKX_BOOKS_FULL, {"instId": inst, "sz": "5000"})
+                b.okx_deep = parse_okx_full_book(body, b.okx_ct_val) or b.okx_deep
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:
+                log.debug("depth %s OKX full book: %s", symbol, err)
+
     async def _okx(self, symbol: str, b: SymbolBooks) -> None:
         inst = f"{symbol}-SWAP"
         feed, sync = b.feeds["OKX"], b.okx
@@ -260,6 +294,7 @@ class DepthRecorder:
                 ct_val = float(data[0].get("ctVal") or 0)
                 if not ct_val > 0:
                     raise RuntimeError(f"{inst} not listed on OKX")
+                b.okx_ct_val = ct_val
             async with self._connect(OKX_WS) as ws:
                 sync.reset()
 

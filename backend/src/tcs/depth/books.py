@@ -206,3 +206,25 @@ class OkxBookSync:
         self.book.apply("ask", m.asks)
         self._seq = m.seq
         return "resync" if self.book.crossed() else "applied"
+
+
+def far_book(deep: LocalBook, near: list[LocalBook]) -> LocalBook:
+    """Levels of a deep (REST) book beyond what the live books cover: bids below their lowest
+    bid, asks above their highest ask (port of ``farBook`` in ``depthBook.ts``)."""
+    min_bid = min((p for b in near for p in b.bids), default=math.inf)
+    max_ask = max((p for b in near for p in b.asks), default=-math.inf)
+    out = LocalBook()
+    out.bids.update({p: q for p, q in deep.bids.items() if p < min_bid})
+    out.asks.update({p: q for p, q in deep.asks.items() if p > max_ask})
+    return out
+
+
+def parse_okx_full_book(body: Any, ct_val: float) -> LocalBook | None:
+    """OKX ``market/books-full`` (sizes in contracts) as a book in base units."""
+    data = body.get("data") if isinstance(body, dict) else None
+    if not isinstance(data, list) or not data or not isinstance(data[0], dict):
+        return None
+    book = LocalBook()
+    book.apply("bid", parse_levels(data[0].get("bids"), ct_val))
+    book.apply("ask", parse_levels(data[0].get("asks"), ct_val))
+    return book if book.bids or book.asks else None

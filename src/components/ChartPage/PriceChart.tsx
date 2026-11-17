@@ -26,8 +26,10 @@ import type { Candle, CandleInterval } from "../../types/marketData";
 import type { Direction, OutcomeResult } from "../../types/analysis";
 import type { ViewLevel, ViewPattern } from "../../utils/timeframeMapping";
 import { patternShort } from "../../utils/patternLabels";
-import type { HeatmapFrame } from "../../utils/liquidityHeatmap";
-import { drawHeatmap } from "./drawHeatmap";
+import type { BookSample } from "../../utils/liquidityHeatmap";
+import type { HeatContrast } from "../../utils/heatmapRender";
+import { timeToLogical } from "../../utils/orderFlow";
+import { clearHeatmap, drawDepthProfile, drawHeatmap } from "./drawHeatmap";
 import { TF_MS } from "../../utils/timeframeMapping";
 import { drawBigTrades } from "./drawBigTrades";
 import { drawFootprint } from "./drawFootprint";
@@ -51,6 +53,8 @@ export interface Layers {
   vp: boolean;
   pattern: boolean;
   heatmap: boolean;
+  /** How hard the heatmap's colour saturates (share of visible cells below full brightness). */
+  heatContrast: HeatContrast;
   bigTrades: boolean;
   footprint: boolean;
   /** Text labels on zones and blocks. */
@@ -95,8 +99,8 @@ interface Props {
   onIndicator: (uid: string, action: IndicatorAction) => void;
   /** Zones, order blocks and gaps mapped onto the view (any source timeframe). */
   levels: ViewLevel[];
-  /** Resting order-book liquidity sampled since the page opened (heatmap layer). */
-  heatmap?: HeatmapFrame | null;
+  /** Order-book snapshots (recorded history, then live) for the heatmap layer, ascending. */
+  heatmap?: readonly BookSample[] | null;
   /** Big taker orders since the page opened (bubbles layer). */
   bigTrades?: BigTrades | null;
   /** Volume by price per bar since the page opened (footprint layer). */
@@ -218,6 +222,7 @@ const PriceChart: React.FC<Props> = ({
 }) => {
   const boxRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
+  const heatRef = useRef<HTMLCanvasElement>(null);
   const focusedRef = useRef<string | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const mainRef = useRef<{ api: ISeriesApi<SeriesType>; type: ChartType } | null>(null);
@@ -608,7 +613,16 @@ const PriceChart: React.FC<Props> = ({
     g.font = "11px JetBrains Mono, monospace";
     g.textBaseline = "middle";
 
-    if (ly.heatmap && hm) drawHeatmap(g, hm, cs, vtf, x, y, plotW, h);
+    // The forming bar sits right after the last closed one, whatever the clock says (the
+    // history can lag), so live data is placed on it rather than by elapsed time.
+    const bars = lv && cs.length && lv.openTime > cs[cs.length - 1].openTime ? [...cs, lv] : cs;
+    const xAt = (time: number) => {
+      const l = timeToLogical(bars, time, TF_MS[vtf]);
+      return l === null ? null : x(l);
+    };
+    const heatOn = ly.heatmap && hm && hm.length > 0 && heatRef.current;
+    if (heatOn) drawHeatmap(heatRef.current!, hm, xAt, y, plotW, h, ly.heatContrast);
+    else clearHeatmap(heatRef.current);
 
     const LEVEL_STYLE = {
       zone: { on: ly.zones, alpha: 0.12 },
@@ -774,9 +788,7 @@ const PriceChart: React.FC<Props> = ({
       g.lineWidth = 1;
     }
     // Last, so live prints stay visible above zones and the pattern drawing.
-    // The forming bar sits right after the last closed one, whatever the clock says (the
-    // history can lag), so live data is placed on it rather than by elapsed time.
-    const bars = lv && cs.length && lv.openTime > cs[cs.length - 1].openTime ? [...cs, lv] : cs;
+    if (heatOn) drawDepthProfile(g, hm[hm.length - 1], y, plotW, h);
     if (ly.footprint && fp) drawFootprint(g, fp.bars, fp.step, bars, TF_MS[vtf], x, y, h);
     if (ly.bigTrades && bt) drawBigTrades(g, bt.prints, bt.threshold, bars, vtf, x, y);
     g.restore();
@@ -852,6 +864,7 @@ const PriceChart: React.FC<Props> = ({
 
   return (
     <div className={styles.chartArea}>
+      <canvas ref={heatRef} className={styles.heat} aria-hidden="true" />
       <div ref={boxRef} className={styles.chartBox} />
       <canvas ref={overlayRef} className={styles.overlay} aria-hidden="true" />
       <div className={styles.legend0} style={{ top: 6 }}>

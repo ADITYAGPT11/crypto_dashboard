@@ -8,6 +8,9 @@
  * nearest few of each kind to the current price.
  */
 import type { FairValueGap, OrderBlock, Zone } from "../types/analysis";
+import type { HeatContrast } from "./heatmapRender";
+
+export const HEAT_CONTRASTS: readonly HeatContrast[] = ["low", "normal", "high"];
 
 export interface OverlaySettings {
   pattern: boolean;
@@ -16,6 +19,8 @@ export interface OverlaySettings {
   fvg: boolean;
   vp: boolean;
   heatmap: boolean;
+  /** Heatmap colour saturation: low shows only the biggest walls, high lights up thinner ones. */
+  heatContrast: HeatContrast;
   /** Big taker orders as bubbles (live, since the page opened). */
   bigTrades: boolean;
   /** Volume by price inside each candle, by aggressor side (live, since the page opened). */
@@ -43,6 +48,7 @@ export const DEFAULT_OVERLAYS: OverlaySettings = {
   fvg: false,
   vp: true,
   heatmap: false,
+  heatContrast: "normal",
   bigTrades: false,
   footprint: false,
   labels: true,
@@ -73,6 +79,7 @@ export function parseOverlays(value: unknown): OverlaySettings {
     fvg: flag("fvg"),
     vp: flag("vp"),
     heatmap: flag("heatmap"),
+    heatContrast: HEAT_CONTRASTS.find((c) => c === v.heatContrast) ?? "normal",
     bigTrades: flag("bigTrades"),
     footprint: flag("footprint"),
     labels: flag("labels"),

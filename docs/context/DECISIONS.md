@@ -365,3 +365,15 @@ proxies dropping OKX's 8443 and Binance spot's 9443. Both exchanges serve the sa
 443, so we use 443 everywhere. `BinanceAdapter` keeps its public API (spot / futures) and routes
 each stream to its socket internally (`binanceSocketFor`); futures connection state follows the
 `/market` socket. Exchanges now connect independently, as the guardrail always required.
+
+### 2026-11-17 · Heatmap: per-snapshot columns, thermal palette, deep book from OKX REST
+
+Why: owner feedback that the heatmap was not industry standard. Bookmap / TradingLite draw one
+column per book snapshot behind the price with a thermal palette, auto contrast and a wide price
+range; ours averaged per candle, drew over the candles and saw ±$40 of BTC. Now
+`utils/heatmapRender.ts` rasterises snapshots into an ImageData buffer (cheap per scroll) on a
+canvas under the chart; bids and asks share one colour scale (size is what the colour says; the
+depth profile shows the sides). The live sockets stay the source near the price (fresh, exact);
+OKX's `books-full` REST (5 000 levels a side) is polled every 5 s for the levels beyond them
+(`farBook`), well inside OKX's public rate limit. Binance's REST depth is capped at 1 000 levels,
+so it adds nothing beyond its socket.

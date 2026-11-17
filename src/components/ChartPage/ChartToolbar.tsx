@@ -38,7 +38,10 @@ function usePopover() {
   return { open, setOpen, ref };
 }
 
-const LAYERS: [keyof Layers, string][] = [
+/** Layers that are switched on and off (not settings such as the heatmap contrast). */
+type LayerFlag = { [K in keyof Layers]: Layers[K] extends boolean ? K : never }[keyof Layers];
+
+const LAYERS: [LayerFlag, string][] = [
   ["pattern", "Patterns"],
   ["zones", "Demand / supply zones"],
   ["orderBlocks", "Order blocks"],
@@ -65,7 +68,7 @@ interface Props {
   onChartType: (t: ChartType) => void;
   onIndicators: () => void;
   layers: Layers;
-  onLayer: (k: keyof Layers) => void;
+  onLayer: (k: LayerFlag) => void;
   onDisplaySettings: () => void;
   scale: ScaleMode;
   onScale: (m: ScaleMode) => void;

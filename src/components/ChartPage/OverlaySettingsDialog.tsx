@@ -2,6 +2,7 @@ import { Modal } from "./Modal";
 import {
   DEFAULT_OVERLAYS,
   PATTERN_TAG_CHOICES,
+  HEAT_CONTRASTS,
   PER_KIND_CHOICES,
   ZONE_ATR_CHOICES,
   type OverlaySettings,
@@ -100,6 +101,23 @@ const OverlaySettingsDialog: React.FC<{
             <input type="checkbox" checked={value[k]} onChange={(e) => set(k, e.target.checked)} />
           </label>
         ))}
+      </div>
+      <h3 className={styles.sub}>Liquidity heatmap</h3>
+      <div className={styles.form}>
+        <label title="Brightest colour = the largest 0.2% / 1.5% / 6% of the cells on screen">
+          <span>Contrast</span>
+          <select
+            className={styles.select}
+            value={value.heatContrast}
+            onChange={(e) =>
+              set("heatContrast", HEAT_CONTRASTS.find((c) => c === e.target.value) ?? "normal")
+            }
+          >
+            <option value="low">Low · only the biggest walls</option>
+            <option value="normal">Normal</option>
+            <option value="high">High · thinner liquidity lights up</option>
+          </select>
+        </label>
       </div>
       <h3 className={styles.sub}>Pattern tags</h3>
       <div className={styles.form}>

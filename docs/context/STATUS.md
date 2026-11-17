@@ -80,8 +80,9 @@ Verified 2026-11-11 (test counts 2026-11-17):
    levels; Telegram still goes through the Node prototype (`npm run backend`).
 4. **Statistics are gross** (no fees/slippage) and in-sample; Phase 2 adds costs and
    out-of-sample tests. Many setups have too few cases per bucket on 1d.
-5. **Order-book depth is shallow**: OKX sends 400 levels, Binance 1000, so pools are near the
-   price (for BTC tens to hundreds of dollars away). Heatmap history comes from the analysis
+5. **Order-book depth**: live levels near the price come from the sockets (OKX 400, Binance
+   1000); OKX's full REST book (5 000 a side, refreshed every 5 s) fills the rest, about ±1.2% on
+   BTC. Walls beyond that are not seen. Heatmap history comes from the analysis
    service's recorder (BTC, ETH, and coins opened with the heatmap on, 7 days); without the
    service it starts when the page opens. The recorder ran live on OKX in the sandbox (800 levels,
    one column a minute); Binance's half needs REST for its snapshot (see issue 1).
@@ -90,6 +91,14 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-17: **Liquidity heatmap redrawn to industry standard** (owner feedback): one column per
+  book snapshot on the time axis instead of an average per candle; its own canvas behind the
+  candles; thermal palette (navy → blue → cyan → green → yellow → orange → red → white) for
+  bids and asks together; contrast from the cells on screen (Display settings: low / normal /
+  high); current book as a depth profile at the right edge; 120 price rows (was 50, server
+  recorder too). Depth: OKX's full REST book (5 000 levels a side, every 5 s) fills the levels
+  beyond the live 400, so the heat reaches about ±1.2% on BTC and ±3% on ETH instead of ±$40;
+  the recorder stores the same. Verified live on OKX in the browser.
 - 2026-11-17: **Live data fixed and verified against the real exchanges** (network access added
   for the remaining hosts). Found by the live run: (1) Binance split its futures WebSockets in
   March 2026 (`/public` for depth and bookTicker, `/market` for aggTrade, kline, markPrice,

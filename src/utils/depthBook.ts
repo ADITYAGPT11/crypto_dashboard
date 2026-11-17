@@ -199,3 +199,31 @@ export class OkxBookSync {
     return this.book.crossed() ? "resync" : "applied";
   }
 }
+
+/**
+ * The part of a deep (slower, REST) book that lies beyond what the live books cover: bids below
+ * their lowest bid, asks above their highest ask. Added to the live books when sampling, so the
+ * heatmap reaches far from the price while levels near it stay exact and fresh.
+ */
+export function farBook(deep: LocalBook, near: readonly LocalBook[]): LocalBook {
+  let minBid = Infinity;
+  let maxAsk = -Infinity;
+  for (const b of near) {
+    for (const p of b.bids.keys()) if (p < minBid) minBid = p;
+    for (const p of b.asks.keys()) if (p > maxAsk) maxAsk = p;
+  }
+  const out = new LocalBook();
+  for (const [p, q] of deep.bids) if (p < minBid) out.bids.set(p, q);
+  for (const [p, q] of deep.asks) if (p > maxAsk) out.asks.set(p, q);
+  return out;
+}
+
+/** Parse OKX `market/books-full` (sizes in contracts → base units with `ctVal`). */
+export function parseOkxFullBook(body: unknown, ctVal: number): LocalBook | null {
+  const d = (body as { data?: { bids?: unknown; asks?: unknown }[] } | null)?.data?.[0];
+  if (!d) return null;
+  const book = new LocalBook();
+  book.apply("bid", parseLevels(d.bids, ctVal));
+  book.apply("ask", parseLevels(d.asks, ctVal));
+  return book.bids.size + book.asks.size > 0 ? book : null;
+}

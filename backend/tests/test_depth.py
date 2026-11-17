@@ -19,6 +19,7 @@ from tcs.depth.books import (
     BinanceBookSync,
     LocalBook,
     OkxBookSync,
+    far_book,
     parse_binance_diff,
     parse_okx_book,
 )
@@ -87,6 +88,18 @@ def test_okx_sync_checks_sequence_and_multiplies_contracts() -> None:
     assert parse_okx_book({"event": "subscribe"}, 1) is None
 
 
+def test_far_book_keeps_only_levels_beyond_the_live_books() -> None:
+    deep = LocalBook()
+    deep.bids.update({99.0: 9.0, 90.0: 1.0, 50.0: 2.0})
+    deep.asks.update({101.0: 9.0, 150.0: 3.0})
+    near = LocalBook()
+    near.bids.update({99.0: 1.0, 95.0: 1.0})
+    near.asks.update({101.0: 1.0, 110.0: 1.0})
+    far = far_book(deep, [near])
+    assert far.bids == {90.0: 1.0, 50.0: 2.0}
+    assert far.asks == {150.0: 3.0}
+
+
 # Sampler --------------------------------------------------------------------
 
 
@@ -107,7 +120,7 @@ def test_nice_step_and_stable_bucket() -> None:
 
 def test_minute_columns_average_samples_and_add_exchanges() -> None:
     s = MinuteSampler()
-    # Two exchanges, the book spans 50..150 -> bucket 2.
+    # Two exchanges, the book spans 50..150 -> 120 buckets of 1 (nice step of 0.83).
     a = book({50.0: 1.0, 99.0: 2.0}, {101.0: 1.0, 150.0: 1.0})
     b = book({99.0: 2.0}, {101.0: 1.0})
     assert s.sample([a, b], 0) is None
@@ -115,8 +128,8 @@ def test_minute_columns_average_samples_and_add_exchanges() -> None:
     assert s.sample([a, b], 30_000) is None
     col = s.sample([a, b], 60_000)  # next minute closes the first
     assert col is not None
-    assert col.time == 0 and col.samples == 2 and col.bucket == 2
-    k = 99 // 2
+    assert col.time == 0 and col.samples == 2 and col.bucket == 1
+    k = 99
     # notional at 99: (2+2)*99 then (0+2)*99 -> average 3*99
     assert col.bids[k] == pytest.approx(3 * 99)
     assert col.mid == pytest.approx(100)
@@ -161,6 +174,8 @@ def fake_connect(sockets: dict[str, FakeSocket]) -> Any:
 
 
 async def fake_fetch(url: str, params: dict[str, str]) -> Any:
+    if "books-full" in url:  # OKX's deep book: 5 000 levels, here two far ones (contracts)
+        return {"data": [{"bids": [["40", "500"], ["99", "999"]], "asks": [["160", "500"]]}]}
     if "depth" in url:
         return {
             "lastUpdateId": 100,
@@ -198,6 +213,7 @@ def test_recorder_records_minute_columns_from_both_exchanges(tmp_path: Path) -> 
             fetch_json=fake_fetch,
             now=now,
             sample_s=0.01,
+            deep_s=0.005,
         )
         await rec.start()
         for _ in range(200):
@@ -218,10 +234,15 @@ def test_recorder_records_minute_columns_from_both_exchanges(tmp_path: Path) -> 
     assert len(cols) >= 2
     c = cols[-1]
     k = int(99 // c.bucket)
-    # At 99: Binance 2 + OKX 100 contracts x 0.01 = 3 base units; the diff's 1 at 98 shares
-    # the bucket (bucket 2 spans 98-100).
-    assert c.bucket == 2
-    assert c.bids[k] == pytest.approx(3 * 99 + 98)
+    # At 99: Binance 2 + OKX 100 contracts x 0.01 = 3 base units (the book spans 50..150,
+    # so buckets are 1 wide and the diff's 1 at 98 has its own).
+    # The deep REST book adds only what lies beyond the live books (its 99 is ignored): the
+    # reach becomes 40..160, so buckets are 1 wide; 500 contracts x 0.01 = 5 at 40 and 160.
+    assert c.bucket == 1
+    assert c.bids[k] == pytest.approx(3 * 99)
+    assert c.bids[98] == pytest.approx(98)
+    assert c.bids[40] == pytest.approx(5 * 40)
+    assert c.asks[160] == pytest.approx(5 * 160)
 
 
 def test_store_keeps_only_the_retention_window(tmp_path: Path) -> None:

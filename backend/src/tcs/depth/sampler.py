@@ -3,8 +3,8 @@
 Every few seconds the synced books are bucketed by price (notional in quote currency per
 bucket, bids and asks apart, exchanges added up). Samples are averaged per minute, so a stored
 column is "resting notional per bucket, averaged over that minute": a wall that sat there all
-minute counts fully, one flashed for a second barely shows. The bucket size gives about 50
-buckets across the books' reach and is kept unless that reach changes by more than 2x.
+minute counts fully, one flashed for a second barely shows. The bucket size gives about 120
+buckets across the books' reach (same as the browser's) and is kept unless that reach changes by more than 2x.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from tcs.depth.books import LocalBook
 
-BUCKETS_ACROSS_BOOK = 50
+BUCKETS_ACROSS_BOOK = 120
 MINUTE_MS = 60_000
 _NICE = (1.0, 2.0, 2.5, 5.0, 10.0)
 

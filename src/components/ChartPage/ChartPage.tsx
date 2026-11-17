@@ -59,7 +59,7 @@ import { useBigTrades } from "../../custom-hooks/useBigTrades";
 import { useFootprint } from "../../custom-hooks/useFootprint";
 import { autoStep } from "../../utils/footprint";
 import { formatCompactUsd } from "../../utils/priceUtils";
-import { heatmapFrame, liquidityPools, mergeSamples } from "../../utils/liquidityHeatmap";
+import { liquidityPools, mergeSamples } from "../../utils/liquidityHeatmap";
 import { useDepthHistory } from "../../custom-hooks/useDepthHistory";
 import {
   CHART_PREFS_STORAGE_KEY,
@@ -442,10 +442,7 @@ const ChartPage: React.FC = () => {
     () => mergeSamples(depthHistory.samples, liquidity.samples),
     [depthHistory.samples, liquidity.samples],
   );
-  const heatmap = useMemo(
-    () => (layers.heatmap ? heatmapFrame(depthSamples, TF_MS[viewTf]) : null),
-    [layers.heatmap, depthSamples, viewTf],
-  );
+  const heatmap = layers.heatmap ? depthSamples : null;
   const pools = useMemo(() => liquidityPools(depthSamples), [depthSamples]);
 
   const last = candles[candles.length - 1];
@@ -589,9 +586,14 @@ const ChartPage: React.FC = () => {
                 Volume by price
               </span>
               {layers.heatmap && (
-                <span>
-                  <i style={{ background: "linear-gradient(90deg,#1b2a4a,#f0a35e)" }} />
-                  Resting liquidity (order book)
+                <span title="Resting limit orders on Binance + OKX perpetuals, one column per snapshot; brightest = the largest few percent on screen (Display settings → heatmap contrast). Bars at the right edge: the current book, bids green, asks red.">
+                  <i
+                    style={{
+                      background:
+                        "linear-gradient(90deg,#0c1648,#1634a0,#008cd2,#00c8aa,#5ad746,#f5e132,#fa8c1e,#eb3223,#fff5e6)",
+                    }}
+                  />
+                  Resting liquidity (order book), thin → thick
                 </span>
               )}
               {layers.footprint && (

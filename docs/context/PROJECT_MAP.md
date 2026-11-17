@@ -111,8 +111,8 @@ price table, spread (arbitrage), order book, alerts.
   subscribed; each source `loading | ok | unavailable`
 - `AnalysisApi` + `ApiResource`: the service's catalogue, analysis (refetched after each candle
   close), stats, setup detail and scanner as shared, auto-refreshing resources
-- `LiquidityService`: Binance + OKX full-depth books (own sockets), sampled every 2 s while the
-  heatmap is on
+- `LiquidityService`: Binance + OKX full-depth books (own sockets) plus OKX's 5 000-level REST
+  book every 5 s for the far levels, sampled every 2 s while the heatmap is on
 - `SetupAlertService`: setup-alert rules + firings (localStorage), 60 s check against the
   service's scanner, outcome tracking via its analysis, Telegram via the Node prototype
   `/api/alerts/send` (injectable deps for tests)
@@ -130,8 +130,9 @@ renders/s), `useLiveCandle` (forming candle: Binance, OKX when Binance is silent
 helpers: `volumeProfile` (visible-range histogram, key volume levels), `timeframeMapping` (times
 → view positions for patterns, zones, blocks, gaps), `setupKeys` (`pattern|direction|location`,
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
-sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync), `liquidityHeatmap`
-(buckets, per-bar frames, pools, recorded columns → samples, history + live merge), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
+sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`), `liquidityHeatmap`
+(buckets, samples, pools, recorded columns → samples, history + live merge), `heatmapRender`
+(thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
 position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `footprint`
 (rows, `FootprintBook`, diagonal imbalance), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
@@ -195,7 +196,7 @@ overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `Pri
 - Binance REST: `api.binance.com/api/v3/{exchangeInfo,klines,ticker/24hr}`,
   `fapi.binance.com/fapi/v1/{klines,ticker/24hr}`
 - OKX WS: `wss://ws.okx.com/ws/v5/public` (port 443; 8443 is often blocked by proxies) (tickers, funding-rate, `candle*` channels)
-- OKX REST: `www.okx.com/api/v5/{public/instruments,market/candles,market/ticker}`
+- OKX REST: `www.okx.com/api/v5/{public/instruments,market/candles,market/ticker,market/books-full}`
 - Delta India WS: `wss://public-socket.india.delta.exchange`
 - Binance futures REST: `fapi.binance.com/fapi/v1/{ticker/24hr,premiumIndex}`,
   `/futures/data/{openInterestHist,globalLongShortAccountRatio}`; WS `fstream…/market/ws/!forceOrder@arr`

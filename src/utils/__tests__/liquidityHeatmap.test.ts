@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
-import { LocalBook } from "../depthBook";
+import { farBook, LocalBook, parseOkxFullBook } from "../depthBook";
 import {
   bucketForBooks,
   bucketSize,
   columnsToSamples,
-  heatmapFrame,
   liquidityPools,
   mergeSamples,
   sampleBooks,
@@ -27,7 +26,7 @@ describe("bucketSize", () => {
 });
 
 describe("bucketForBooks", () => {
-  it("spreads about 50 buckets across the range the book covers", () => {
+  it("spreads about 120 buckets across the range the book covers", () => {
     // OKX sends 400 levels: for BTC at 0.1 tick that is only ~$40 each side.
     const b = book(
       [
@@ -39,7 +38,7 @@ describe("bucketForBooks", () => {
         [74_040, 1],
       ],
     );
-    expect(bucketForBooks([b])).toBe(2); // $80 / 50 = 1.6 → 2
+    expect(bucketForBooks([b])).toBe(1); // $80 / 120 = 0.67 → 1
     expect(bucketForBooks([new LocalBook()])).toBeNull();
   });
 
@@ -66,22 +65,6 @@ describe("sampleBooks", () => {
     expect(s.bids.get(99)).toBeCloseTo(99.5 * 2);
     expect(s.asks.get(101)).toBeCloseTo(101 + 101.4 * 3);
     expect(sampleBooks([], 0)).toBeNull();
-  });
-});
-
-describe("heatmapFrame", () => {
-  it("averages each bucket over the samples inside a bar", () => {
-    const wall = book([[100, 10]], [[101, 1]]);
-    const gone = book([[100, 0]], [[101, 1]]);
-    const samples = [
-      sampleBooks([wall], 0, 1)!,
-      sampleBooks([gone], 30_000, 1)!,
-      sampleBooks([wall], 60_000, 1)!,
-    ];
-    const f = heatmapFrame(samples, 60_000)!;
-    expect(f.columns.map((c) => c.time)).toEqual([0, 60_000]);
-    const firstBar = f.columns[0].cells.find((c) => c.side === "bid" && c.price === 100)!;
-    expect(firstBar.notional).toBeCloseTo((100 * 10) / 2); // present in one of two samples
   });
 });
 
@@ -128,9 +111,10 @@ describe("recorded depth history", () => {
     asks: [[10, 5]] as [number, number][],
   });
 
-  it("turns recorded minutes into samples placed mid-minute", () => {
+  it("turns recorded minutes into one-minute samples", () => {
     const [s] = columnsToSamples([col(60_000, 900)]);
-    expect(s.time).toBe(90_000);
+    expect(s.time).toBe(60_000);
+    expect(s.span).toBe(60_000);
     expect(s.bucket).toBe(10);
     expect(s.bids.get(9)).toBe(900);
     expect(s.asks.get(10)).toBe(5);
@@ -140,15 +124,14 @@ describe("recorded depth history", () => {
     const history = columnsToSamples([col(0, 1), col(60_000, 2), col(120_000, 3)]);
     const live = columnsToSamples([col(150_000, 9)]).map((s) => ({ ...s, time: 150_000 }));
     const merged = mergeSamples(history, live);
-    expect(merged.map((s) => s.time)).toEqual([30_000, 90_000, 150_000]);
+    // The minute from 120 000 ends after live sampling began (150 000): left out.
+    expect(merged.map((s) => s.time)).toEqual([0, 60_000, 150_000]);
     expect(mergeSamples([], live)).toBe(live);
     expect(mergeSamples(history, []).length).toBe(3);
   });
 
-  it("feeds the heatmap and pools across the reload", () => {
+  it("feeds the pools across the reload", () => {
     const history = columnsToSamples([col(0, 100), col(60_000, 100)]);
-    const frame = heatmapFrame(history, 60_000);
-    expect(frame?.columns.map((c) => c.time)).toEqual([0, 60_000]);
     const pools = liquidityPools(
       history.map((s) => ({
         ...s,
@@ -162,5 +145,40 @@ describe("recorded depth history", () => {
       })),
     );
     expect(pools.find((p) => p.side === "bid")?.restingMs).toBe(60_000);
+  });
+});
+
+describe("deep book", () => {
+  it("adds only the levels beyond the live books", () => {
+    const deep = book(
+      [
+        [99, 9],
+        [90, 1],
+      ],
+      [
+        [101, 9],
+        [150, 3],
+      ],
+    );
+    const near = book(
+      [
+        [99, 1],
+        [95, 1],
+      ],
+      [
+        [101, 1],
+        [110, 1],
+      ],
+    );
+    const far = farBook(deep, [near]);
+    expect([...far.bids]).toEqual([[90, 1]]);
+    expect([...far.asks]).toEqual([[150, 3]]);
+  });
+
+  it("parses OKX's full book in base units", () => {
+    const b = parseOkxFullBook({ data: [{ bids: [["100", "200"]], asks: [["101", "50"]] }] }, 0.01);
+    expect(b?.bids.get(100)).toBeCloseTo(2);
+    expect(b?.asks.get(101)).toBeCloseTo(0.5);
+    expect(parseOkxFullBook({ data: [] }, 0.01)).toBeNull();
   });
 });

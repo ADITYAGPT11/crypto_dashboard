@@ -9,11 +9,13 @@
 import { BaseWebSocketClient } from "../websocket/BaseWebSocketClient";
 import {
   BinanceBookSync,
+  farBook,
+  LocalBook,
   OkxBookSync,
+  parseOkxFullBook,
   parseBinanceDiff,
   parseLevels,
   parseOkxBook,
-  type LocalBook,
 } from "../utils/depthBook";
 import {
   bucketForBooks,
@@ -33,13 +35,18 @@ export interface LiquiditySnapshot {
 }
 
 export const SAMPLE_MS = 2_000;
-const MAX_SAMPLES = 3_600; // two hours at 2 s
+// One hour at 2 s with ~240 buckets each; older history comes from the analysis service.
+const MAX_SAMPLES = 1_800;
 const RESYNC_MIN_MS = 5_000;
+/** OKX's full book (5 000 levels a side, REST) refreshes the far levels this often. */
+const DEEP_MS = 5_000;
 
 interface Feed {
   book: () => LocalBook;
   ready: () => boolean;
   close: () => void;
+  /** A deeper, slower book for the levels beyond the live one (OKX only). */
+  deep?: () => LocalBook | null;
 }
 
 type FetchJson = (url: string) => Promise<unknown>;
@@ -127,11 +134,19 @@ export class LiquidityService {
   }
 
   private sample() {
-    const books = [...this.feeds.entries()]
-      .filter(([ex, f]) => f.ready() && this.snap.feeds[ex].state === "live")
-      .map(([, f]) => f.book());
+    const live = [...this.feeds.entries()].filter(
+      ([ex, f]) => f.ready() && this.snap.feeds[ex].state === "live",
+    );
+    const near = live.map(([, f]) => f.book());
+    // Far levels from the deep REST book, beyond what the live books cover.
+    const far = live
+      .map(([, f]) => f.deep?.())
+      .filter((d): d is LocalBook => d != null)
+      .map((d) => farBook(d, near));
+    const books = [...near, ...far];
     this.bucket = stableBucket(this.bucket, bucketForBooks(books));
     const s = sampleBooks(books, Date.now(), this.bucket ?? undefined);
+    if (s) s.span = SAMPLE_MS;
     const feeds = { ...this.snap.feeds };
     for (const [ex, f] of this.feeds) {
       const b = f.book();
@@ -204,6 +219,19 @@ export class LiquidityService {
     const sync = new OkxBookSync();
     let ctVal = 0;
     let closed = false;
+    let deep: LocalBook | null = null;
+    const pollDeep = async () => {
+      if (closed || !(ctVal > 0)) return;
+      try {
+        const body = await this.fetchJson(
+          `https://www.okx.com/api/v5/market/books-full?instId=${instId}&sz=5000`,
+        );
+        deep = parseOkxFullBook(body, ctVal) ?? deep;
+      } catch {
+        // Keep the last deep book; the live levels near the price are unaffected.
+      }
+    };
+    const deepTimer = setInterval(() => void pollDeep(), DEEP_MS);
     const ws = this.socket("wss://ws.okx.com/ws/v5/public");
     const sub = (op: "subscribe" | "unsubscribe") =>
       ws.send({ op, args: [{ channel: "books", instId }] });
@@ -213,6 +241,7 @@ export class LiquidityService {
       const d = (body as { data?: { ctVal?: string }[] }).data?.[0];
       ctVal = Number(d?.ctVal);
       if (!(ctVal > 0)) throw new Error(`${instId} not listed on OKX`);
+      void pollDeep();
     });
     contract.catch((err: unknown) =>
       this.setFeed("OKX", "down", err instanceof Error ? err.message : String(err)),
@@ -239,8 +268,10 @@ export class LiquidityService {
     return {
       book: () => sync.book,
       ready: () => sync.ready,
+      deep: () => deep,
       close: () => {
         closed = true;
+        clearInterval(deepTimer);
         ws.close();
       },
     };
