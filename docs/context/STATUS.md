@@ -83,6 +83,9 @@ Verified 2026-11-11:
 
 ## History
 
+- 2026-11-17: Competitor research (DeepCharts, Bookmap, LuxAlgo, CoinGlass, Hyblock and others):
+  `docs/product/COMPETITORS.md` with paid-plan contents, evidence on what works, how each
+  feature is built from free crypto data, and a rebuild order (ROADMAP parking lot). Docs only.
 - 2026-11-11: Product named **GreenMTM** (owner); logo `public/greenmtm.svg` (favicon and top
   bar), no tagline. The Python package stays `tcs` internally.
 - 2026-11-11: Chart follows the market: forming candle from Binance's kline stream, or OKX's when
