@@ -377,3 +377,14 @@ depth profile shows the sides). The live sockets stay the source near the price 
 OKX's `books-full` REST (5 000 levels a side) is polled every 5 s for the levels beyond them
 (`farBook`), well inside OKX's public rate limit. Binance's REST depth is capped at 1 000 levels,
 so it adds nothing beyond its socket.
+
+### 2026-11-17 · Heatmap = the three exchanges added up, within ±2% of the mid
+
+Why: owner asked for aggregate liquidity across the exchanges we support. Binance, OKX and Delta
+are summed per price bucket. A shared window of ±2% around the average mid keeps the scale
+meaningful: Delta streams its whole book (stray orders at $0.50 and $12M) and each exchange
+reaches differently; ±2% covers what a trader reads on a BTC chart and what the deep books fill.
+Delta's public socket (`public-socket.…`) refuses order-book channels, so its book comes from
+`socket.india.delta.exchange`. Delta is USD-quoted; USD vs USDT differs far less than one bucket,
+so its levels are added at face value. The panel shows each exchange's share so a missing
+exchange is visible, not silent.

@@ -228,3 +228,20 @@ def parse_okx_full_book(body: Any, ct_val: float) -> LocalBook | None:
     book.apply("bid", parse_levels(data[0].get("bids"), ct_val))
     book.apply("ask", parse_levels(data[0].get("asks"), ct_val))
     return book if book.bids or book.asks else None
+
+
+def parse_delta_l2(msg: Any, contract_value: float) -> LocalBook | None:
+    """Delta Exchange ``l2_orderbook``: a full snapshot (sizes in contracts) as a book."""
+    if not isinstance(msg, dict) or msg.get("type") != "l2_orderbook":
+        return None
+    buy, sell = msg.get("buy"), msg.get("sell")
+    if not isinstance(buy, list) or not isinstance(sell, list):
+        return None
+
+    def rows(side: list[Any]) -> list[Any]:
+        return [[r.get("limit_price"), r.get("size")] for r in side if isinstance(r, dict)]
+
+    book = LocalBook()
+    book.apply("bid", parse_levels(rows(buy), contract_value))
+    book.apply("ask", parse_levels(rows(sell), contract_value))
+    return book

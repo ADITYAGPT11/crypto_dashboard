@@ -1,7 +1,7 @@
 """Record order-book depth in the background so the chart's heatmap has history after a reload.
 
-Per symbol: a Binance USDⓈ-M and an OKX perpetual book, each on its own socket with its own
-reconnect loop (one failing never stops the other or another symbol), sampled every
+Per symbol: Binance USDⓈ-M, OKX and Delta Exchange India perpetual books, each on its own socket
+with its own reconnect loop (one failing never stops the others or another symbol), added up sampled every
 ``SAMPLE_S`` seconds into one-minute columns (``sampler.py``) that go to the store, which keeps
 ``depth_days`` days. Public endpoints only, no keys; a Binance snapshot (weight 20) is fetched
 only on (re)connect or when the diff chain breaks, at most every ``RESYNC_MIN_S``.
@@ -28,6 +28,7 @@ from tcs.depth.books import (
     OkxBookSync,
     far_book,
     parse_binance_diff,
+    parse_delta_l2,
     parse_levels,
     parse_okx_book,
     parse_okx_full_book,
@@ -50,10 +51,14 @@ BINANCE_DEPTH = "https://fapi.binance.com/fapi/v1/depth"
 OKX_WS = "wss://ws.okx.com/ws/v5/public"
 OKX_INSTRUMENTS = "https://www.okx.com/api/v5/public/instruments"
 OKX_BOOKS_FULL = "https://www.okx.com/api/v5/market/books-full"
+DELTA_WS = "wss://socket.india.delta.exchange"
+DELTA_PRODUCTS = "https://api.india.delta.exchange/v2/products/{product}"
+#: Delta sends a full snapshot every few seconds; none for this long means the feed stalled.
+DELTA_STALE_S = 20.0
 #: OKX's full book (5 000 levels a side) refreshes the far levels this often.
 DEEP_S = 5.0
 
-Exchange = Literal["BINANCE", "OKX"]
+Exchange = Literal["BINANCE", "OKX", "DELTA"]
 State = Literal["connecting", "live", "down"]
 
 
@@ -83,7 +88,12 @@ class Feed:
 class SymbolBooks:
     binance: BinanceBookSync = field(default_factory=BinanceBookSync)
     okx: OkxBookSync = field(default_factory=OkxBookSync)
-    feeds: dict[Exchange, Feed] = field(default_factory=lambda: {"BINANCE": Feed(), "OKX": Feed()})
+    feeds: dict[Exchange, Feed] = field(
+        default_factory=lambda: {"BINANCE": Feed(), "OKX": Feed(), "DELTA": Feed()}
+    )
+    #: Delta's latest full snapshot and when it arrived (monotonic seconds).
+    delta: LocalBook = field(default_factory=LocalBook)
+    delta_at: float = 0.0
     sampler: MinuteSampler = field(default_factory=MinuteSampler)
     #: OKX contract value (base units per contract), once known.
     okx_ct_val: float = 0.0
@@ -164,6 +174,7 @@ class DepthRecorder:
             self._binance(symbol, b),
             self._okx(symbol, b),
             self._okx_deep(symbol, b),
+            self._delta(symbol, b),
             self._sample(symbol, b),
         ):
             self._tasks.append(asyncio.create_task(coro))
@@ -188,9 +199,16 @@ class DepthRecorder:
         if okx_live:
             books.append(b.okx.book)
         if okx_live and b.okx_deep is not None:
-            books.append(far_book(b.okx_deep, list(books)))
+            # Only OKX's own live levels are replaced by the live book; other exchanges add up.
+            books.append(far_book(b.okx_deep, [b.okx.book]))
+        delta = b.feeds["DELTA"]
+        if delta.state == "live" and time.monotonic() - b.delta_at > DELTA_STALE_S:
+            delta.set("connecting", "no snapshot for 20 s")
+        if delta.state == "live":
+            books.append(b.delta)
         b.feeds["BINANCE"].levels = len(b.binance.book.bids) + len(b.binance.book.asks)
         b.feeds["OKX"].levels = len(b.okx.book.bids) + len(b.okx.book.asks)
+        b.feeds["DELTA"].levels = len(b.delta.bids) + len(b.delta.asks)
         return b.sampler.sample(books, self._now())
 
     # Feeds -------------------------------------------------------------------
@@ -280,6 +298,31 @@ class DepthRecorder:
                 raise
             except Exception as err:
                 log.debug("depth %s OKX full book: %s", symbol, err)
+
+    async def _delta(self, symbol: str, b: SymbolBooks) -> None:
+        product = f"{symbol.split('-')[0]}USD"  # Delta India perpetuals are USD-quoted
+        feed = b.feeds["DELTA"]
+        contract_value = 0.0
+
+        async def session() -> None:
+            nonlocal contract_value
+            if not contract_value > 0:
+                body = await self._fetch(DELTA_PRODUCTS.format(product=product), {})
+                contract_value = float((body.get("result") or {}).get("contract_value") or 0)
+                if not contract_value > 0:
+                    raise RuntimeError(f"{product} not listed on Delta")
+            async with self._connect(DELTA_WS) as ws:
+                channels = [{"name": "l2_orderbook", "symbols": [product]}]
+                await ws.send(json.dumps({"type": "subscribe", "payload": {"channels": channels}}))
+                async for raw in ws:
+                    book = parse_delta_l2(_json(raw), contract_value)
+                    if book is None:
+                        continue
+                    b.delta, b.delta_at = book, time.monotonic()
+                    if feed.state != "live":
+                        feed.set("live")
+
+        await self._reconnecting(feed, f"{symbol} DELTA", session)
 
     async def _okx(self, symbol: str, b: SymbolBooks) -> None:
         inst = f"{symbol}-SWAP"

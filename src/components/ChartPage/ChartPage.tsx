@@ -586,7 +586,7 @@ const ChartPage: React.FC = () => {
                 Volume by price
               </span>
               {layers.heatmap && (
-                <span title="Resting limit orders on Binance + OKX perpetuals, one column per snapshot; brightest = the largest few percent on screen (Display settings → heatmap contrast). Bars at the right edge: the current book, bids green, asks red.">
+                <span title="Resting limit orders on Binance + OKX + Delta perpetuals added together (±2% of the price), one column per snapshot; brightest = the largest few percent on screen (Display settings → heatmap contrast). Bars at the right edge: the current book, bids green, asks red.">
                   <i
                     style={{
                       background:

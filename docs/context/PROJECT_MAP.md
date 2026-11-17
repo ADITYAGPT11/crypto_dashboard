@@ -111,8 +111,9 @@ price table, spread (arbitrage), order book, alerts.
   subscribed; each source `loading | ok | unavailable`
 - `AnalysisApi` + `ApiResource`: the service's catalogue, analysis (refetched after each candle
   close), stats, setup detail and scanner as shared, auto-refreshing resources
-- `LiquidityService`: Binance + OKX full-depth books (own sockets) plus OKX's 5 000-level REST
-  book every 5 s for the far levels, sampled every 2 s while the heatmap is on
+- `LiquidityService`: Binance + OKX + Delta books (own sockets) plus OKX's 5 000-level REST
+  book every 5 s for the far levels, added up within ±2% of the mid and sampled every 2 s while
+  the heatmap is on; per-exchange state and share
 - `SetupAlertService`: setup-alert rules + firings (localStorage), 60 s check against the
   service's scanner, outcome tracking via its analysis, Telegram via the Node prototype
   `/api/alerts/send` (injectable deps for tests)
@@ -130,7 +131,8 @@ renders/s), `useLiveCandle` (forming candle: Binance, OKX when Binance is silent
 helpers: `volumeProfile` (visible-range histogram, key volume levels), `timeframeMapping` (times
 → view positions for patterns, zones, blocks, gaps), `setupKeys` (`pattern|direction|location`,
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
-sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`), `liquidityHeatmap`
+sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`, Delta
+`l2_orderbook`), `liquidityHeatmap`
 (buckets, samples, pools, recorded columns → samples, history + live merge), `heatmapRender`
 (thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
 position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `footprint`
@@ -197,7 +199,8 @@ overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `Pri
   `fapi.binance.com/fapi/v1/{klines,ticker/24hr}`
 - OKX WS: `wss://ws.okx.com/ws/v5/public` (port 443; 8443 is often blocked by proxies) (tickers, funding-rate, `candle*` channels)
 - OKX REST: `www.okx.com/api/v5/{public/instruments,market/candles,market/ticker,market/books-full}`
-- Delta India WS: `wss://public-socket.india.delta.exchange`
+- Delta India WS: `wss://public-socket.india.delta.exchange` (trades, funding only);
+  `wss://socket.india.delta.exchange` (`l2_orderbook`, heatmap); REST `api.india.delta.exchange/v2/products/{symbol}`
 - Binance futures REST: `fapi.binance.com/fapi/v1/{ticker/24hr,premiumIndex}`,
   `/futures/data/{openInterestHist,globalLongShortAccountRatio}`; WS `fstream…/market/ws/!forceOrder@arr`
 - `api.alternative.me/fng/?limit=8` (Fear & Greed), `api.coingecko.com/api/v3/global` (dominance)

@@ -41,16 +41,42 @@ export function bucketSize(price: number, bps = 5): number {
 export const BUCKETS_ACROSS_BOOK = 120;
 
 /**
+ * Liquidity is aggregated within ±this share of the mid price. Exchanges' books reach very
+ * differently (Delta sends its whole book, with stray orders at $0.50 and $12M); one shared
+ * window keeps the scale meaningful and every exchange comparable.
+ */
+export const HEAT_WINDOW = 0.02;
+
+/** Mid price of several books (their average), or null when none has a price. */
+export function midOf(books: readonly LocalBook[]): number | null {
+  const mids = books.map((b) => b.mid()).filter((m): m is number => m !== null);
+  return mids.length ? mids.reduce((s, m) => s + m, 0) / mids.length : null;
+}
+
+/** Resting notional (quote currency) of a book inside the heat window around `mid`. */
+export function windowNotional(book: LocalBook, mid: number, window = HEAT_WINDOW): number {
+  const lo = mid * (1 - window);
+  const hi = mid * (1 + window);
+  let sum = 0;
+  for (const side of [book.bids, book.asks])
+    for (const [p, q] of side) if (p >= lo && p <= hi) sum += p * q;
+  return sum;
+}
+
+/**
  * A round bucket size giving about `BUCKETS_ACROSS_BOOK` buckets between the lowest
  * bid and the highest ask (exchanges send a few hundred to a thousand levels, which
  * for BTC can be only a few dollars either side of the price).
  */
-export function bucketForBooks(books: readonly LocalBook[]): number | null {
+export function bucketForBooks(books: readonly LocalBook[], mid?: number | null): number | null {
+  const m = mid ?? midOf(books);
+  const floor = m !== null ? m * (1 - HEAT_WINDOW) : -Infinity;
+  const ceil = m !== null ? m * (1 + HEAT_WINDOW) : Infinity;
   let lo = Infinity;
   let hi = -Infinity;
   for (const b of books) {
-    for (const p of b.bids.keys()) if (p < lo) lo = p;
-    for (const p of b.asks.keys()) if (p > hi) hi = p;
+    for (const p of b.bids.keys()) if (p < lo && p >= floor) lo = p;
+    for (const p of b.asks.keys()) if (p > hi && p <= ceil) hi = p;
   }
   return hi > lo ? niceStep((hi - lo) / BUCKETS_ACROSS_BOOK) : null;
 }
@@ -67,29 +93,36 @@ export function bucketBook(
   side: Map<number, number>,
   bucket: number,
   into = new Map<number, number>(),
+  lo = -Infinity,
+  hi = Infinity,
 ) {
   for (const [p, q] of side) {
+    if (p < lo || p > hi) continue;
     const k = Math.floor(p / bucket);
     into.set(k, (into.get(k) ?? 0) + p * q);
   }
   return into;
 }
 
-/** One sample from one or more books (liquidity from several exchanges adds up). */
+/**
+ * One sample from one or more books: liquidity from several exchanges adds up, within
+ * ±`HEAT_WINDOW` of their average mid.
+ */
 export function sampleBooks(
   books: readonly LocalBook[],
   time: number,
   bucket?: number,
 ): BookSample | null {
-  const mids = books.map((b) => b.mid()).filter((m): m is number => m !== null);
-  if (mids.length === 0) return null;
-  const mid = mids.reduce((s, m) => s + m, 0) / mids.length;
-  const size = bucket ?? bucketForBooks(books) ?? bucketSize(mid);
+  const mid = midOf(books);
+  if (mid === null) return null;
+  const size = bucket ?? bucketForBooks(books, mid) ?? bucketSize(mid);
+  const lo = mid * (1 - HEAT_WINDOW);
+  const hi = mid * (1 + HEAT_WINDOW);
   const bids = new Map<number, number>();
   const asks = new Map<number, number>();
   for (const b of books) {
-    bucketBook(b.bids, size, bids);
-    bucketBook(b.asks, size, asks);
+    bucketBook(b.bids, size, bids, lo, hi);
+    bucketBook(b.asks, size, asks, lo, hi);
   }
   return { time, mid, bucket: size, bids, asks };
 }

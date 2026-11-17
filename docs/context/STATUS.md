@@ -32,9 +32,9 @@ Verified 2026-11-11 (test counts 2026-11-17):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 339 tests, 34 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 348 tests, 35 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 119 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 121 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -80,9 +80,9 @@ Verified 2026-11-11 (test counts 2026-11-17):
    levels; Telegram still goes through the Node prototype (`npm run backend`).
 4. **Statistics are gross** (no fees/slippage) and in-sample; Phase 2 adds costs and
    out-of-sample tests. Many setups have too few cases per bucket on 1d.
-5. **Order-book depth**: live levels near the price come from the sockets (OKX 400, Binance
-   1000); OKX's full REST book (5 000 a side, refreshed every 5 s) fills the rest, about ±1.2% on
-   BTC. Walls beyond that are not seen. Heatmap history comes from the analysis
+5. **Order-book depth**: Binance (1 000 levels, socket) + OKX (400 live, 5 000 from REST every
+   5 s) + Delta (whole book every ~3 s) are added up within ±2% of the mid. Delta is USD-quoted
+   and added at face value (USD ≈ USDT, inside one bucket). Heatmap history comes from the analysis
    service's recorder (BTC, ETH, and coins opened with the heatmap on, 7 days); without the
    service it starts when the page opens. The recorder ran live on OKX in the sandbox (800 levels,
    one column a minute); Binance's half needs REST for its snapshot (see issue 1).
@@ -91,6 +91,13 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-17: **Heatmap aggregates all three exchanges** (owner): Delta Exchange India's book
+  (`l2_orderbook` full snapshots on `socket.india.delta.exchange`, contract size from its public
+  API) joins Binance and OKX in the browser and the recorder. Liquidity is added up within ±2% of
+  the mid (Delta's book includes stray orders at $0.50 and $12M); the panel shows each exchange's
+  state and share of the liquidity. Fixed: OKX's deep book was trimmed against every live book
+  (Binance's wider book could hide OKX levels); now only against OKX's own. Verified live: OKX 48%
+  - Delta 52% (Binance geo-refused in the sandbox).
 - 2026-11-17: **Liquidity heatmap redrawn to industry standard** (owner feedback): one column per
   book snapshot on the time axis instead of an average per candle; its own canvas behind the
   candles; thermal palette (navy → blue → cyan → green → yellow → orange → red → white) for

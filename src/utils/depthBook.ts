@@ -227,3 +227,25 @@ export function parseOkxFullBook(body: unknown, ctVal: number): LocalBook | null
   book.apply("ask", parseLevels(d.asks, ctVal));
   return book.bids.size + book.asks.size > 0 ? book : null;
 }
+
+/**
+ * Delta Exchange `l2_orderbook`: a full snapshot every few seconds (no diffs to sequence).
+ * Sizes are contracts, converted to base units with the product's `contract_value`.
+ */
+export function parseDeltaL2(msg: unknown, contractValue: number): LocalBook | null {
+  const m = msg as { type?: unknown; buy?: unknown; sell?: unknown } | null;
+  if (!m || m.type !== "l2_orderbook" || !Array.isArray(m.buy) || !Array.isArray(m.sell))
+    return null;
+  const levels = (rows: unknown[]): Level[] =>
+    parseLevels(
+      rows.map((r) => {
+        const v = r as { limit_price?: unknown; size?: unknown };
+        return [v.limit_price, v.size];
+      }),
+      contractValue,
+    );
+  const book = new LocalBook();
+  book.apply("bid", levels(m.buy as unknown[]));
+  book.apply("ask", levels(m.sell as unknown[]));
+  return book;
+}

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import math
 from collections.abc import AsyncGenerator, AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -88,6 +89,17 @@ def test_okx_sync_checks_sequence_and_multiplies_contracts() -> None:
     assert parse_okx_book({"event": "subscribe"}, 1) is None
 
 
+def test_delta_snapshot_in_base_units() -> None:
+    from tcs.depth.books import parse_delta_l2
+
+    b = parse_delta_l2(
+        {"type": "l2_orderbook", "buy": [{"limit_price": "64800", "size": 3000}], "sell": []},
+        0.001,
+    )
+    assert b is not None and b.bids == {64800.0: pytest.approx(3.0)}
+    assert parse_delta_l2({"type": "subscriptions"}, 0.001) is None
+
+
 def test_far_book_keeps_only_levels_beyond_the_live_books() -> None:
     deep = LocalBook()
     deep.bids.update({99.0: 9.0, 90.0: 1.0, 50.0: 2.0})
@@ -120,7 +132,7 @@ def test_nice_step_and_stable_bucket() -> None:
 
 def test_minute_columns_average_samples_and_add_exchanges() -> None:
     s = MinuteSampler()
-    # Two exchanges, the book spans 50..150 -> 120 buckets of 1 (nice step of 0.83).
+    # Two exchanges; within +-2% of the mid (100) they span 99..101 -> buckets of 0.02.
     a = book({50.0: 1.0, 99.0: 2.0}, {101.0: 1.0, 150.0: 1.0})
     b = book({99.0: 2.0}, {101.0: 1.0})
     assert s.sample([a, b], 0) is None
@@ -128,8 +140,8 @@ def test_minute_columns_average_samples_and_add_exchanges() -> None:
     assert s.sample([a, b], 30_000) is None
     col = s.sample([a, b], 60_000)  # next minute closes the first
     assert col is not None
-    assert col.time == 0 and col.samples == 2 and col.bucket == 1
-    k = 99
+    assert col.time == 0 and col.samples == 2 and col.bucket == pytest.approx(0.02)
+    k = math.floor(99 / col.bucket)
     # notional at 99: (2+2)*99 then (0+2)*99 -> average 3*99
     assert col.bids[k] == pytest.approx(3 * 99)
     assert col.mid == pytest.approx(100)
@@ -167,15 +179,24 @@ class FakeSocket:
 def fake_connect(sockets: dict[str, FakeSocket]) -> Any:
     @contextlib.asynccontextmanager
     async def connect(url: str) -> AsyncGenerator[FakeSocket]:
-        key = "okx" if "okx" in url else "binance"
+        key = "okx" if "okx" in url else "delta" if "delta" in url else "binance"
         yield sockets[key]
 
     return connect
 
 
 async def fake_fetch(url: str, params: dict[str, str]) -> Any:
-    if "books-full" in url:  # OKX's deep book: 5 000 levels, here two far ones (contracts)
-        return {"data": [{"bids": [["40", "500"], ["99", "999"]], "asks": [["160", "500"]]}]}
+    if "delta" in url:
+        return {"result": {"contract_value": "0.001"}}
+    if "books-full" in url:  # OKX's deep book (contracts): levels beyond its live 99 / 101
+        return {
+            "data": [
+                {
+                    "bids": [["98.5", "500"], ["99", "999"], ["40", "500"]],
+                    "asks": [["101.5", "500"], ["160", "500"]],
+                }
+            ]
+        }
     if "depth" in url:
         return {
             "lastUpdateId": 100,
@@ -185,7 +206,7 @@ async def fake_fetch(url: str, params: dict[str, str]) -> Any:
     return {"data": [{"ctVal": "0.01"}]}
 
 
-def test_recorder_records_minute_columns_from_both_exchanges(tmp_path: Path) -> None:
+def test_recorder_adds_up_all_three_exchanges(tmp_path: Path) -> None:
     store = Store(tmp_path / "d.sqlite3")
     sockets = {
         "binance": FakeSocket([diff(99, 102, 95, [["98", "1"]], [])]),
@@ -195,6 +216,20 @@ def test_recorder_records_minute_columns_from_both_exchanges(tmp_path: Path) -> 
                 {
                     "action": "snapshot",
                     "data": [{"seqId": 1, "bids": [["99", "100"]], "asks": [["101", "100"]]}],
+                },
+            ]
+        ),
+        "delta": FakeSocket(
+            [
+                {"type": "subscriptions"},
+                {
+                    "type": "l2_orderbook",
+                    # 4 000 contracts x 0.001 = 4 at 99, and a stray order at $0.50.
+                    "buy": [
+                        {"limit_price": "99", "size": 4000},
+                        {"limit_price": "0.5", "size": 9e9},
+                    ],
+                    "sell": [{"limit_price": "101", "size": 1000}],
                 },
             ]
         ),
@@ -224,8 +259,11 @@ def test_recorder_records_minute_columns_from_both_exchanges(tmp_path: Path) -> 
         return rec
 
     rec = asyncio.run(run())
+    feeds = rec.books["BTC-USDT"].feeds
+    assert all(f.state == "live" for f in feeds.values()), {k: f.error for k, f in feeds.items()}
     assert rec.books["BTC-USDT"].feeds["BINANCE"].state == "live"
     assert rec.books["BTC-USDT"].feeds["OKX"].state == "live"
+    assert rec.books["BTC-USDT"].feeds["DELTA"].state == "live"
     assert json.loads(sockets["okx"].sent[0])["args"][0] == {
         "channel": "books",
         "instId": "BTC-USDT-SWAP",
@@ -233,16 +271,16 @@ def test_recorder_records_minute_columns_from_both_exchanges(tmp_path: Path) -> 
     cols = store.depth("BTC-USDT", 0)
     assert len(cols) >= 2
     c = cols[-1]
-    k = int(99 // c.bucket)
-    # At 99: Binance 2 + OKX 100 contracts x 0.01 = 3 base units (the book spans 50..150,
-    # so buckets are 1 wide and the diff's 1 at 98 has its own).
-    # The deep REST book adds only what lies beyond the live books (its 99 is ignored): the
-    # reach becomes 40..160, so buckets are 1 wide; 500 contracts x 0.01 = 5 at 40 and 160.
-    assert c.bucket == 1
-    assert c.bids[k] == pytest.approx(3 * 99)
-    assert c.bids[98] == pytest.approx(98)
-    assert c.bids[40] == pytest.approx(5 * 40)
-    assert c.asks[160] == pytest.approx(5 * 160)
+    k = lambda p: math.floor(p / c.bucket)  # noqa: E731
+    # At 99 all three add up: Binance 2 + OKX 100 x 0.01 + Delta 4 000 x 0.001 = 7.
+    assert c.bids[k(99)] == pytest.approx(7 * 99)
+    assert c.bids[k(98)] == pytest.approx(98)  # Binance's diff
+    # OKX's deep book adds only levels beyond its own live book (its 99 is ignored).
+    assert c.bids[k(98.5)] == pytest.approx(5 * 98.5)
+    assert c.asks[k(101.5)] == pytest.approx(5 * 101.5)
+    # Nothing outside +-2% of the mid: not Binance's 50 / 150, the deep 40 / 160 or Delta's $0.50.
+    lo, hi = k(c.mid * 0.98), k(c.mid * 1.02)
+    assert all(lo <= key <= hi for key in [*c.bids, *c.asks])
 
 
 def test_store_keeps_only_the_retention_window(tmp_path: Path) -> None:

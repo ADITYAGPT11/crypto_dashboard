@@ -1,12 +1,9 @@
 import { useCallback, useSyncExternalStore } from "react";
-import { LiquidityService, type LiquiditySnapshot } from "../services/LiquidityService";
+import { emptyFeeds, LiquidityService, type LiquiditySnapshot } from "../services/LiquidityService";
 
 const IDLE: LiquiditySnapshot = {
   symbol: null,
-  feeds: {
-    BINANCE: { state: "connecting", levels: 0, error: null },
-    OKX: { state: "connecting", levels: 0, error: null },
-  },
+  feeds: emptyFeeds(),
   samples: [],
   version: 0,
 };

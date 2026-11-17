@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vite-plus/test";
-import { farBook, LocalBook, parseOkxFullBook } from "../depthBook";
+import { farBook, LocalBook, parseDeltaL2, parseOkxFullBook } from "../depthBook";
 import {
   bucketForBooks,
   bucketSize,
   columnsToSamples,
   liquidityPools,
+  midOf,
   mergeSamples,
   sampleBooks,
   stableBucket,
+  windowNotional,
 } from "../liquidityHeatmap";
 
 function book(bids: [number, number][], asks: [number, number][]) {
@@ -71,29 +73,29 @@ describe("sampleBooks", () => {
 describe("liquidityPools", () => {
   it("lists the largest buckets per side, flags walls and measures how long they rested", () => {
     const levels = (wall: number): [number, number][] => [
-      [100, wall],
-      [99, 1],
-      [98, 1],
-      [97, 1],
-      [96, 1],
-      [95, 1],
+      [10_000, wall],
+      [9_990, 1],
+      [9_980, 1],
+      [9_970, 1],
+      [9_960, 1],
+      [9_950, 1],
     ];
     const asks: [number, number][] = [
-      [101, 1],
-      [102, 1],
-      [103, 1],
-      [104, 1],
-      [105, 1],
+      [10_010, 1],
+      [10_020, 1],
+      [10_030, 1],
+      [10_040, 1],
+      [10_050, 1],
     ];
     const samples = [0, 2_000, 4_000].map((t, i) =>
-      sampleBooks([book(levels(i === 0 ? 1 : 20), asks)], t, 1)!,
+      sampleBooks([book(levels(i === 0 ? 1 : 20), asks)], t, 10)!,
     );
     const pools = liquidityPools(samples, { perSide: 2 });
     expect(pools).toHaveLength(4);
     expect(pools[0]).toMatchObject({
       side: "bid",
-      low: 100,
-      high: 101,
+      low: 10_000,
+      high: 10_010,
       restingMs: 2_000,
       wall: true,
     });
@@ -180,5 +182,55 @@ describe("deep book", () => {
     expect(b?.bids.get(100)).toBeCloseTo(2);
     expect(b?.asks.get(101)).toBeCloseTo(0.5);
     expect(parseOkxFullBook({ data: [] }, 0.01)).toBeNull();
+  });
+});
+
+describe("aggregating exchanges", () => {
+  it("parses Delta's full snapshot in base units", () => {
+    const b = parseDeltaL2(
+      {
+        type: "l2_orderbook",
+        buy: [{ limit_price: "64800", size: 3000 }],
+        sell: [{ limit_price: "64801", size: 1000 }],
+      },
+      0.001,
+    );
+    expect(b?.bids.get(64_800)).toBeCloseTo(3);
+    expect(b?.asks.get(64_801)).toBeCloseTo(1);
+    expect(parseDeltaL2({ type: "subscriptions" }, 0.001)).toBeNull();
+  });
+
+  it("adds exchanges up inside ±2% of the mid and ignores stray far orders", () => {
+    const a = book([[99.5, 1]], [[100.5, 1]]);
+    // Delta-like: the same price levels plus orders at $0.50 and $1M.
+    const d = book(
+      [
+        [99.5, 2],
+        [0.5, 1_000_000],
+      ],
+      [
+        [100.5, 2],
+        [1_000_000, 5],
+      ],
+    );
+    const s = sampleBooks([a, d], 0)!;
+    expect(s.mid).toBe(100);
+    const bucket = s.bucket;
+    expect(bucket).toBeLessThan(1); // the stray orders did not stretch the scale
+    expect(s.bids.get(Math.floor(99.5 / bucket))).toBeCloseTo(99.5 * 3);
+    expect([...s.bids.keys()].every((k) => k * bucket >= 98 - bucket)).toBe(true);
+    expect([...s.asks.keys()].every((k) => k * bucket <= 102)).toBe(true);
+  });
+
+  it("measures each exchange's resting notional in the window", () => {
+    const d = book(
+      [
+        [99, 2],
+        [0.5, 1_000_000],
+      ],
+      [[101, 1]],
+    );
+    expect(windowNotional(d, 100)).toBeCloseTo(99 * 2 + 101);
+    expect(midOf([book([[99, 1]], [[101, 1]]), book([[101, 1]], [[103, 1]])])).toBe(101);
   });
 });

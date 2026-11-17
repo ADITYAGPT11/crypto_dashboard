@@ -16,6 +16,9 @@ from dataclasses import dataclass, field
 from tcs.depth.books import LocalBook
 
 BUCKETS_ACROSS_BOOK = 120
+#: Liquidity is aggregated within +-this share of the mid (books reach very differently; Delta
+#: sends its whole book with stray far orders). Same as ``HEAT_WINDOW`` in the browser.
+HEAT_WINDOW = 0.02
 MINUTE_MS = 60_000
 _NICE = (1.0, 2.0, 2.5, 5.0, 10.0)
 
@@ -29,13 +32,17 @@ def nice_step(raw: float) -> float:
     return float(f"{step * mag:.12g}")
 
 
-def bucket_for_books(books: Sequence[LocalBook]) -> float | None:
-    lo, hi = math.inf, -math.inf
-    for b in books:
-        if b.bids:
-            lo = min(lo, min(b.bids))
-        if b.asks:
-            hi = max(hi, max(b.asks))
+def mid_of(books: Sequence[LocalBook]) -> float | None:
+    mids = [m for m in (b.mid() for b in books) if m is not None]
+    return sum(mids) / len(mids) if mids else None
+
+
+def bucket_for_books(books: Sequence[LocalBook], mid: float | None = None) -> float | None:
+    m = mid if mid is not None else mid_of(books)
+    floor = m * (1 - HEAT_WINDOW) if m is not None else -math.inf
+    ceil = m * (1 + HEAT_WINDOW) if m is not None else math.inf
+    lo = min((p for b in books for p in b.bids if p >= floor), default=math.inf)
+    hi = max((p for b in books for p in b.asks if p <= ceil), default=-math.inf)
     return nice_step((hi - lo) / BUCKETS_ACROSS_BOOK) if hi > lo else None
 
 
@@ -70,10 +77,10 @@ class MinuteSampler:
         """Add one sample of ``books``; returns the previous minute's column once it is over."""
         minute = now_ms // MINUTE_MS * MINUTE_MS
         done = self._close_if_before(minute)
-        mids = [m for m in (b.mid() for b in books) if m is not None]
-        if not mids:
+        mid = mid_of(books)
+        if mid is None:
             return done
-        proposed = bucket_for_books(books)
+        proposed = bucket_for_books(books, mid)
         bucket = stable_bucket(self.bucket, proposed)
         if bucket is None:
             return done
@@ -85,10 +92,11 @@ class MinuteSampler:
             col = self._open = Column(minute, bucket, 0.0, 0)
             self._mid_sum = 0.0
         col.samples += 1
-        self._mid_sum += sum(mids) / len(mids)
+        self._mid_sum += mid
+        lo, hi = mid * (1 - HEAT_WINDOW), mid * (1 + HEAT_WINDOW)
         for b in books:
-            _add(col.bids, b.bids, bucket)
-            _add(col.asks, b.asks, bucket)
+            _add(col.bids, b.bids, bucket, lo, hi)
+            _add(col.asks, b.asks, bucket, lo, hi)
         return done
 
     def flush(self) -> Column | None:
@@ -110,7 +118,11 @@ class MinuteSampler:
         return col
 
 
-def _add(into: dict[int, float], side: dict[float, float], bucket: float) -> None:
+def _add(
+    into: dict[int, float], side: dict[float, float], bucket: float, lo: float, hi: float
+) -> None:
     for p, q in side.items():
+        if p < lo or p > hi:
+            continue
         k = math.floor(p / bucket)
         into[k] = into.get(k, 0.0) + p * q

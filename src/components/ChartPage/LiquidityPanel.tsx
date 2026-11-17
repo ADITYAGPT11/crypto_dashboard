@@ -46,13 +46,14 @@ const LiquidityPanel: React.FC<{
       <div className={styles.cardHead}>
         <h2 id="liq-title">Liquidity pools (order book)</h2>
         <Explain title="Liquidity heatmap">
-          Resting limit orders from the full order books of Binance and OKX perpetuals, added
-          together and bucketed by price ({last ? price(last.bucket) : "…"} per bucket). The chart's
-          heatmap shows the average resting size per bar: recorded by the analysis service (one
-          column per minute, kept for a week) and then live from this page every 2 seconds. The
-          table lists the largest buckets on each side; a wall is at least 3× the median bucket on
-          its side, and "for" is how long it has held at least half its size. This is an
-          observation: visible orders can be pulled or spoofed, and who placed them is unknown.
+          Resting limit orders from the order books of all three exchanges (Binance, OKX and Delta
+          Exchange perpetuals), added together within ±2% of the price and bucketed by price (
+          {last ? price(last.bucket) : "…"} per bucket). The chart's heatmap shows the average
+          resting size per bar: recorded by the analysis service (one column per minute, kept for a
+          week) and then live from this page every 2 seconds. The table lists the largest buckets on
+          each side; a wall is at least 3× the median bucket on its side, and "for" is how long it
+          has held at least half its size. This is an observation: visible orders can be pulled or
+          spoofed, and who placed them is unknown.
         </Explain>
         <p>
           {Object.entries(liquidity.feeds).map(([ex, f]) => (
@@ -61,7 +62,9 @@ const LiquidityPanel: React.FC<{
                 {ex} {f.state}
               </Chip>{" "}
               <span className={styles.mute}>
-                {f.state === "live" ? `${f.levels} levels` : (f.error ?? "")}
+                {f.state === "live"
+                  ? `${f.levels} levels${f.share !== null ? ` · ${Math.round(f.share * 100)}% of liquidity` : ""}`
+                  : (f.error ?? "")}
               </span>{" "}
             </span>
           ))}
