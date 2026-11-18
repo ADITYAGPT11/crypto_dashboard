@@ -42,6 +42,7 @@ function occurrence(partial: Partial<OccurrenceOut>): OccurrenceOut {
     points: [],
     lines: [],
     outcome: { result: "open", exitTime: null, movePct: 0, r: 0, bars: 0 },
+    flow: { deltaRatio: null, flow: null, cvdDivergence: null },
     ...partial,
   };
 }

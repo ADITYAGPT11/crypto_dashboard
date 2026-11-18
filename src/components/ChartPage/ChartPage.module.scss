@@ -65,6 +65,17 @@
 .tbl {
   @include tbl;
 }
+/* Second line inside a table cell (range, comparison). */
+.cellSub {
+  display: block;
+  font-size: 11px;
+  color: var(--t-muted);
+}
+/* The order-flow bucket the selected setup is in right now. */
+.rowNow td {
+  background: var(--t-signal-soft);
+  color: var(--t-fg);
+}
 .note {
   @include note;
 }
@@ -201,6 +212,15 @@
 .chartBox {
   position: absolute;
   inset: 0;
+  z-index: 1;
+}
+/* Liquidity heatmap: under the chart's (transparent) canvases, so candles draw on top. */
+.heat {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 0;
 }
 .overlay {
   position: absolute;

@@ -3,7 +3,7 @@
 The **target** system: what we're building towards and the chosen stack. For what exists in code
 _today_, see `PROJECT_MAP.md`. For module behaviour, see `docs/product/modules/`.
 
-> **Built so far (2026-11-11):** `backend/` exists with `tcs/{common,analysis,marketdata,store,jobs,api}`
+> **Built so far (2026-11-17):** `backend/` exists with `tcs/{common,analysis,marketdata,depth,store,jobs,api}`
 > as below, but on **SQLite** (QuestDB arrives with the collector) and as **one API process plus a
 > worker process** for the statistics job. The frontend is still at the repo root (`src/`), not
 > `apps/web/`. See DECISIONS 2026-11-11.
@@ -123,6 +123,7 @@ crypto_dashboard/
 │  ├─ src/tcs/                   # tcs = trade confirmation system
 │  │  ├─ common/                 # config, logging, time, symbols, events.py (contracts), bus.py
 │  │  ├─ marketdata/             # M1  adapters/, collector.py, health.py
+│  │  ├─ depth/                  # order-book recorder for the heatmap (books, sampler, recorder)
 │  │  ├─ store/                  # M2  writer.py, queries.py, backfill.py, quality.py, schema.sql
 │  │  ├─ research/               # M3  features/, backtest/, stats/, reports/, gate.py
 │  │  ├─ signals/                # M4  strategies/, runtime.py

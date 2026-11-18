@@ -28,6 +28,20 @@ export interface History {
 }
 
 type Fetcher = (url: string) => Promise<unknown>;
+
+/** Binance kline row: open time, o, h, l, c, volume, close time, quote volume, trades, taker buy base volume, … */
+type BinanceKlineRow = [
+  number,
+  string,
+  string,
+  string,
+  string,
+  string,
+  number?,
+  string?,
+  number?,
+  string?,
+];
 /** Candles from another source when Binance fails (null = no fallback). */
 export type Fallback = (
   symbol: string,
@@ -43,13 +57,14 @@ export const backendFallback: Fallback = async (symbol, interval, limit) => {
     tf: interval,
     limit: Math.min(limit, 5000),
   });
-  return body.candles.map(([openTime, open, high, low, close, volume]) => ({
+  return body.candles.map(([openTime, open, high, low, close, volume, takerBuy]) => ({
     openTime,
     open,
     high,
     low,
     close,
     volume,
+    ...(takerBuy != null ? { takerBuyVolume: takerBuy } : {}),
   }));
 };
 
@@ -136,7 +151,7 @@ export class HistoryService {
       const rows = (await this.fetcher(url)) as unknown[];
       const batch = normalizeHistory(
         (Array.isArray(rows) ? rows : []).map((r) => {
-          const row = r as [number, string, string, string, string, string];
+          const row = r as BinanceKlineRow;
           return {
             openTime: row[0],
             open: parseFloat(row[1]),
@@ -144,6 +159,7 @@ export class HistoryService {
             low: parseFloat(row[3]),
             close: parseFloat(row[4]),
             volume: parseFloat(row[5]),
+            takerBuyVolume: row[9] != null ? parseFloat(row[9]) : undefined,
           };
         }),
       );

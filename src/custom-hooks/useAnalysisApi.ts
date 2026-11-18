@@ -34,8 +34,12 @@ export function useAnalysis(
   return useResource(analysisApi().analysis, symbol ? analysisKey(symbol, tf, zoneTf) : null);
 }
 
-export function useStats(tf: CandleInterval, zoneTf: CandleInterval): ResourceState<StatsOut> {
-  return useResource(analysisApi().stats, statsKey(tf, zoneTf));
+export function useStats(
+  tf: CandleInterval,
+  zoneTf: CandleInterval,
+  context = "*",
+): ResourceState<StatsOut> {
+  return useResource(analysisApi().stats, statsKey(tf, zoneTf, context));
 }
 
 export function useSetupDetail(

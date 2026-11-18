@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from tcs.analysis.candlesticks import detect_candlesticks
 from tcs.analysis.chart_patterns import detect_chart_patterns
+from tcs.analysis.flow import FlowContext, flow_at
 from tcs.analysis.indicators import atr
 from tcs.analysis.location import locate
 from tcs.analysis.outcomes import Outcome, evaluate
@@ -20,7 +21,7 @@ from tcs.analysis.smc import detect_fvgs, detect_structure
 from tcs.analysis.trendlines import detect_trendline_patterns
 from tcs.analysis.types import Levels, Location, PatternHit
 from tcs.analysis.zones import detect_zones
-from tcs.common.series import Series
+from tcs.common.series import Series, mirror
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +29,8 @@ class Occurrence:
     hit: PatternHit
     location: Location
     outcome: Outcome
+    #: Order flow when the pattern confirmed (context the statistics are split by).
+    flow: FlowContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,12 +75,15 @@ def analyze(
     lv_series = level_series if level_series is not None else s
     lv = levels if levels is not None else detect_levels(lv_series)
     a = atr(s)
+    found = hits if hits is not None else detect_patterns(s)
+    mirrored = mirror(s) if any(h.direction == "short" for h in found) else None
     occurrences = [
         Occurrence(
             hit,
             locate(hit, s, float(a[hit.index]), lv_series, lv.zones, lv.order_blocks),
             evaluate(s, hit),
+            flow_at(s, hit, mirrored),
         )
-        for hit in (hits if hits is not None else detect_patterns(s))
+        for hit in found
     ]
     return Analysis(s, lv_series, occurrences, lv)

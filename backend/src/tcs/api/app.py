@@ -18,6 +18,9 @@ from tcs.api.schemas import (
     AnalysisOut,
     CandlesOut,
     CatalogOut,
+    DepthColumnOut,
+    DepthFeedOut,
+    DepthOut,
     HealthOut,
     ScannerOut,
     SetupDetailOut,
@@ -27,6 +30,7 @@ from tcs.api.service import BadRequest, Service, now_ms
 from tcs.common.timeframes import TF_MS, Timeframe, last_closed_open, parse_timeframe
 from tcs.common.universe import is_canonical
 from tcs.config import Settings
+from tcs.depth.recorder import DepthRecorder
 from tcs.jobs.stats_job import STATS_TFS, run_stats
 
 log = logging.getLogger(__name__)
@@ -76,9 +80,16 @@ async def _scheduler(svc: Service, pool: ProcessPoolExecutor) -> None:
         await asyncio.sleep(SCHEDULE_EVERY_S)
 
 
-def create_app(settings: Settings | None = None, service: Service | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    service: Service | None = None,
+    recorder: DepthRecorder | None = None,
+) -> FastAPI:
     settings = settings or Settings()
     svc = service or Service(settings)
+    depth = recorder
+    if depth is None and settings.record_depth:
+        depth = DepthRecorder(svc.store, settings.depth_symbols, retention_days=settings.depth_days)
 
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
@@ -92,9 +103,13 @@ def create_app(settings: Settings | None = None, service: Service | None = None)
         if settings.schedule:
             pool = ProcessPoolExecutor(max_workers=1)
             task = asyncio.create_task(_scheduler(svc, pool))
+        if depth:
+            await depth.start()
         try:
             yield
         finally:
+            if depth:
+                await depth.stop()
             if task:
                 task.cancel()
             if pool:
@@ -121,6 +136,40 @@ def create_app(settings: Settings | None = None, service: Service | None = None)
     def patterns() -> CatalogOut:
         return svc.catalog()
 
+    @r.get("/depth/{symbol}")
+    def depth_history(
+        symbol: str, minutes: Annotated[int, Query(ge=1, le=7 * 1440)] = 360
+    ) -> DepthOut:
+        """Recorded order-book depth (one column per minute) for the heatmap.
+
+        Asking for a symbol that is not recorded yet starts recording it (a few at most).
+        """
+        sym = _symbol(symbol)
+        recording = depth.ensure(sym) if depth else False
+        books = depth.books.get(sym) if depth else None
+        cols = svc.store.depth(sym, now_ms() - minutes * 60_000)
+        return DepthOut(
+            symbol=sym,
+            recording=recording,
+            symbols=depth.recorded() if depth else [],
+            retention_days=settings.depth_days,
+            feeds={
+                ex: DepthFeedOut(state=f.state, error=f.error, levels=f.levels, since=f.since)
+                for ex, f in (books.feeds.items() if books else [])
+            },
+            columns=[
+                DepthColumnOut(
+                    time=c.time,
+                    bucket=c.bucket,
+                    mid=c.mid,
+                    samples=c.samples,
+                    bids=sorted(c.bids.items()),
+                    asks=sorted(c.asks.items()),
+                )
+                for c in cols
+            ],
+        )
+
     @r.get("/candles/{symbol}")
     def candles(
         symbol: str, tf: str = "4h", limit: Annotated[int, Query(ge=50, le=5000)] = 3000
@@ -142,10 +191,15 @@ def create_app(settings: Settings | None = None, service: Service | None = None)
 
     @r.get("/stats")
     def stats(
-        tf: str = "4h", zone_tf: Annotated[str | None, Query(alias="zoneTf")] = None
+        tf: str = "4h",
+        zone_tf: Annotated[str | None, Query(alias="zoneTf")] = None,
+        context: str = "*",
     ) -> StatsOut:
         t = _tf(tf)
-        return svc.stats(t, _tf(zone_tf) if zone_tf else t)
+        try:
+            return svc.stats(t, _tf(zone_tf) if zone_tf else t, context)
+        except BadRequest as err:
+            raise HTTPException(422, str(err)) from err
 
     @r.get("/stats/setup")
     def setup(

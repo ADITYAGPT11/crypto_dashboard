@@ -13,6 +13,10 @@ confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
+0. Owner: run `npm start` where Binance and OKX are reachable and check the depth recorder goes
+   live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
+   r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
+   the estimated liquidation map (`COMPETITORS.md` §4).
 1. Owner: run `npm start` on a machine that reaches Binance, let the first
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
@@ -23,14 +27,14 @@ confirmations yet (by design).
 
 ## Health
 
-Verified 2026-11-11:
+Verified 2026-11-11 (test counts 2026-11-17):
 
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 303 tests, 29 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 348 tests, 35 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 89 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                      |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 121 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -42,7 +46,7 @@ Verified 2026-11-11:
   (`engine.analyze` is the single entry point; catalogue and `RULESET_VERSION` in `catalog.py`;
   rules written out in `docs/product/patterns.md`); `jobs/stats_job.py` background statistics;
   `marketdata/` Binance REST + `data.binance.vision` archive backfill; `store/sqlite.py`;
-  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner}`.
+  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner,depth}`; `depth/` order-book recorder.
   `src/api/schema.ts` is generated from it (`npm run api:types`; a test fails when stale).
 - **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
   live forming candle) plus the service's patterns (direction arrows, outlines, necklines,
@@ -64,25 +68,86 @@ Verified 2026-11-11:
 
 ## Known issues
 
-1. **Live data not exercised against real exchanges from the sandbox**: Binance REST/WS are
-   geo-blocked there and OKX's WebSocket port is closed. Live candles (Binance and the OKX
-   fallback) were tested with simulated kline streams, the REST tail with the archive, and live
-   order books with a replayed real OKX book. Where Binance REST is blocked the service's data
-   ends at the last archived day and the chart says how many candles behind.
+1. **Binance REST (and spot WebSocket) refuse the dev sandbox's region** (HTTP 451, Binance's
+   own geo rule; no network setting fixes it). Everything else is verified live there since
+   2026-11-17: Binance futures WebSockets, OKX, Delta, CoinGecko, alternative.me. So in the
+   sandbox candle history comes from the archive (up to a day behind), Binance's book cannot sync
+   (no snapshot) and funding / OI / 24h volume show "–". Where Binance REST is reachable none of
+   this applies.
 2. **Statistics need a first run**: until the background job finishes (minutes), Pattern stats,
    the setup card and the scanner show "not measured yet".
 3. **Setup alerts run in the browser** (every minute while a tab is open) and use same-timeframe
    levels; Telegram still goes through the Node prototype (`npm run backend`).
 4. **Statistics are gross** (no fees/slippage) and in-sample; Phase 2 adds costs and
    out-of-sample tests. Many setups have too few cases per bucket on 1d.
-5. **Order-book depth is shallow**: OKX sends 400 levels, Binance 1000, so pools are near the
-   price (for BTC tens to hundreds of dollars away). The heatmap starts when the page opens.
+5. **Order-book depth**: Binance (1 000 levels, socket) + OKX (400 live, 5 000 from REST every
+   5 s) + Delta (whole book every ~3 s) are added up within ±2% of the mid. Delta is USD-quoted
+   and added at face value (USD ≈ USDT, inside one bucket). Heatmap history comes from the analysis
+   service's recorder (BTC, ETH, and coins opened with the heatmap on, 7 days); without the
+   service it starts when the page opens. The recorder ran live on OKX in the sandbox (800 levels,
+   one column a minute); Binance's half needs REST for its snapshot (see issue 1).
 6. Delta funding-rate units unverified; Delta prices are USD-quoted (tagged, left out of spreads).
-7. Dashboard v2 sources Fear & Greed and CoinGecko unverified against the live APIs.
-8. `.idx/dev.nix` lists Svelte/Vue extensions; the Markets page's price-rule alerts are separate.
+7. `.idx/dev.nix` lists Svelte/Vue extensions; the Markets page's price-rule alerts are separate.
 
 ## History
 
+- 2026-11-17: **Heatmap aggregates all three exchanges** (owner): Delta Exchange India's book
+  (`l2_orderbook` full snapshots on `socket.india.delta.exchange`, contract size from its public
+  API) joins Binance and OKX in the browser and the recorder. Liquidity is added up within ±2% of
+  the mid (Delta's book includes stray orders at $0.50 and $12M); the panel shows each exchange's
+  state and share of the liquidity. Fixed: OKX's deep book was trimmed against every live book
+  (Binance's wider book could hide OKX levels); now only against OKX's own. Verified live: OKX 48%
+  - Delta 52% (Binance geo-refused in the sandbox).
+- 2026-11-17: **Liquidity heatmap redrawn to industry standard** (owner feedback): one column per
+  book snapshot on the time axis instead of an average per candle; its own canvas behind the
+  candles; thermal palette (navy → blue → cyan → green → yellow → orange → red → white) for
+  bids and asks together; contrast from the cells on screen (Display settings: low / normal /
+  high); current book as a depth profile at the right edge; 120 price rows (was 50, server
+  recorder too). Depth: OKX's full REST book (5 000 levels a side, every 5 s) fills the levels
+  beyond the live 400, so the heat reaches about ±1.2% on BTC and ±3% on ETH instead of ±$40;
+  the recorder stores the same. Verified live on OKX in the browser.
+- 2026-11-17: **Live data fixed and verified against the real exchanges** (network access added
+  for the remaining hosts). Found by the live run: (1) Binance split its futures WebSockets in
+  March 2026 (`/public` for depth and bookTicker, `/market` for aggTrade, kline, markPrice,
+  forceOrder); the old `/stream` path stayed open but sent nothing, so live candles, trades,
+  funding and liquidations from Binance were silently empty everywhere. `BinanceAdapter` now runs
+  a socket per path and routes each stream; the heatmap, recorder and liquidation feed use the new
+  paths. (2) A Binance socket that never opened held up OKX and Delta (`connectExchanges` awaited
+  each in turn); they now connect independently. (3) OKX and Binance spot moved to port 443
+  (8443 / 9443 are dropped by many proxies). Verified in the browser with no mocks: live candle,
+  big trades (real 99th-percentile cut ≈ $130K on BTC), footprint, delta/CVD, OKX heatmap,
+  Fear & Greed, BTC dominance; the recorder wrote live OKX columns.
+- 2026-11-17: **Heatmap history survives a reload**: the analysis service records Binance + OKX
+  perpetual books (`tcs/depth/`, same sync and bucketing as the browser, 2 s samples averaged
+  per minute, 7 days) for BTC and ETH and any coin the chart opens with the heatmap on (≤ 6);
+  `/api/v1/depth/{symbol}`. The chart loads 6 h of recorded minutes ahead of its live samples
+  (pools' "for" spans the reload). Tested with fake sockets end to end; new dependency
+  `websockets` (BSD-3).
+- 2026-11-17: **Footprint layer** (Overlays → Footprint): live Binance perp trades since the page
+  opened, binned per view bar and price row (about 12 rows per typical candle, nice step):
+  aggressive sells × buys as numbers when zoomed in, delta-coloured cells when not, 3× diagonal
+  imbalances, point of control, bar delta. Raw trades kept per symbol for the session (≤ 300k) so
+  a timeframe change rebuilds it. Verified with a mocked Binance socket. Display only.
+- 2026-11-17: **Rule set `2026.11-r2`: order-flow context measured** (`analysis/flow.py`): at each
+  setup's confirmation, delta over 3 candles (with / against / neutral at ±2% of volume) and CVD
+  divergence over 2 × 10 candles, written once for longs and mirrored for shorts. The stats job
+  keeps pooled records per context; `/stats?context=`, setup detail `contexts`, occurrence and
+  case `flow`. Setup card has an Order flow section (now + each bucket vs the setup's rate);
+  Pattern stats has an Order flow filter. First run (4h, 10 coins, 2 years, archive data): over
+  every setup pooled, delta with the trade won 40.3% (38.5–42.2%) vs against 34.4% (32.5–36.3%),
+  CVD divergence 41.1% vs 36.9% without; expectancy stays negative in every bucket, and per
+  setup 1 of 61 measurable buckets differs from its setup (chance level). Golden fixture now
+  carries taker volume (same prices, checked against the archive).
+- 2026-11-17: **Order flow on the chart (step 1)**: Volume Delta and CVD indicators (Binance taker
+  buy volume from klines, live on the forming candle, blank where the source has none) and a
+  **Big trades** layer (Overlays): Binance perp taker orders merged from aggTrade, top 1% of
+  recent prints and ≥ $10K, bubbles sized by notional, since the page opened. Candles carry taker
+  buy volume end to end (REST, archive, SQLite, `/candles`); old stores re-download candles once.
+  Verified in headless Chromium with archive candles and a mocked Binance socket (live trades not
+  reachable from the sandbox). Display only: no statistic uses them yet.
+- 2026-11-17: Competitor research (DeepCharts, Bookmap, LuxAlgo, CoinGlass, Hyblock and others):
+  `docs/product/COMPETITORS.md` with paid-plan contents, evidence on what works, how each
+  feature is built from free crypto data, and a rebuild order (ROADMAP parking lot). Docs only.
 - 2026-11-11: Product named **GreenMTM** (owner); logo `public/greenmtm.svg` (favicon and top
   bar), no tagline. The Python package stays `tcs` internally.
 - 2026-11-11: Chart follows the market: forming candle from Binance's kline stream, or OKX's when

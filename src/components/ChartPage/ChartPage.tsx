@@ -55,7 +55,12 @@ import {
 import LiquidityPanel from "./LiquidityPanel";
 import { useLiveCandle } from "../../custom-hooks/useLiveCandle";
 import { useLiquidity } from "../../custom-hooks/useLiquidity";
-import { heatmapFrame, liquidityPools } from "../../utils/liquidityHeatmap";
+import { useBigTrades } from "../../custom-hooks/useBigTrades";
+import { useFootprint } from "../../custom-hooks/useFootprint";
+import { autoStep } from "../../utils/footprint";
+import { formatCompactUsd } from "../../utils/priceUtils";
+import { liquidityPools, mergeSamples } from "../../utils/liquidityHeatmap";
+import { useDepthHistory } from "../../custom-hooks/useDepthHistory";
 import {
   CHART_PREFS_STORAGE_KEY,
   loadJson,
@@ -425,12 +430,20 @@ const ChartPage: React.FC = () => {
   const behind = selAnalysis?.coverage.behind ?? 0;
 
   // Order-book liquidity (only while the heatmap layer is on: no sockets otherwise).
+  const depthHistory = useDepthHistory(layers.heatmap ? symbol : null);
   const liquidity = useLiquidity(layers.heatmap ? symbol : null);
-  const heatmap = useMemo(
-    () => (layers.heatmap ? heatmapFrame(liquidity.samples, TF_MS[viewTf]) : null),
-    [layers.heatmap, liquidity.samples, viewTf],
+  // Big taker orders (only while the layer is on).
+  const bigTrades = useBigTrades(layers.bigTrades ? symbol : null);
+  // Footprint rows sized from recent candles (about 12 rows per typical candle).
+  const footprintStep = useMemo(() => autoStep(view.candles), [view.candles]);
+  const footprint = useFootprint(layers.footprint ? symbol : null, TF_MS[viewTf], footprintStep);
+  // Recorded history (analysis service) followed by this tab's live samples.
+  const depthSamples = useMemo(
+    () => mergeSamples(depthHistory.samples, liquidity.samples),
+    [depthHistory.samples, liquidity.samples],
   );
-  const pools = useMemo(() => liquidityPools(liquidity.samples), [liquidity.samples]);
+  const heatmap = layers.heatmap ? depthSamples : null;
+  const pools = useMemo(() => liquidityPools(depthSamples), [depthSamples]);
 
   const last = candles[candles.length - 1];
   const days =
@@ -540,6 +553,8 @@ const ChartPage: React.FC = () => {
                 onIndicator={onIndicator}
                 levels={viewLevels}
                 heatmap={heatmap}
+                bigTrades={layers.bigTrades ? bigTrades : null}
+                footprint={layers.footprint ? footprint : null}
                 selected={viewSelected}
                 plan={selected ? selected.occ : null}
                 focusKey={focus ? `${focus.id}#${focus.n}` : null}
@@ -571,16 +586,48 @@ const ChartPage: React.FC = () => {
                 Volume by price
               </span>
               {layers.heatmap && (
-                <span>
-                  <i style={{ background: "linear-gradient(90deg,#1b2a4a,#f0a35e)" }} />
-                  Resting liquidity (order book)
+                <span title="Resting limit orders on Binance + OKX + Delta perpetuals added together (±2% of the price), one column per snapshot; brightest = the largest few percent on screen (Display settings → heatmap contrast). Bars at the right edge: the current book, bids green, asks red.">
+                  <i
+                    style={{
+                      background:
+                        "linear-gradient(90deg,#0c1648,#1634a0,#008cd2,#00c8aa,#5ad746,#f5e132,#fa8c1e,#eb3223,#fff5e6)",
+                    }}
+                  />
+                  Resting liquidity (order book), thin → thick
+                </span>
+              )}
+              {layers.footprint && (
+                <span title="Volume by price inside each candle from Binance perpetual trades since this page opened: aggressive sells (left) × aggressive buys (right). Zoom in for numbers. Coloured edge or text = 3× diagonal imbalance; amber box = most traded row.">
+                  <i
+                    style={{
+                      background: "linear-gradient(90deg,rgba(244,112,103,.6),rgba(86,211,100,.6))",
+                    }}
+                  />
+                  Footprint: sells × buys per {price(footprintStep)} row
+                  {footprint.trades === 0 ? " (waiting for trades…)" : ""}
+                </span>
+              )}
+              {layers.bigTrades && (
+                <span title="Binance perpetual taker orders in the top 1% by size of recent prints, since this page opened. One order split across many fills counts once.">
+                  <i style={{ background: "rgba(86,211,100,.5)", borderRadius: "50%" }} />
+                  <i style={{ background: "rgba(244,112,103,.5)", borderRadius: "50%" }} />
+                  {bigTrades.threshold
+                    ? `Big trades ≥ ${formatCompactUsd(bigTrades.threshold)} (bought / sold)`
+                    : "Big trades: measuring typical size…"}
                 </span>
               )}
               <span>▲ W / L = past outcomes of the selected setup</span>
             </div>
           </div>
 
-          {layers.heatmap && <LiquidityPanel liquidity={liquidity} pools={pools} />}
+          {layers.heatmap && (
+            <LiquidityPanel
+              liquidity={liquidity}
+              pools={pools}
+              history={depthHistory}
+              since={depthSamples[0]?.time}
+            />
+          )}
 
           <div className={styles.grid2}>
             <section className={styles.card} aria-labelledby="levels-title">
@@ -748,6 +795,7 @@ const ChartPage: React.FC = () => {
               pooled={pooled}
               baseline={baseline}
               own={own}
+              contexts={detail?.contexts ?? []}
               recent={detail?.recent ?? []}
               run={ctxStats.data?.run ?? null}
               statsError={ctxStats.error}

@@ -201,7 +201,7 @@ export class MarketOverviewService {
   }
 
   private connectLiquidations() {
-    const ws = new BaseWebSocketClient("wss://fstream.binance.com/ws/!forceOrder@arr", {
+    const ws = new BaseWebSocketClient("wss://fstream.binance.com/market/ws/!forceOrder@arr", {
       autoReconnect: true,
     });
     this.ws = ws;

@@ -20,6 +20,7 @@
 | `docs/context/DECISIONS.md`    | "why is it like this?"                              | a non-obvious choice is made (append, never rewrite)  |
 | `docs/context/MINDMAP.md`      | onboarding / big picture                            | modules or roadmap phases change                      |
 | `docs/product/README.md`       | product questions, principles                       | product principles or module list change              |
+| `docs/product/COMPETITORS.md`  | deciding what to build next vs paid tools           | a competitor, price or rebuild priority changes       |
 | `docs/product/modules/M*.md`   | working on that module (load only the one you need) | its scope, status or acceptance criteria change       |
 | `docs/product/ux/PHASE1_UX.md` | building any UI screen                              | features, screens or visual rules change              |
 | `docs/product/patterns.md`     | touching a detector, location, outcome or statistic | any rule or threshold changes (new `RULESET_VERSION`) |

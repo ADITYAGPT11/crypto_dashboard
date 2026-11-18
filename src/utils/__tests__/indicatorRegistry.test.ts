@@ -18,6 +18,7 @@ const candles: Candle[] = Array.from({ length: 120 }, (_, i) => {
     low: p - 1,
     close: p,
     volume: 100 + (i % 9) * 10,
+    takerBuyVolume: 50 + (i % 5) * 8,
   };
 });
 

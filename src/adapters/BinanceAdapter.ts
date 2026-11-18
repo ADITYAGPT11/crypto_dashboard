@@ -15,6 +15,25 @@ import type { ConnectionStatusPayload } from "../types/connection";
 
 type BinanceMarket = "spot" | "futures";
 
+/**
+ * Sockets. Since March 2026 Binance USDⓈ-M futures serves order-book streams (depth,
+ * bookTicker) on `/public` and regular market streams (aggTrade, kline, markPrice) on
+ * `/market`; the old shared `/stream` path delivers nothing for the latter. Spot is unchanged.
+ */
+type Socket = "spot" | "futuresPublic" | "futuresMarket";
+const SOCKETS: readonly Socket[] = ["spot", "futuresPublic", "futuresMarket"];
+const MARKET_OF: Record<Socket, BinanceMarket> = {
+  spot: "spot",
+  futuresPublic: "futures",
+  futuresMarket: "futures",
+};
+
+/** The socket a stream lives on, e.g. futures "btcusdt@depth20@100ms" → futuresPublic. */
+export function binanceSocketFor(market: BinanceMarket, raw: string): Socket {
+  if (market === "spot") return "spot";
+  return /@(depth|bookTicker)/.test(raw) ? "futuresPublic" : "futuresMarket";
+}
+
 /** The stream kinds a dashboard consumer can ask for, per symbol. */
 export type BinanceStreamKind = "aggTrade" | "bookTicker" | "depth";
 
@@ -64,31 +83,36 @@ function fromWireSymbol(raw: string): string | null {
 }
 
 export class BinanceAdapter extends EventEmitter {
-  private clients: Record<BinanceMarket, BaseWebSocketClient>;
-  // Stream params per market (e.g. "btcusdt@aggTrade") — used to (re)subscribe on every open.
-  private trackedStreams: Record<BinanceMarket, Set<string>> = {
+  private clients: Record<Socket, BaseWebSocketClient>;
+  // Stream params per socket (e.g. "btcusdt@aggTrade") — used to (re)subscribe on every open.
+  private trackedStreams: Record<Socket, Set<string>> = {
     spot: new Set(),
-    futures: new Set(),
+    futuresPublic: new Set(),
+    futuresMarket: new Set(),
   };
   private lastEmittedRate = new Map<string, string>(); // symbol → skip duplicate funding events
 
-  private readonly urls: Record<BinanceMarket, string> = {
-    spot: "wss://stream.binance.com:9443/stream",
-    futures: "wss://fstream.binance.com/stream",
+  private readonly urls: Record<Socket, string> = {
+    spot: "wss://stream.binance.com:443/stream",
+    futuresPublic: "wss://fstream.binance.com/public/stream",
+    futuresMarket: "wss://fstream.binance.com/market/stream",
   };
 
   constructor() {
     super();
     this.clients = {
       spot: new BaseWebSocketClient(this.urls.spot, { autoReconnect: true }),
-      futures: new BaseWebSocketClient(this.urls.futures, { autoReconnect: true }),
+      futuresPublic: new BaseWebSocketClient(this.urls.futuresPublic, { autoReconnect: true }),
+      futuresMarket: new BaseWebSocketClient(this.urls.futuresMarket, { autoReconnect: true }),
     };
-    this.setupClient("spot");
-    this.setupClient("futures");
+    for (const s of SOCKETS) this.setupClient(s);
   }
 
-  private setupClient(market: BinanceMarket) {
-    const ws = this.clients[market];
+  private setupClient(socket: Socket) {
+    const ws = this.clients[socket];
+    const market = MARKET_OF[socket];
+    // Futures connection state follows the market-data socket (prices, candles, trades).
+    const reportsStatus = socket !== "futuresPublic";
 
     ws.on("message", (rawMsg) => {
       const envelope = rawMsg as CombinedStreamMsg;
@@ -98,7 +122,8 @@ export class BinanceAdapter extends EventEmitter {
     });
 
     ws.on("open", () => {
-      this.sendAllSubscriptions(market);
+      this.sendAllSubscriptions(socket);
+      if (!reportsStatus) return;
       this.emit("connectionStatus", {
         exchange: "BINANCE",
         market,
@@ -108,6 +133,7 @@ export class BinanceAdapter extends EventEmitter {
 
     ws.on("close", () => {
       // autoReconnect keeps retrying; "down" once several reconnects in a row fail
+      if (!reportsStatus) return;
       this.emit("connectionStatus", {
         exchange: "BINANCE",
         market,
@@ -116,49 +142,47 @@ export class BinanceAdapter extends EventEmitter {
     });
 
     ws.on("error", (error) => {
-      console.error(`Binance ${market} WebSocket error:`, error);
+      console.error(`Binance ${socket} WebSocket error:`, error);
     });
   }
 
+  /**
+   * Connect every socket in parallel. Resolves once any of them is open, so one market that
+   * cannot connect (e.g. spot refused in a restricted region) never holds up the caller.
+   */
   async connect(): Promise<void> {
-    // Spot and futures connect in parallel; an isolated failure in one market
-    // (unusual) shouldn't block the other.
-    await Promise.all([this.clients.spot.connect(), this.clients.futures.connect()]);
+    await Promise.any(SOCKETS.map((s) => this.clients[s].connect()));
+  }
+
+  /** Track streams and subscribe the new ones, each on the socket it lives on. */
+  private track(market: BinanceMarket, raws: string[]) {
+    const fresh = new Map<Socket, string[]>();
+    for (const raw of raws) {
+      const socket = binanceSocketFor(market, raw);
+      if (this.trackedStreams[socket].has(raw)) continue;
+      this.trackedStreams[socket].add(raw);
+      fresh.set(socket, [...(fresh.get(socket) ?? []), raw]);
+    }
+    for (const [socket, params] of fresh)
+      this.clients[socket].send({ method: "SUBSCRIBE", params, id: nextRequestId() });
   }
 
   /** Subscribe both markets to the same set of per-symbol streams ( trays of streams per symbol). */
   subscribe(symbols: string | string[], streams: BinanceStreamKind[]) {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
-    for (const market of ["spot", "futures"] as BinanceMarket[]) {
-      const fresh: string[] = [];
-      for (const symbol of arr) {
-        for (const kind of streams) {
-          const raw = `${toWireSymbol(symbol)}@${BINANCE_STREAM_TAIL[kind]}`;
-          if (!this.trackedStreams[market].has(raw)) {
-            this.trackedStreams[market].add(raw);
-            fresh.push(raw);
-          }
-        }
-      }
-      if (fresh.length > 0) {
-        this.clients[market].send({ method: "SUBSCRIBE", params: fresh, id: nextRequestId() });
-      }
-    }
+    const raws = arr.flatMap((symbol) =>
+      streams.map((kind) => `${toWireSymbol(symbol)}@${BINANCE_STREAM_TAIL[kind]}`),
+    );
+    for (const market of ["spot", "futures"] as BinanceMarket[]) this.track(market, raws);
   }
 
   /** Wrapped funding-rate stream for futures (markPrice, 1s cadence). */
   subscribeFundingRate(symbols: string | string[]) {
     const arr = Array.isArray(symbols) ? symbols : [symbols];
-    const fresh = arr
-      .map((s) => `${toWireSymbol(s)}@markPrice@1s`)
-      .filter((raw) => {
-        if (this.trackedStreams.futures.has(raw)) return false;
-        this.trackedStreams.futures.add(raw);
-        return true;
-      });
-    if (fresh.length > 0) {
-      this.clients.futures.send({ method: "SUBSCRIBE", params: fresh, id: nextRequestId() });
-    }
+    this.track(
+      "futures",
+      arr.map((s) => `${toWireSymbol(s)}@markPrice@1s`),
+    );
   }
 
   /** Stop per-symbol streams on both markets (the reverse of `subscribe`). */
@@ -183,18 +207,22 @@ export class BinanceAdapter extends EventEmitter {
     for (const s of arr) this.lastEmittedRate.delete(s);
   }
 
-  /** Drop tracked streams and send one UNSUBSCRIBE for those that were live. */
+  /** Drop tracked streams and send one UNSUBSCRIBE per socket for those that were live. */
   private untrack(market: BinanceMarket, raws: string[]) {
-    const gone = raws.filter((raw) => this.trackedStreams[market].delete(raw));
-    if (gone.length > 0) {
-      this.clients[market].send({ method: "UNSUBSCRIBE", params: gone, id: nextRequestId() });
+    const gone = new Map<Socket, string[]>();
+    for (const raw of raws) {
+      const socket = binanceSocketFor(market, raw);
+      if (this.trackedStreams[socket].delete(raw))
+        gone.set(socket, [...(gone.get(socket) ?? []), raw]);
     }
+    for (const [socket, params] of gone)
+      this.clients[socket].send({ method: "UNSUBSCRIBE", params, id: nextRequestId() });
   }
 
-  private sendAllSubscriptions(market: BinanceMarket) {
-    const streams = Array.from(this.trackedStreams[market]);
+  private sendAllSubscriptions(socket: Socket) {
+    const streams = Array.from(this.trackedStreams[socket]);
     if (streams.length === 0) return;
-    this.clients[market].send({ method: "SUBSCRIBE", params: streams, id: nextRequestId() });
+    this.clients[socket].send({ method: "SUBSCRIBE", params: streams, id: nextRequestId() });
   }
 
   // ------------------------------------------------------------------
@@ -202,10 +230,7 @@ export class BinanceAdapter extends EventEmitter {
   // ------------------------------------------------------------------
 
   subscribeCandles(symbol: string, interval: CandleInterval, market: BinanceMarket) {
-    const raw = `${toWireSymbol(symbol)}@kline_${interval}`;
-    if (this.trackedStreams[market].has(raw)) return;
-    this.trackedStreams[market].add(raw);
-    this.clients[market].send({ method: "SUBSCRIBE", params: [raw], id: nextRequestId() });
+    this.track(market, [`${toWireSymbol(symbol)}@kline_${interval}`]);
   }
 
   unsubscribeCandles(symbol: string, interval: CandleInterval, market: BinanceMarket) {
@@ -233,8 +258,9 @@ export class BinanceAdapter extends EventEmitter {
     if (!response.ok) {
       throw new Error(`Binance candles HTTP ${response.status}`);
     }
+    // Kline row: …, [5] volume, [6] close time, [7] quote volume, [8] trades, [9] taker buy volume.
     const payload = (await response.json()) as Array<
-      [number, string, string, string, string, string]
+      [number, string, string, string, string, string, number?, string?, number?, string?]
     >;
     const candles = normalizeHistory(
       (payload ?? []).map((row) => ({
@@ -244,6 +270,7 @@ export class BinanceAdapter extends EventEmitter {
         low: parseFloat(row[3]),
         close: parseFloat(row[4]),
         volume: parseFloat(row[5]),
+        takerBuyVolume: row[9] != null ? parseFloat(row[9]) : undefined,
       })),
     );
     return candles.map((candle) => ({
@@ -322,7 +349,16 @@ export class BinanceAdapter extends EventEmitter {
     if (kind.startsWith("kline_")) {
       const interval = toCanonicalInterval(kind.slice("kline_".length));
       const k = (data as { k?: Record<string, unknown> } | undefined)?.k as
-        | { t: number; o: string; h: string; l: string; c: string; v: string; x: boolean }
+        | {
+            t: number;
+            o: string;
+            h: string;
+            l: string;
+            c: string;
+            v: string;
+            V?: string;
+            x: boolean;
+          }
         | undefined;
       if (interval && k) {
         const candle = toCandle({
@@ -332,6 +368,8 @@ export class BinanceAdapter extends EventEmitter {
           low: parseFloat(k.l),
           close: parseFloat(k.c),
           volume: parseFloat(k.v),
+          // V = taker buy base volume of the candle so far (delta / CVD).
+          takerBuyVolume: k.V != null ? parseFloat(k.V) : undefined,
           closed: k.x === true,
         });
         if (candle) {

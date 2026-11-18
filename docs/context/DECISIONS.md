@@ -321,3 +321,70 @@ Owner decision: the product is **GreenMTM** (MTM = mark-to-market), no tagline. 
 tile with an M drawn as a price line whose last leg breaks out upward (`public/greenmtm.svg`,
 also the favicon). Code names stay: the Python package is `tcs` and the repo `crypto_dashboard`;
 renaming them would touch every import for no user-visible change.
+
+### 2026-11-17 · Delta, CVD and big trades are display data; candles carry taker buy volume
+
+Why: step 1 of the order-flow rebuild (`docs/product/COMPETITORS.md` §4). Binance klines report
+the taker buy volume, so delta per candle is exact without downloading every trade; candles now
+keep it (`Candle.takerBuyVolume`, `Series.taker_buy`, `/candles` 7th column, mirrored as taker
+sell). Delta and CVD are chart indicators in TypeScript and big-trade bubbles a live chart layer:
+nothing reads them for a statistic yet. Once an order-flow rule is measured (CVD divergence,
+"delta confirms"), it goes into `backend/src/tcs/analysis/` like every rule, with a new
+`RULESET_VERSION`. Stores made before this drop their cached candles once (public archive data,
+downloaded again with taker volume on the next request); statistics are kept.
+
+### 2026-11-17 · Order flow is measured as context of a setup, not as a setup of its own
+
+Why: the competitor research found no published evidence that order-flow signals predict
+anything on their own; the question worth answering is whether they change a setup's record.
+So `analysis/flow.py` tags every occurrence (delta with / against / neutral, CVD divergence
+yes / no) and the stats job splits pooled records by tag (rule set r2). Per-coin records are not
+split: buckets would be too small. The ±2% delta cut was set from the feature's spread on real
+ETH 4h (median |ratio| 0.023), not from outcomes. The UI calls a bucket better or worse only when
+its whole Wilson range is on one side of the setup's rate, and warns that many buckets are
+compared at once (multiple-testing correction is still Phase 2).
+
+### 2026-11-17 · Order-book depth is recorded in the API process, one column per minute
+
+Why: the heatmap lost its history on every reload (step 3 of the order-flow rebuild). The
+recorder (`backend/src/tcs/depth/`) runs as asyncio tasks inside the API process rather than a
+separate collector: no new process to start, and the QuestDB collector (Phase 1) can absorb it
+later. It ports the browser's tested book sync and bucketing, samples every 2 s and stores the
+per-minute average (about 1.5 KB per coin per minute, 7 days kept), not every sample, which
+would be ~250 MB a day for 10 coins. BTC and ETH are recorded from the start
+(`TCS_DEPTH_SYMBOLS`); opening the heatmap on another coin starts recording it too, up to 6
+coins (two sockets each), until the process restarts. The browser puts the recorded minutes in
+front of its own 2 s samples and adopts the recorded bucket size so both share columns. New
+dependency: `websockets` (BSD-3, TOOLING).
+
+### 2026-11-17 · Exchange sockets on port 443, Binance futures split by path
+
+Why: a live run found Binance's futures WebSocket split (March 2026: order-book streams on
+`/public`, market streams on `/market`; the old path accepts subscriptions and sends nothing) and
+proxies dropping OKX's 8443 and Binance spot's 9443. Both exchanges serve the same streams on
+443, so we use 443 everywhere. `BinanceAdapter` keeps its public API (spot / futures) and routes
+each stream to its socket internally (`binanceSocketFor`); futures connection state follows the
+`/market` socket. Exchanges now connect independently, as the guardrail always required.
+
+### 2026-11-17 · Heatmap: per-snapshot columns, thermal palette, deep book from OKX REST
+
+Why: owner feedback that the heatmap was not industry standard. Bookmap / TradingLite draw one
+column per book snapshot behind the price with a thermal palette, auto contrast and a wide price
+range; ours averaged per candle, drew over the candles and saw ±$40 of BTC. Now
+`utils/heatmapRender.ts` rasterises snapshots into an ImageData buffer (cheap per scroll) on a
+canvas under the chart; bids and asks share one colour scale (size is what the colour says; the
+depth profile shows the sides). The live sockets stay the source near the price (fresh, exact);
+OKX's `books-full` REST (5 000 levels a side) is polled every 5 s for the levels beyond them
+(`farBook`), well inside OKX's public rate limit. Binance's REST depth is capped at 1 000 levels,
+so it adds nothing beyond its socket.
+
+### 2026-11-17 · Heatmap = the three exchanges added up, within ±2% of the mid
+
+Why: owner asked for aggregate liquidity across the exchanges we support. Binance, OKX and Delta
+are summed per price bucket. A shared window of ±2% around the average mid keeps the scale
+meaningful: Delta streams its whole book (stray orders at $0.50 and $12M) and each exchange
+reaches differently; ±2% covers what a trader reads on a BTC chart and what the deep books fill.
+Delta's public socket (`public-socket.…`) refuses order-book channels, so its book comes from
+`socket.india.delta.exchange`. Delta is USD-quoted; USD vs USDT differs far less than one bucket,
+so its levels are added at face value. The panel shows each exchange's share so a missing
+exchange is visible, not silent.

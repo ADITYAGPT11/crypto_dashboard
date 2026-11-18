@@ -8,6 +8,7 @@ from tcs.analysis.engine import Analysis, Occurrence
 from tcs.analysis.types import Point
 from tcs.api.schemas import (
     CoverageOut,
+    FlowOut,
     FvgOut,
     LineOut,
     OccurrenceOut,
@@ -51,6 +52,11 @@ def occurrence(s: Series, o: Occurrence) -> OccurrenceOut:
             move_pct=o.outcome.move_pct,
             r=o.outcome.r,
             bars=o.outcome.bars,
+        ),
+        flow=FlowOut(
+            delta_ratio=o.flow.delta_ratio,
+            flow=o.flow.flow,
+            cvd_divergence=o.flow.divergence,
         ),
     )
 

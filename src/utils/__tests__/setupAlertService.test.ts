@@ -20,6 +20,7 @@ function occurrence(time: number, result: SetupOccurrence["outcome"]["result"]):
     points: [],
     lines: [],
     outcome: { result, exitTime: null, movePct: 0, r: 0, bars: 0 },
+    flow: { deltaRatio: null, flow: null, cvdDivergence: null },
   };
 }
 

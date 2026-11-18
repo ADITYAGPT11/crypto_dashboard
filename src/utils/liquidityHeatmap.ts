@@ -3,10 +3,8 @@
  * "biggest liquidity pools" list.
  *
  * Every few seconds the local book(s) are bucketed by price (notional in quote
- * currency per bucket, bids and asks apart). Columns are kept since the page opened;
- * per chart bar a bucket shows the AVERAGE resting notional over the samples in that
- * bar, so a wall that sat there for the whole bar glows, and one flashed for a
- * second barely shows.
+ * currency per bucket, bids and asks apart). Each sample is one column of the heatmap on the
+ * time axis (`heatmapRender.ts`); recorded history arrives as one-minute averages.
  *
  * Observation, not prediction: visible orders can be pulled or spoofed, and who
  * placed them is unknown. Pools are ranked by size and how long they have rested.
@@ -15,6 +13,8 @@ import type { LocalBook } from "./depthBook";
 
 export interface BookSample {
   time: number;
+  /** How long this sample stands for (ms): the sampling interval, or 60 000 for a recorded minute. */
+  span?: number;
   mid: number;
   bucket: number;
   /** bucket index (floor(price / bucket)) → notional, per side */
@@ -38,19 +38,45 @@ export function bucketSize(price: number, bps = 5): number {
 }
 
 /** Buckets across the price range the books actually cover. */
-export const BUCKETS_ACROSS_BOOK = 50;
+export const BUCKETS_ACROSS_BOOK = 120;
+
+/**
+ * Liquidity is aggregated within ±this share of the mid price. Exchanges' books reach very
+ * differently (Delta sends its whole book, with stray orders at $0.50 and $12M); one shared
+ * window keeps the scale meaningful and every exchange comparable.
+ */
+export const HEAT_WINDOW = 0.02;
+
+/** Mid price of several books (their average), or null when none has a price. */
+export function midOf(books: readonly LocalBook[]): number | null {
+  const mids = books.map((b) => b.mid()).filter((m): m is number => m !== null);
+  return mids.length ? mids.reduce((s, m) => s + m, 0) / mids.length : null;
+}
+
+/** Resting notional (quote currency) of a book inside the heat window around `mid`. */
+export function windowNotional(book: LocalBook, mid: number, window = HEAT_WINDOW): number {
+  const lo = mid * (1 - window);
+  const hi = mid * (1 + window);
+  let sum = 0;
+  for (const side of [book.bids, book.asks])
+    for (const [p, q] of side) if (p >= lo && p <= hi) sum += p * q;
+  return sum;
+}
 
 /**
  * A round bucket size giving about `BUCKETS_ACROSS_BOOK` buckets between the lowest
  * bid and the highest ask (exchanges send a few hundred to a thousand levels, which
  * for BTC can be only a few dollars either side of the price).
  */
-export function bucketForBooks(books: readonly LocalBook[]): number | null {
+export function bucketForBooks(books: readonly LocalBook[], mid?: number | null): number | null {
+  const m = mid ?? midOf(books);
+  const floor = m !== null ? m * (1 - HEAT_WINDOW) : -Infinity;
+  const ceil = m !== null ? m * (1 + HEAT_WINDOW) : Infinity;
   let lo = Infinity;
   let hi = -Infinity;
   for (const b of books) {
-    for (const p of b.bids.keys()) if (p < lo) lo = p;
-    for (const p of b.asks.keys()) if (p > hi) hi = p;
+    for (const p of b.bids.keys()) if (p < lo && p >= floor) lo = p;
+    for (const p of b.asks.keys()) if (p > hi && p <= ceil) hi = p;
   }
   return hi > lo ? niceStep((hi - lo) / BUCKETS_ACROSS_BOOK) : null;
 }
@@ -67,84 +93,38 @@ export function bucketBook(
   side: Map<number, number>,
   bucket: number,
   into = new Map<number, number>(),
+  lo = -Infinity,
+  hi = Infinity,
 ) {
   for (const [p, q] of side) {
+    if (p < lo || p > hi) continue;
     const k = Math.floor(p / bucket);
     into.set(k, (into.get(k) ?? 0) + p * q);
   }
   return into;
 }
 
-/** One sample from one or more books (liquidity from several exchanges adds up). */
+/**
+ * One sample from one or more books: liquidity from several exchanges adds up, within
+ * ±`HEAT_WINDOW` of their average mid.
+ */
 export function sampleBooks(
   books: readonly LocalBook[],
   time: number,
   bucket?: number,
 ): BookSample | null {
-  const mids = books.map((b) => b.mid()).filter((m): m is number => m !== null);
-  if (mids.length === 0) return null;
-  const mid = mids.reduce((s, m) => s + m, 0) / mids.length;
-  const size = bucket ?? bucketForBooks(books) ?? bucketSize(mid);
+  const mid = midOf(books);
+  if (mid === null) return null;
+  const size = bucket ?? bucketForBooks(books, mid) ?? bucketSize(mid);
+  const lo = mid * (1 - HEAT_WINDOW);
+  const hi = mid * (1 + HEAT_WINDOW);
   const bids = new Map<number, number>();
   const asks = new Map<number, number>();
   for (const b of books) {
-    bucketBook(b.bids, size, bids);
-    bucketBook(b.asks, size, asks);
+    bucketBook(b.bids, size, bids, lo, hi);
+    bucketBook(b.asks, size, asks, lo, hi);
   }
   return { time, mid, bucket: size, bids, asks };
-}
-
-export interface HeatCell {
-  /** Bucket bottom price. */
-  price: number;
-  notional: number;
-  side: "bid" | "ask";
-}
-
-export interface HeatColumn {
-  /** Open time of the chart bar this column belongs to. */
-  time: number;
-  cells: HeatCell[];
-}
-
-export interface HeatmapFrame {
-  bucket: number;
-  columns: HeatColumn[];
-  /** Notional at which the colour saturates (98th percentile of cells). */
-  scale: number;
-}
-
-/** Average each bucket over the samples inside every chart bar of `barMs`. */
-export function heatmapFrame(samples: readonly BookSample[], barMs: number): HeatmapFrame | null {
-  if (samples.length === 0) return null;
-  const bucket = samples[samples.length - 1].bucket;
-  const groups = new Map<number, BookSample[]>();
-  for (const s of samples) {
-    if (s.bucket !== bucket) continue; // bucket changed (big move): older columns are dropped
-    const t = Math.floor(s.time / barMs) * barMs;
-    const g = groups.get(t) ?? [];
-    g.push(s);
-    groups.set(t, g);
-  }
-  const columns: HeatColumn[] = [];
-  const all: number[] = [];
-  for (const [time, g] of [...groups].sort((a, b) => a[0] - b[0])) {
-    const cells: HeatCell[] = [];
-    for (const side of ["bid", "ask"] as const) {
-      const sum = new Map<number, number>();
-      for (const s of g)
-        for (const [k, v] of side === "bid" ? s.bids : s.asks) sum.set(k, (sum.get(k) ?? 0) + v);
-      for (const [k, v] of sum) {
-        const notional = v / g.length;
-        cells.push({ price: k * bucket, notional, side });
-        all.push(notional);
-      }
-    }
-    columns.push({ time, cells });
-  }
-  all.sort((a, b) => a - b);
-  const scale = all.length ? all[Math.min(all.length - 1, Math.floor(all.length * 0.98))] : 1;
-  return { bucket, columns, scale: scale || 1 };
 }
 
 export interface LiquidityPool {
@@ -205,4 +185,39 @@ export function liquidityPools(
     }
   }
   return out.sort((a, b) => b.notional - a.notional);
+}
+
+/** One recorded minute from the analysis service (`/api/v1/depth`). */
+export interface RecordedColumn {
+  time: number;
+  bucket: number;
+  mid: number;
+  bids: [number, number][];
+  asks: [number, number][];
+}
+
+/** Recorded minutes as samples (one minute each), so they share the live heatmap's maths. */
+export function columnsToSamples(columns: readonly RecordedColumn[]): BookSample[] {
+  return columns.map((c) => ({
+    time: c.time,
+    span: 60_000,
+    mid: c.mid,
+    bucket: c.bucket,
+    bids: new Map(c.bids),
+    asks: new Map(c.asks),
+  }));
+}
+
+/**
+ * Recorded history followed by this tab's live samples: history only up to where live sampling
+ * began (no minute is counted twice).
+ */
+export function mergeSamples(
+  history: readonly BookSample[],
+  live: readonly BookSample[],
+): readonly BookSample[] {
+  if (history.length === 0) return live;
+  const start = live[0]?.time ?? Number.POSITIVE_INFINITY;
+  const before = history.filter((s) => s.time + (s.span ?? 0) <= start);
+  return before.length === 0 ? live : [...before, ...live];
 }

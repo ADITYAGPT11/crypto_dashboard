@@ -102,6 +102,11 @@ export interface Candle {
   low: number;
   close: number;
   volume: number;
+  /**
+   * Base volume bought by takers (aggressive buyers), when the source reports it
+   * (Binance klines do, OKX's do not). Delta = 2 × takerBuyVolume − volume.
+   */
+  takerBuyVolume?: number;
   /** True when the candle period has elapsed and the candle is final. */
   closed?: boolean;
 }

@@ -45,6 +45,7 @@ def random_walk(seed: int, n: int = 700, tf: Timeframe = "1h") -> Series:
     high = np.maximum(open_, close) + span * rng.random(n)
     low = np.minimum(open_, close) - span * rng.random(n)
     vol = rng.lognormal(5, 0.5, n)
+    taker = vol * rng.uniform(0.3, 0.7, n)  # drawn last: the price path is unchanged
     return Series(
         "WALK-USDT",
         tf,
@@ -54,15 +55,16 @@ def random_walk(seed: int, n: int = 700, tf: Timeframe = "1h") -> Series:
         low,
         close,
         vol,
+        taker,
     )
 
 
 def real_eth_4h() -> Series:
-    """ETH-USDT perpetual, 4h, 2025-11 .. 2026-10, from data.binance.vision."""
+    """ETH-USDT perpetual, 4h, 2025-11 .. 2026-10, from data.binance.vision (with taker volume)."""
     out: list[Candle] = []
     with gzip.open(FIXTURES / "ETHUSDT-4h-2025-11_2026-10.csv.gz", "rt") as f:
         next(f)
         for line in f:
             p = line.strip().split(",")
-            out.append(Candle(int(p[0]), *(float(x) for x in p[1:6])))
+            out.append(Candle(int(p[0]), *(float(x) for x in p[1:7])))
     return Series.from_candles("ETH-USDT", "4h", out)

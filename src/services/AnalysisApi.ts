@@ -24,8 +24,9 @@ const untilNextClose = (tf: CandleInterval, now: number) =>
 export function analysisKey(symbol: string, tf: CandleInterval, zoneTf: CandleInterval) {
   return `${symbol}|${tf}|${zoneTf}`;
 }
-export function statsKey(tf: CandleInterval, zoneTf: CandleInterval) {
-  return `${tf}|${zoneTf}`;
+/** `context` restricts the records to one order-flow bucket ("*" = every case). */
+export function statsKey(tf: CandleInterval, zoneTf: CandleInterval, context = "*") {
+  return context === "*" ? `${tf}|${zoneTf}` : `${tf}|${zoneTf}|${context}`;
 }
 export function setupDetailKey(
   tf: CandleInterval,
@@ -58,8 +59,8 @@ function createResources() {
     }),
     stats: new ApiResource<StatsOut>({
       fetch: (key) => {
-        const [tf, zoneTf] = key.split("|");
-        return apiGet<StatsOut>("/stats", { tf, zoneTf });
+        const [tf, zoneTf, context] = key.split("|");
+        return apiGet<StatsOut>("/stats", context ? { tf, zoneTf, context } : { tf, zoneTf });
       },
       refreshIn: (d) => (d.run?.status === "running" || !d.run ? 15_000 : 300_000),
     }),

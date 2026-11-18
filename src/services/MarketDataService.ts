@@ -85,21 +85,18 @@ export class MarketDataService extends EventEmitter {
    * each adapter auto-reconnects and re-subscribes on its own.
    */
   private async connectExchanges() {
-    try {
-      await Promise.resolve(this.binance.connect());
-    } catch (error) {
-      console.error("Error connecting to Binance:", error);
-    }
-    try {
-      await this.okx.connect();
-    } catch (error) {
-      console.error("Error connecting to OKX:", error);
-    }
-    try {
-      await this.delta.connect();
-    } catch (error) {
-      console.error("Error connecting to Delta Exchange:", error);
-    }
+    // In parallel and independent: an exchange that never connects (blocked region, outage)
+    // must not hold up the others.
+    const attempts: [string, () => Promise<void>][] = [
+      ["Binance", async () => this.binance.connect()],
+      ["OKX", () => this.okx.connect()],
+      ["Delta Exchange", () => this.delta.connect()],
+    ];
+    await Promise.allSettled(
+      attempts.map(([name, connect]) =>
+        connect().catch((error: unknown) => console.error(`Error connecting to ${name}:`, error)),
+      ),
+    );
   }
 
   private wireMarketDataRouting() {

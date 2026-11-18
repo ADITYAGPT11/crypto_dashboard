@@ -15,6 +15,12 @@ def _universe() -> tuple[str, ...]:
     return tuple(s for s in picked if is_canonical(s)) or RESEARCH_UNIVERSE
 
 
+def _depth_symbols() -> tuple[str, ...]:
+    raw = os.environ.get("TCS_DEPTH_SYMBOLS", "BTC-USDT,ETH-USDT")
+    picked = tuple(s.strip().upper() for s in raw.split(",") if s.strip())
+    return tuple(s for s in picked if is_canonical(s))
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     db_path: Path = field(
@@ -25,5 +31,13 @@ class Settings:
     universe: tuple[str, ...] = field(default_factory=_universe)
     #: Run the background statistics job on a schedule inside the API process.
     schedule: bool = field(default_factory=lambda: os.environ.get("TCS_STATS_SCHEDULE", "1") != "0")
+    #: Record order-book depth (heatmap history) inside the API process.
+    record_depth: bool = field(
+        default_factory=lambda: os.environ.get("TCS_DEPTH_RECORD", "1") != "0"
+    )
+    #: Symbols recorded from the start (the chart can add a few more while it runs).
+    depth_symbols: tuple[str, ...] = field(default_factory=_depth_symbols)
+    #: Days of depth history kept.
+    depth_days: int = field(default_factory=lambda: int(os.environ.get("TCS_DEPTH_DAYS", "7")))
     host: str = field(default_factory=lambda: os.environ.get("TCS_HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: int(os.environ.get("TCS_PORT", "8000")))

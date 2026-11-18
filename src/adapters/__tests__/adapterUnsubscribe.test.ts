@@ -39,10 +39,19 @@ describe("BinanceAdapter unsubscribe", () => {
     binance.unsubscribeFundingRate("BTC-USDT");
     const msgs = sent() as Array<{ method: string; params: string[] }>;
 
-    expect(msgs.map((m) => m.method)).toEqual(["UNSUBSCRIBE", "UNSUBSCRIBE", "UNSUBSCRIBE"]);
-    expect(msgs[0].params).toEqual(["btcusdt@aggTrade", "btcusdt@bookTicker"]);
-    expect(msgs[1].params).toEqual(["btcusdt@aggTrade", "btcusdt@bookTicker"]);
-    expect(msgs[2].params).toEqual(["btcusdt@markPrice@1s"]);
+    // Spot on one socket; futures splits trades (/market) from the book ticker (/public).
+    expect(msgs.map((m) => m.method)).toEqual([
+      "UNSUBSCRIBE",
+      "UNSUBSCRIBE",
+      "UNSUBSCRIBE",
+      "UNSUBSCRIBE",
+    ]);
+    expect(msgs.map((m) => m.params)).toEqual([
+      ["btcusdt@aggTrade", "btcusdt@bookTicker"],
+      ["btcusdt@aggTrade"],
+      ["btcusdt@bookTicker"],
+      ["btcusdt@markPrice@1s"],
+    ]);
 
     binance.unsubscribe("BTC-USDT", ["aggTrade", "bookTicker"]);
     expect(sent()).toEqual([]);
@@ -94,6 +103,55 @@ describe("DeltaExchangeAdapter unsubscribe", () => {
           ],
         },
       },
+    ]);
+  });
+});
+
+describe("BinanceAdapter futures sockets (public / market split)", () => {
+  /** [socket URL, payload] of every send since the last call. */
+  function sentWithUrl(): Array<[string, { method: string; params: string[] }]> {
+    const out = send.mock.calls.map(
+      (call, i) =>
+        [
+          (send.mock.contexts[i] as unknown as { url: string }).url,
+          call[0] as { method: string; params: string[] },
+        ] as [string, { method: string; params: string[] }],
+    );
+    send.mockClear();
+    return out;
+  }
+
+  it("routes order-book streams to /public and market streams to /market", () => {
+    const binance = new BinanceAdapter();
+    binance.subscribe("BTC-USDT", ["aggTrade", "depth", "bookTicker"]);
+    binance.subscribeFundingRate("BTC-USDT");
+    binance.subscribeCandles("BTC-USDT", "1m", "futures");
+    const futures = sentWithUrl().filter(([url]) => url.includes("fstream"));
+    const on = (path: string) =>
+      futures.filter(([url]) => url.includes(path)).flatMap(([, m]) => m.params);
+    expect(on("/public/")).toEqual(["btcusdt@depth20@100ms", "btcusdt@bookTicker"]);
+    expect(on("/market/")).toEqual([
+      "btcusdt@aggTrade",
+      "btcusdt@markPrice@1s",
+      "btcusdt@kline_1m",
+    ]);
+  });
+
+  it("unsubscribes each stream on the socket it was subscribed on", () => {
+    const binance = new BinanceAdapter();
+    binance.subscribe("ETH-USDT", ["aggTrade", "depth"]);
+    sentWithUrl();
+    binance.unsubscribe("ETH-USDT", ["aggTrade", "depth"]);
+    const futures = sentWithUrl().filter(([url]) => url.includes("fstream"));
+    expect(futures).toEqual([
+      [
+        "wss://fstream.binance.com/market/stream",
+        expect.objectContaining({ method: "UNSUBSCRIBE", params: ["ethusdt@aggTrade"] }),
+      ],
+      [
+        "wss://fstream.binance.com/public/stream",
+        expect.objectContaining({ method: "UNSUBSCRIBE", params: ["ethusdt@depth20@100ms"] }),
+      ],
     ]);
   });
 });

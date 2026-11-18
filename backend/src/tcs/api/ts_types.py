@@ -48,7 +48,22 @@ def _ts(schema: dict[str, Any]) -> str:
 
 
 def _wrap(t: str) -> str:
+    # A single tuple's brackets already group its members ("[a, b | null][]").
+    if _one_tuple(t):
+        return t
     return f"({t})" if " | " in t else t
+
+
+def _one_tuple(t: str) -> bool:
+    """``t`` is one ``[...]`` whose opening bracket closes at the very end."""
+    if not t.startswith("["):
+        return False
+    depth = 0
+    for i, ch in enumerate(t):
+        depth += {"[": 1, "]": -1}.get(ch, 0)
+        if depth == 0:
+            return i == len(t) - 1
+    return False
 
 
 def _literal(v: object) -> str:

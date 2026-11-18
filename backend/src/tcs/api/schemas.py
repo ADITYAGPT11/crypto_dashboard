@@ -33,6 +33,15 @@ class OutcomeOut(Out):
     bars: int
 
 
+class FlowOut(Out):
+    """Order flow when the setup confirmed (``analysis/flow.py``); nulls where unmeasurable."""
+
+    #: Delta / volume over the last 3 candles, + = in the setup's direction.
+    delta_ratio: float | None
+    flow: Literal["confirms", "against", "neutral"] | None
+    cvd_divergence: bool | None
+
+
 class OccurrenceOut(Out):
     pattern: str
     direction: Literal["long", "short"]
@@ -47,6 +56,7 @@ class OccurrenceOut(Out):
     points: list[PointOut]
     lines: list[LineOut]
     outcome: OutcomeOut
+    flow: FlowOut
 
 
 class ZoneOut(Out):
@@ -157,6 +167,8 @@ class StatsOut(Out):
     tf: str
     zone_tf: str
     run: RunOut | None
+    #: Order-flow context the records are restricted to ("*" = every case).
+    context: str = "*"
     setups: list[SetupStatOut]
 
 
@@ -172,10 +184,19 @@ class CaseOut(Out):
     r: float
     bars: int
     exit_time: int | None
+    delta_ratio: float | None = None
+    flow: Literal["confirms", "against", "neutral"] | None = None
+    cvd_divergence: bool | None = None
 
 
 class CoinSummaryOut(Out):
     symbol: str
+    summary: SummaryOut
+
+
+class ContextSummaryOut(Out):
+    #: "delta:confirms" | "delta:against" | "delta:neutral" | "cvdDiv:yes" | "cvdDiv:no".
+    context: str
     summary: SummaryOut
 
 
@@ -188,6 +209,8 @@ class SetupDetailOut(Out):
     location: str
     pooled: SummaryOut | None
     per_coin: list[CoinSummaryOut]
+    #: Pooled record split by order flow at confirmation, in display order.
+    contexts: list[ContextSummaryOut]
     recent: list[CaseOut]
 
 
@@ -229,8 +252,9 @@ class CatalogOut(Out):
 class CandlesOut(Out):
     symbol: str
     tf: str
-    #: [open time, open, high, low, close, volume], closed candles, ascending.
-    candles: list[tuple[int, float, float, float, float, float]]
+    #: [open time, open, high, low, close, volume, taker buy volume (null: unknown)], closed
+    #: candles, ascending. Taker buy is base volume bought by aggressive buyers (delta, CVD).
+    candles: list[tuple[int, float, float, float, float, float, float | None]]
     coverage: CoverageOut
 
 
@@ -238,3 +262,36 @@ class HealthOut(Out):
     ok: bool
     ruleset: str
     runs: dict[str, RunOut | None]
+
+
+class DepthFeedOut(Out):
+    state: Literal["connecting", "live", "down"]
+    error: str | None
+    #: Price levels in the synced book.
+    levels: int
+    #: When the feed last became live (ms), or null.
+    since: int | None
+
+
+class DepthColumnOut(Out):
+    """Average resting notional (quote currency) per price bucket over one minute."""
+
+    #: Minute open time, ms.
+    time: int
+    bucket: float
+    mid: float
+    samples: int
+    #: [bucket index (price = index x bucket), notional], bids and asks apart.
+    bids: list[tuple[int, float]]
+    asks: list[tuple[int, float]]
+
+
+class DepthOut(Out):
+    symbol: str
+    #: The analysis service is recording this symbol now.
+    recording: bool
+    #: Every symbol being recorded.
+    symbols: list[str]
+    retention_days: int
+    feeds: dict[str, DepthFeedOut]
+    columns: list[DepthColumnOut]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import threading
 import time
 from collections import OrderedDict
@@ -9,6 +10,7 @@ from typing import Any
 
 from tcs.analysis.catalog import CATALOG, RULESET_VERSION
 from tcs.analysis.engine import analyze
+from tcs.analysis.flow import CONTEXTS
 from tcs.analysis.outcomes import MAX_HOLD_BARS
 from tcs.analysis.stats import MIN_SAMPLE
 from tcs.analysis.types import Direction
@@ -19,6 +21,7 @@ from tcs.api.schemas import (
     CaseOut,
     CatalogOut,
     CoinSummaryOut,
+    ContextSummaryOut,
     PatternOut,
     ScannerItemOut,
     ScannerOut,
@@ -99,6 +102,9 @@ class Service:
                 float(s.low[i]),
                 float(s.close[i]),
                 float(s.volume[i]),
+                None
+                if s.taker_buy is None or math.isnan(s.taker_buy[i])
+                else float(s.taker_buy[i]),
             )
             for i in range(len(s))
         ]
@@ -149,12 +155,15 @@ class Service:
 
     # Statistics --------------------------------------------------------------
 
-    def stats(self, tf: Timeframe, zone_tf: Timeframe) -> StatsOut:
-        rows = self.store.stats(RULESET_VERSION, tf, zone_tf)
+    def stats(self, tf: Timeframe, zone_tf: Timeframe, context: str = "*") -> StatsOut:
+        if context != "*" and context not in CONTEXTS:
+            raise BadRequest(f"unknown context {context!r}")
+        rows = self.store.stats(RULESET_VERSION, tf, zone_tf, context=context)
         return StatsOut(
             ruleset=RULESET_VERSION,
             tf=tf,
             zone_tf=zone_tf,
+            context=context,
             run=convert.run(self.store.run(RULESET_VERSION, tf)),
             setups=[
                 SetupStatOut.model_validate(
@@ -182,6 +191,9 @@ class Service:
             RULESET_VERSION, tf, zone_tf, pattern, direction, location
         )
         recent = self.store.cases(RULESET_VERSION, tf, zone_tf, pattern, direction, location)
+        by_context = dict(
+            self.store.contexts(RULESET_VERSION, tf, zone_tf, pattern, direction, location)
+        )
         return SetupDetailOut(
             ruleset=RULESET_VERSION,
             tf=tf,
@@ -197,6 +209,11 @@ class Service:
                 ),
                 key=lambda c: (-c.summary.n, c.symbol),
             ),
+            contexts=[
+                ContextSummaryOut(context=c, summary=SummaryOut.model_validate(by_context[c]))
+                for c in CONTEXTS
+                if c in by_context
+            ],
             recent=[CaseOut.model_validate(c) for c in recent],
         )
 

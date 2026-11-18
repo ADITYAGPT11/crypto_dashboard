@@ -7,7 +7,9 @@ code the chart uses. Results are grouped by
 
     (zone timeframe, coin or '*' pooled, pattern, direction, location or '*' any)
 
-and swapped into the store atomically when the run finishes.
+and, pooled across coins only, also per order-flow context (``analysis/flow.py``: delta
+confirms / against / neutral, CVD divergence yes / no), so every setup can be compared with
+and without flow agreeing. Swapped into the store atomically when the run finishes.
 
 This is independent of what any chart is showing; it only answers "how has this
 setup done in the past?".
@@ -23,6 +25,7 @@ from typing import Any
 
 from tcs.analysis.catalog import RULESET_VERSION
 from tcs.analysis.engine import Occurrence, analyze, detect_levels, detect_patterns
+from tcs.analysis.flow import contexts
 from tcs.analysis.stats import Resolved, summarize
 from tcs.common.series import Series
 from tcs.common.timeframes import TIMEFRAMES, Timeframe, is_at_least
@@ -125,6 +128,9 @@ def _case(s: Series, o: Occurrence) -> dict[str, Any]:
         "r": round(out.r, 4),
         "bars": out.bars,
         "exitTime": None if out.exit_index is None else int(s.open_time[out.exit_index]),
+        "deltaRatio": None if o.flow.delta_ratio is None else round(o.flow.delta_ratio, 4),
+        "flow": o.flow.flow,
+        "cvdDivergence": o.flow.divergence,
     }
 
 
@@ -137,16 +143,23 @@ def _resolved(occ: list[Occurrence]) -> tuple[list[Resolved], int]:
     return done, sum(1 for o in occ if o.outcome.result == "expired")
 
 
+StatKey = tuple[str, str, str, str, str, str]  # Key + order-flow context
+
+
 def _aggregate(
     groups: dict[Key, list[Occurrence]],
-) -> list[tuple[str, str, str, str, str, dict[str, Any]]]:
-    """Per coin and pooled ('*'), per location and any location ('*')."""
-    rolled: dict[Key, list[Occurrence]] = defaultdict(list)
+) -> list[tuple[str, str, str, str, str, str, dict[str, Any]]]:
+    """Per coin and pooled ('*'), per location and any location ('*'); pooled rows also per
+    order-flow context (context '*' = every case)."""
+    rolled: dict[StatKey, list[Occurrence]] = defaultdict(list)
     for (zone_tf, symbol, pattern, direction, location), occ in groups.items():
-        for sym in (symbol, "*"):
-            for loc in (location, "*"):
-                rolled[(zone_tf, sym, pattern, direction, loc)].extend(occ)
-    out: list[tuple[str, str, str, str, str, dict[str, Any]]] = []
+        for loc in (location, "*"):
+            rolled[(zone_tf, symbol, pattern, direction, loc, "*")].extend(occ)
+            rolled[(zone_tf, "*", pattern, direction, loc, "*")].extend(occ)
+            for o in occ:
+                for ctx in contexts(o.flow):
+                    rolled[(zone_tf, "*", pattern, direction, loc, ctx)].append(o)
+    out: list[tuple[str, str, str, str, str, str, dict[str, Any]]] = []
     for key, occ in rolled.items():
         done, expired = _resolved(occ)
         summary = asdict(summarize(done, expired))

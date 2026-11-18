@@ -12,16 +12,22 @@ FastAPI, numpy, TA-Lib, httpx, SQLite** (`backend/`). Node prototype: Express + 
 
 One rule set; both the chart and the background statistics call `analysis/engine.py::analyze`.
 
-- `common/`: `series.py` (column arrays, `head`/`scaled`/`mirror`), `timeframes.py`, `universe.py`
+- `common/`: `series.py` (column arrays incl. taker buy volume, `head`/`scaled`/`mirror`), `timeframes.py`, `universe.py`
 - `analysis/`: `catalog.py` (pattern ids, labels, sources, `RULESET_VERSION`), `indicators.py`
   (TA-Lib ATR/EMA/SMA), `swings.py` (pivots + `known_at`), `candlesticks.py` (TA-Lib shapes +
   context), `chart_patterns.py` (double bottom, inverse H&S, bull flag; twins by mirroring),
   `trendlines.py` (triangles, wedges), `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
-  `location.py`, `outcomes.py`, `stats.py` (Wilson, verdict), `engine.py`, `types.py`.
+  `location.py`, `outcomes.py`, `flow.py` (order-flow context: delta, CVD divergence), `stats.py`
+  (Wilson, verdict), `engine.py`, `types.py`.
   Rules in words: `docs/product/patterns.md`.
 - `marketdata/`: `binance.py` (REST klines + `data.binance.vision` zips, pacing, cooldown on
   refusal), `history.py` (`ensure`: archive months → archive days → REST tail; coverage/gaps)
-- `store/sqlite.py`: candles, stats runs, setup stats, setup cases (WAL, swap per run)
+- `depth/`: `books.py` (Binance / OKX book sync, port of `depthBook.ts`), `sampler.py` (books →
+  one-minute bucket columns), `recorder.py` (`DepthRecorder`: per-symbol sockets with reconnect,
+  2 s sampling, started in the API lifespan; `TCS_DEPTH_RECORD`, `TCS_DEPTH_SYMBOLS`,
+  `TCS_DEPTH_DAYS`)
+- `store/sqlite.py`: candles, stats runs, setup stats (per order-flow context), setup cases,
+  depth columns (WAL, swap per run)
 - `jobs/stats_job.py`: per pattern TF, every coin, every allowed level TF; aggregates per coin
   and pooled, per location and any location
 - `api/`: `app.py` (routes, scheduler in a worker process), `service.py`, `schemas.py`
@@ -105,8 +111,9 @@ price table, spread (arbitrage), order book, alerts.
   subscribed; each source `loading | ok | unavailable`
 - `AnalysisApi` + `ApiResource`: the service's catalogue, analysis (refetched after each candle
   close), stats, setup detail and scanner as shared, auto-refreshing resources
-- `LiquidityService`: Binance + OKX full-depth books (own sockets), sampled every 2 s while the
-  heatmap is on
+- `LiquidityService`: Binance + OKX + Delta books (own sockets) plus OKX's 5 000-level REST
+  book every 5 s for the far levels, added up within ±2% of the mid and sampled every 2 s while
+  the heatmap is on; per-exchange state and share
 - `SetupAlertService`: setup-alert rules + firings (localStorage), 60 s check against the
   service's scanner, outcome tracking via its analysis, Telegram via the Node prototype
   `/api/alerts/send` (injectable deps for tests)
@@ -114,15 +121,22 @@ price table, spread (arbitrage), order book, alerts.
 **Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
 `useScanner`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
-`useLiveCandle` (forming candle: Binance, OKX when Binance is silent; `utils/liveCandle`), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
+`useDepthHistory` (recorded heatmap minutes from `/api/v1/depth`, once per enable),
+`useFootprint` (live footprint per view bar and row size; session trade buffer per symbol),
+`useBigTrades` (big Binance perp taker orders, merged from aggTrade, top 1% of recent prints, ≤ 2
+renders/s), `useLiveCandle` (forming candle: Binance, OKX when Binance is silent; `utils/liveCandle`), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
 `useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
 
 **Analysis in the browser**: none that feeds statistics (the service owns every rule). Display
 helpers: `volumeProfile` (visible-range histogram, key volume levels), `timeframeMapping` (times
 → view positions for patterns, zones, blocks, gaps), `setupKeys` (`pattern|direction|location`,
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
-sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync), `liquidityHeatmap`
-(buckets, per-bar frames, pools), `overlaySettings` (layers + which levels are key; display
+sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`, Delta
+`l2_orderbook`), `liquidityHeatmap`
+(buckets, samples, pools, recorded columns → samples, history + live merge), `heatmapRender`
+(thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
+position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `footprint`
+(rows, `FootprintBook`, diagonal imbalance), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
 `src/api/schema.ts`; client `src/api/client.ts`.
 `src/services/HistoryService.ts`: closed-candle history from Binance REST (fallback: the
@@ -151,7 +165,7 @@ names), `connection.ts`, `alertRules.ts`
 `Regime`, `Movers`, `DataHealth`), `StatsPage/`, `RiskPage/`, `AlertsPage/`,
 `AlertToast/`, `ChartPage/` (`PriceChart` with panes/legend/drawings, `ChartToolbar`,
 `DrawingToolbar`, `IndicatorsDialog`, `IndicatorSettings`, `Modal`, `icons`, `DetectionSettings`,
-`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
+`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`, `drawBigTrades`, `drawFootprint`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
 overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
 `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
@@ -179,17 +193,19 @@ overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `Pri
 
 ## Endpoints used
 
-- Binance WS: `wss://stream.binance.com:9443/stream`, `wss://fstream.binance.com/stream`
+- Binance WS: spot `wss://stream.binance.com:443/stream`; futures `wss://fstream.binance.com/public/stream`
+  (depth, bookTicker) and `/market/stream` (aggTrade, kline, markPrice): split since March 2026
 - Binance REST: `api.binance.com/api/v3/{exchangeInfo,klines,ticker/24hr}`,
   `fapi.binance.com/fapi/v1/{klines,ticker/24hr}`
-- OKX WS: `wss://ws.okx.com:8443/ws/v5/public` (tickers, funding-rate, `candle*` channels)
-- OKX REST: `www.okx.com/api/v5/{public/instruments,market/candles,market/ticker}`
-- Delta India WS: `wss://public-socket.india.delta.exchange`
+- OKX WS: `wss://ws.okx.com/ws/v5/public` (port 443; 8443 is often blocked by proxies) (tickers, funding-rate, `candle*` channels)
+- OKX REST: `www.okx.com/api/v5/{public/instruments,market/candles,market/ticker,market/books-full}`
+- Delta India WS: `wss://public-socket.india.delta.exchange` (trades, funding only);
+  `wss://socket.india.delta.exchange` (`l2_orderbook`, heatmap); REST `api.india.delta.exchange/v2/products/{symbol}`
 - Binance futures REST: `fapi.binance.com/fapi/v1/{ticker/24hr,premiumIndex}`,
-  `/futures/data/{openInterestHist,globalLongShortAccountRatio}`; WS `fstream…/ws/!forceOrder@arr`
+  `/futures/data/{openInterestHist,globalLongShortAccountRatio}`; WS `fstream…/market/ws/!forceOrder@arr`
 - `api.alternative.me/fng/?limit=8` (Fear & Greed), `api.coingecko.com/api/v3/global` (dominance)
 - Telegram Bot API `api.telegram.org` (backend prototype only)
-- Order books (heatmap): Binance `fstream…/stream?streams=<sym>@depth@500ms` + REST
+- Order books (heatmap): Binance `fstream…/public/stream?streams=<sym>@depth@500ms` + REST
   `fapi…/fapi/v1/depth?limit=1000`; OKX WS `books` channel (contract size from
   `public/instruments`)
 - Analysis service (Python): Binance `fapi…/fapi/v1/klines`, `data.binance.vision`
