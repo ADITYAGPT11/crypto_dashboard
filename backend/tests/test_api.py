@@ -58,6 +58,7 @@ def settings(tmp_path: Path) -> Settings:
         db_path=tmp_path / "t.sqlite3",
         stats_days=120,
         universe=("AAA-USDT", "BBB-USDT"),
+        playbook_universe=("AAA-USDT", "BBB-USDT"),
         schedule=False,
     )
 

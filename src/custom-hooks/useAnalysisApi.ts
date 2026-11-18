@@ -12,6 +12,7 @@ import {
 import type {
   AnalysisOut,
   CatalogOut,
+  ForwardOut,
   PlaybookLiveOut,
   PlaybookStatsOut,
   PlaybookTradesOut,
@@ -97,4 +98,14 @@ export function usePlaybookTrades(
   exit: string,
 ): ResourceState<PlaybookTradesOut> {
   return useResource(analysisApi().playbookTrades, `${htf}|${ltf}|${entry}|${exit}`);
+}
+
+/** Forward paper trading: the playbook's trades recorded live, as they happened. */
+export function useForward(
+  htf: CandleInterval,
+  ltf: CandleInterval,
+  entry: string,
+  exit: string,
+): ResourceState<ForwardOut> {
+  return useResource(analysisApi().forward, `${htf}|${ltf}|${entry}|${exit}`);
 }

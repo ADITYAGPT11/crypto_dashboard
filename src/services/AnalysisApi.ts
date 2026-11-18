@@ -10,6 +10,7 @@
 import type {
   AnalysisOut,
   CatalogOut,
+  ForwardOut,
   PlaybookLiveOut,
   PlaybookStatsOut,
   PlaybookTradesOut,
@@ -102,6 +103,13 @@ function createResources() {
         return apiGet<PlaybookTradesOut>("/playbook/trades", { htf, ltf, entry, exit });
       },
       refreshIn: () => 600_000,
+    }),
+    forward: new ApiResource<ForwardOut>({
+      fetch: (key) => {
+        const [htf, ltf, entry, exit] = key.split("|");
+        return apiGet<ForwardOut>("/paper/forward", { htf, ltf, entry, exit });
+      },
+      refreshIn: () => 60_000,
     }),
     playbook: new ApiResource<PlaybookLiveOut>({
       fetch: (key) => {

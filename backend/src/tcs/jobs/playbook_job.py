@@ -47,7 +47,7 @@ def run_playbook_stats(
     cut = since + int(IN_SAMPLE * (now - since))
     pair = pair_key(htf, ltf)
     meta: dict[str, Any] = {
-        "coins": list(settings.universe),
+        "coins": list(settings.playbook_universe),
         "done": 0,
         "failed": [],
         "since": since,
@@ -60,7 +60,7 @@ def run_playbook_stats(
     rows: dict[tuple[str, str, str, str], list[ClosedTrade]] = defaultdict(list)
     trades_out: list[tuple[str, str, str, int, dict[str, Any]]] = []
     try:
-        for symbol in settings.universe:
+        for symbol in settings.playbook_universe:
             try:
                 h = _load(history, symbol, htf, since, now)
                 lt = _load(history, symbol, ltf, since, now)

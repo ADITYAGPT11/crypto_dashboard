@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { PaperTradeOut } from "../../api/schema";
-import { parsePaperSettings, simulatePaper, usd } from "../paperAccount";
+import { forwardToPaper, parsePaperSettings, simulatePaper, usd } from "../paperAccount";
 
 const H = 3_600_000;
 const trade = (
@@ -101,5 +101,40 @@ describe("paper account", () => {
     expect(usd(10_234.4)).toBe("$10,234");
     expect(usd(-12.5)).toBe("−$12.50");
     expect(usd(35, true)).toBe("+$35.00");
+  });
+});
+
+describe("forward trades", () => {
+  it("replays only closed forward trades", () => {
+    const base = {
+      symbol: "SOL-USDT",
+      time: 0,
+      pattern: "hammer",
+      direction: "long" as const,
+      location: "zone",
+      note: "",
+      entryPrice: 100,
+      stop: 98,
+      target: null,
+      fillTime: H,
+      exitTime: 2 * H,
+      exitPrice: 104,
+      reason: "trail" as const,
+      stopNow: 101,
+      rNet: 1.9,
+      rGross: 2,
+      firstSeen: H,
+      late: false,
+    };
+    const out = forwardToPaper([
+      { ...base, status: "closed" },
+      { ...base, status: "open", exitTime: null },
+      { ...base, status: "pending", entryPrice: null },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].rNet).toBe(1.9);
+    expect(simulatePaper(out, { start: 1_000, riskPct: 1, compound: true }).balance).toBeCloseTo(
+      1_019,
+    );
   });
 });

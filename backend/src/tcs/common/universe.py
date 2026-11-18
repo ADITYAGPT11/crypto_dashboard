@@ -17,6 +17,29 @@ RESEARCH_UNIVERSE: tuple[str, ...] = (
 )
 
 
+#: More liquid perpetuals with over two years of Binance history, measured by the playbook only
+#: (a bigger sample, and coins its rules were never looked at on). The dashboard and the
+#: pattern statistics keep the research ten.
+PLAYBOOK_EXTRA: tuple[str, ...] = (
+    "TRX-USDT",
+    "DOT-USDT",
+    "BCH-USDT",
+    "NEAR-USDT",
+    "UNI-USDT",
+    "ATOM-USDT",
+    "ETC-USDT",
+    "FIL-USDT",
+    "APT-USDT",
+    "ARB-USDT",
+    "OP-USDT",
+    "SUI-USDT",
+    "INJ-USDT",
+    "AAVE-USDT",
+    "XLM-USDT",
+)
+PLAYBOOK_UNIVERSE: tuple[str, ...] = RESEARCH_UNIVERSE + PLAYBOOK_EXTRA
+
+
 def to_exchange_symbol(symbol: str) -> str:
     """Canonical ``BASE-QUOTE`` to Binance's ``BASEQUOTE``."""
     return symbol.replace("-", "").upper()

@@ -6,13 +6,19 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from tcs.common.universe import RESEARCH_UNIVERSE, is_canonical
+from tcs.common.universe import PLAYBOOK_UNIVERSE, RESEARCH_UNIVERSE, is_canonical
 
 
 def _universe() -> tuple[str, ...]:
     raw = os.environ.get("TCS_UNIVERSE", "")
     picked = tuple(s.strip().upper() for s in raw.split(",") if s.strip())
     return tuple(s for s in picked if is_canonical(s)) or RESEARCH_UNIVERSE
+
+
+def _playbook_universe() -> tuple[str, ...]:
+    raw = os.environ.get("TCS_PLAYBOOK_UNIVERSE", "")
+    picked = tuple(s.strip().upper() for s in raw.split(",") if s.strip())
+    return tuple(s for s in picked if is_canonical(s)) or PLAYBOOK_UNIVERSE
 
 
 def _depth_symbols() -> tuple[str, ...]:
@@ -29,8 +35,12 @@ class Settings:
     #: Days of history the statistics job measures (one to two years).
     stats_days: int = field(default_factory=lambda: int(os.environ.get("TCS_STATS_DAYS", "730")))
     universe: tuple[str, ...] = field(default_factory=_universe)
+    #: Coins the playbook is measured and forward-tested on (research ten + 15 more).
+    playbook_universe: tuple[str, ...] = field(default_factory=_playbook_universe)
     #: Run the background statistics job on a schedule inside the API process.
     schedule: bool = field(default_factory=lambda: os.environ.get("TCS_STATS_SCHEDULE", "1") != "0")
+    #: Forward paper trading: record the live playbook's trades every few minutes.
+    forward: bool = field(default_factory=lambda: os.environ.get("TCS_FORWARD", "1") != "0")
     #: Record order-book depth (heatmap history) inside the API process.
     record_depth: bool = field(
         default_factory=lambda: os.environ.get("TCS_DEPTH_RECORD", "1") != "0"

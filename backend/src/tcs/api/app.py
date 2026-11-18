@@ -21,6 +21,7 @@ from tcs.api.schemas import (
     DepthColumnOut,
     DepthFeedOut,
     DepthOut,
+    ForwardOut,
     HealthOut,
     PlaybookLiveOut,
     PlaybookStatsOut,
@@ -90,6 +91,22 @@ def _playbook_stale(svc: Service, htf: Timeframe, now: int) -> bool:
     return now - finished >= (3_600_000 if run["status"] == "failed" else TF_MS[htf])
 
 
+FORWARD_EVERY_S = 300
+
+
+async def _forward_loop(svc: Service) -> None:
+    """Forward paper trading: record the live playbook's trades every few minutes."""
+    while True:
+        for htf, ltf in PAIRS:
+            try:
+                r = await asyncio.to_thread(svc.record_forward, htf, ltf)
+                if r["changed"]:
+                    log.info("forward paper trades updated: %s", r)
+            except Exception:
+                log.exception("forward paper trading failed")
+        await asyncio.sleep(FORWARD_EVERY_S)
+
+
 async def _scheduler(svc: Service, pool: ProcessPoolExecutor) -> None:
     loop = asyncio.get_running_loop()
     while True:
@@ -129,10 +146,13 @@ def create_app(
             if r and r["status"] == "running":
                 svc.store.finish_run(RULESET_VERSION, key, now_ms(), "failed", r["meta"])
         task: asyncio.Task[None] | None = None
+        forward: asyncio.Task[None] | None = None
         pool: ProcessPoolExecutor | None = None
         if settings.schedule:
             pool = ProcessPoolExecutor(max_workers=1)
             task = asyncio.create_task(_scheduler(svc, pool))
+        if settings.forward:
+            forward = asyncio.create_task(_forward_loop(svc))
         if depth:
             await depth.start()
         try:
@@ -142,6 +162,8 @@ def create_app(
                 await depth.stop()
             if task:
                 task.cancel()
+            if forward:
+                forward.cancel()
             if pool:
                 pool.shutdown(wait=False, cancel_futures=True)
 
@@ -213,6 +235,15 @@ def create_app(
         h, lt = _pair(htf, ltf)
         try:
             return svc.playbook_trades(h, lt, entry, exit)
+        except BadRequest as err:
+            raise HTTPException(422, str(err)) from err
+
+    @r.get("/paper/forward")
+    def paper_forward(entry: str, exit: str, htf: str = "4h", ltf: str = "15m") -> ForwardOut:
+        """Forward paper trading: the playbook's trades recorded live, as they happened."""
+        h, lt = _pair(htf, ltf)
+        try:
+            return svc.forward(h, lt, entry, exit)
         except BadRequest as err:
             raise HTTPException(422, str(err)) from err
 

@@ -87,7 +87,7 @@ criteria met.
       baseline and an older / newer split (2026-11-18; first result: no edge, fees 0.15–0.24R a
       trade with tight 15m stops)
 - [x] Playbook tuning 1: minimum stop distance 1% (r4; fees fall, still no edge)
-- [x] Playbook tuning 2: trigger at daily levels (r5; FVG entries become a lead, unconfirmed)
+- [x] Playbook tuning 2: trigger at daily levels (r5; FVG lead on 10 coins, failed on 15 new)
 - [ ] Playbook tuning, one change per rule-set version (stronger trigger: 1d levels, confluence,
       trend filter, delta at the CHoCH; minimum reward : risk)
 
@@ -113,6 +113,9 @@ criteria met.
 ## Phase 4 · Forward test (M5)
 
 - [x] Paper trading page: past playbook trades replayed in a dummy-money account (2026-11-18)
+- [x] Forward paper ledger for the playbook (every variant, setups after the start only, frozen
+      closes, late flag; 25 coins) (2026-11-18)
+- [ ] Drift detection + auto-pause; forward vs backtest band per variant
 - [ ] Paper ledger for every signal and veto; drift detection + auto-pause
 
 **Exit:** ≥ 30 forward trades per promoted strategy inside the backtest 95 % band.

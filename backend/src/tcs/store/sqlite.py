@@ -70,6 +70,21 @@ CREATE TABLE IF NOT EXISTS playbook_trades (
   ruleset TEXT NOT NULL, pair TEXT NOT NULL, symbol TEXT NOT NULL,
   entry TEXT NOT NULL, exit TEXT NOT NULL, time INTEGER NOT NULL, detail TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS forward_meta (
+  ruleset TEXT NOT NULL, pair TEXT NOT NULL,
+  started_at INTEGER NOT NULL, last_run INTEGER, meta TEXT NOT NULL DEFAULT '{}',
+  PRIMARY KEY (ruleset, pair)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS forward_trades (
+  ruleset TEXT NOT NULL, pair TEXT NOT NULL, entry TEXT NOT NULL, exit TEXT NOT NULL,
+  symbol TEXT NOT NULL, trigger_time INTEGER NOT NULL, pattern TEXT NOT NULL,
+  direction TEXT NOT NULL,
+  status TEXT NOT NULL, first_seen INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+  detail TEXT NOT NULL,
+  PRIMARY KEY (ruleset, pair, entry, exit, symbol, trigger_time, pattern, direction)
+) WITHOUT ROWID;
+
 CREATE INDEX IF NOT EXISTS playbook_trades_key
   ON playbook_trades (ruleset, pair, entry, exit, time);
 """
@@ -452,3 +467,86 @@ class Store:
         out = [{"symbol": r[0], "time": r[1], **json.loads(r[2])} for r in rows]
         out.sort(key=lambda t: (t.get("fillTime") or t["time"], t["symbol"]))
         return out
+
+    # Forward paper trading ------------------------------------------------------
+
+    def forward_start(self, ruleset: str, pair: str, now: int) -> int:
+        """When forward tracking of this rule set began (set on first call)."""
+        with self.tx() as db:
+            db.execute(
+                "INSERT OR IGNORE INTO forward_meta (ruleset, pair, started_at) VALUES (?,?,?)",
+                (ruleset, pair, now),
+            )
+            row = db.execute(
+                "SELECT started_at FROM forward_meta WHERE ruleset=? AND pair=?", (ruleset, pair)
+            ).fetchone()
+        return int(row[0])
+
+    def forward_meta(self, ruleset: str, pair: str) -> dict[str, Any] | None:
+        row = (
+            self._conn()
+            .execute(
+                "SELECT started_at, last_run, meta FROM forward_meta WHERE ruleset=? AND pair=?",
+                (ruleset, pair),
+            )
+            .fetchone()
+        )
+        if row is None:
+            return None
+        return {"started_at": row[0], "last_run": row[1], "meta": json.loads(row[2])}
+
+    def forward_ran(self, ruleset: str, pair: str, now: int, meta: dict[str, Any]) -> None:
+        with self.tx() as db:
+            db.execute(
+                "UPDATE forward_meta SET last_run=?, meta=? WHERE ruleset=? AND pair=?",
+                (now, json.dumps(meta), ruleset, pair),
+            )
+
+    def upsert_forward(
+        self,
+        ruleset: str,
+        pair: str,
+        rows: Sequence[tuple[str, str, str, int, str, str, str, int, dict[str, Any]]],
+    ) -> int:
+        """Record forward trades (entry, exit, symbol, trigger time, pattern, direction, status,
+        now, detail). A closed trade is frozen: later runs never rewrite it. Returns rows changed."""
+        changed = 0
+        with self.tx() as db:
+            for e, x, sym, t, pat, d, status, now, detail in rows:
+                cur = db.execute(
+                    "INSERT INTO forward_trades VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
+                    "ON CONFLICT (ruleset, pair, entry, exit, symbol, trigger_time, pattern, "
+                    "direction) DO UPDATE SET status=excluded.status, "
+                    "updated_at=excluded.updated_at, detail=excluded.detail "
+                    "WHERE forward_trades.status != 'closed'",
+                    (ruleset, pair, e, x, sym, t, pat, d, status, now, now, json.dumps(detail)),
+                )
+                changed += cur.rowcount
+        return changed
+
+    def forward_trades(
+        self, ruleset: str, pair: str, entry: str, exit: str
+    ) -> list[dict[str, Any]]:
+        rows = (
+            self._conn()
+            .execute(
+                "SELECT symbol, trigger_time, pattern, direction, status, first_seen, updated_at, "
+                "detail FROM forward_trades WHERE ruleset=? AND pair=? AND entry=? AND exit=? "
+                "ORDER BY trigger_time",
+                (ruleset, pair, entry, exit),
+            )
+            .fetchall()
+        )
+        return [
+            {
+                "symbol": r[0],
+                "time": r[1],
+                "pattern": r[2],
+                "direction": r[3],
+                "status": r[4],
+                "firstSeen": r[5],
+                "updatedAt": r[6],
+                **json.loads(r[7]),
+            }
+            for r in rows
+        ]

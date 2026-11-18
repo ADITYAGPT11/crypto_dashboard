@@ -421,3 +421,14 @@ candles load 300 days before the measured period so levels exist from its start.
 for CHoCH-close and Fib entries, better for FVG entries (the first variant that holds on the newer
 data and beats random entries). Kept because it is closer to the owner's intent and produced the
 only lead so far; the lead is unconfirmed (9 variants compared, ~186 trades).
+
+### 2026-11-18 · Forward paper trading: start time per rule set, frozen closes; playbook on 25 coins
+
+Why: the replay was measured on the same past it was tuned on; only trades on data no rule has
+seen can confirm a lead. The service records the live playbook every 5 minutes, but only setups
+that became known after tracking of the current rule set began (stored start time), so nothing
+is backfilled with hindsight. A closed trade is never rewritten (data corrections cannot improve a
+record), entries first seen after they happened are flagged late, and a rule change starts a new
+record. Alongside, the playbook alone measures 25 coins (research 10 + 15 liquid perpetuals with
+2+ years of history) so a lead can be checked on coins it was never looked at; the dashboard and
+pattern statistics keep the research 10. First use: the r5 FVG lead failed on the 15 new coins.

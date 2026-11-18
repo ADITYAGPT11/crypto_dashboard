@@ -13,7 +13,7 @@
  *
  * Display only: no orders, no exchange, nothing here feeds a statistic.
  */
-import type { PaperTradeOut } from "../api/schema";
+import type { ForwardTradeOut, PaperTradeOut } from "../api/schema";
 
 export interface PaperSettings {
   /** Starting balance in USDT. */
@@ -169,3 +169,31 @@ export function usd(v: number, signed = false): string {
   const sign = v < 0 ? "−" : signed && v > 0 ? "+" : "";
   return `${sign}$${s}`;
 }
+
+/** Closed forward (live-recorded) trades in the shape the paper account replays. */
+export function forwardToPaper(trades: readonly ForwardTradeOut[]): PaperTradeOut[] {
+  return trades.flatMap((t) =>
+    t.status === "closed" && t.entryPrice !== null && t.stop !== null
+      ? [
+          {
+            symbol: t.symbol,
+            pattern: t.pattern,
+            direction: t.direction,
+            location: t.location,
+            time: t.time,
+            entryPrice: t.entryPrice,
+            stop: t.stop,
+            exitPrice: t.exitPrice,
+            reason: t.reason,
+            rNet: t.rNet,
+            rGross: t.rGross,
+            fillTime: t.fillTime,
+            exitTime: t.exitTime,
+          },
+        ]
+      : [],
+  );
+}
+
+export type PaperMode = "forward" | "replay";
+export const PAPER_MODE_KEY = "paper:mode";

@@ -28,9 +28,11 @@ One rule set; both the chart and the background statistics call `analysis/engine
   one-minute bucket columns), `recorder.py` (`DepthRecorder`: per-symbol sockets with reconnect,
   2 s sampling, started in the API lifespan; `TCS_DEPTH_RECORD`, `TCS_DEPTH_SYMBOLS`,
   `TCS_DEPTH_DAYS`)
+- `api/service.py::record_forward`: forward paper trading every 5 min (`_forward_loop` in `app.py`),
+  setups known after the start only, closed trades frozen (`forward_meta`, `forward_trades`)
 - `store/sqlite.py`: candles, stats runs, setup stats (per order-flow context), setup cases,
   depth columns (WAL, swap per run)
-- `jobs/playbook_job.py`: playbook variants over the universe (4h > 15m), pooled + per coin,
+- `jobs/playbook_job.py`: playbook variants over `PLAYBOOK_UNIVERSE` (25 coins; 4h > 15m), pooled + per coin,
   older / newer split; scheduled after the statistics
 - `jobs/stats_job.py`: per pattern TF, every coin, every allowed level TF; aggregates per coin
   and pooled, per location and any location
@@ -123,7 +125,7 @@ price table, spread (arbitrage), order book, alerts.
   `/api/alerts/send` (injectable deps for tests)
 
 **Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
-`useScanner`, `usePlaybookStats`, `usePlaybook`, `usePlaybookTrades`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
+`useScanner`, `usePlaybookStats`, `usePlaybook`, `usePlaybookTrades`, `useForward`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
 `useDepthHistory` (recorded heatmap minutes from `/api/v1/depth`, once per enable),
 `useFootprint` (live footprint per view bar and row size; session trade buffer per symbol),
@@ -141,7 +143,7 @@ sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX 
 (thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
 position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `playbook`
 (variant labels, default pick, stage / trade lines), `paperAccount` (R → dollars: sizing,
-compounding, fees, drawdown), `footprint`
+compounding, fees, drawdown; forward trades → replay), `footprint`
 (rows, `FootprintBook`, diagonal imbalance), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
 `src/api/schema.ts`; client `src/api/client.ts`.

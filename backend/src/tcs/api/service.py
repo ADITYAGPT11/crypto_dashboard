@@ -23,6 +23,8 @@ from tcs.api.schemas import (
     CatalogOut,
     CoinSummaryOut,
     ContextSummaryOut,
+    ForwardOut,
+    ForwardTradeOut,
     PaperTradeOut,
     PatternOut,
     PlaybookLiveOut,
@@ -49,6 +51,9 @@ from tcs.store.sqlite import Store
 
 #: Higher-timeframe candles loaded before the chart window, so its levels exist from the start.
 LEVEL_WARMUP = 300
+#: Days of setups the forward tracker follows each run: longer than the longest trade
+#: (7 days) so an open trade keeps being updated until it closes.
+FORWARD_DAYS = 10
 CACHE_SIZE = 128
 
 
@@ -383,6 +388,7 @@ class Service:
                         reason=tr.reason,
                         stop_now=num(tr.stop_now),
                         r_net=tr.r_net,
+                        r_gross=tr.r_gross,
                     )
                     for tr in t.trades
                 ],
@@ -421,4 +427,96 @@ class Service:
                     PaperTradeOut.model_validate({"rGross": t.get("rNet", 0.0), **t}) for t in rows
                 ],
             }
+        )
+
+    # Forward paper trading -------------------------------------------------------
+
+    def record_forward(
+        self, htf: Timeframe = "4h", ltf: Timeframe = "15m", now: int | None = None
+    ) -> dict[str, Any]:
+        """Follow every coin's live playbook and record its trades, every variant, as they happen.
+
+        Only setups that became known after forward tracking of this rule set started count
+        (no hindsight). Closed trades are frozen by the store. Called by the scheduler.
+        """
+        now = now or now_ms()
+        pair = pair_key(htf, ltf)
+        started = self.store.forward_start(RULESET_VERSION, pair, now)
+        rows: list[tuple[str, str, str, int, str, str, str, int, dict[str, Any]]] = []
+        signals: set[tuple[str, int, str, str]] = set()
+        failed: list[str] = []
+        for symbol in self.settings.playbook_universe:
+            try:
+                live = self.playbook_live(symbol, htf, ltf, FORWARD_DAYS, now)
+            except Exception:
+                failed.append(symbol)
+                continue
+            for t in live.triggers:
+                if t.known_at <= started:
+                    continue
+                signals.add((symbol, t.time, t.pattern, t.direction))
+                for tr in t.trades:
+                    detail = {
+                        "location": t.location,
+                        "note": tr.note,
+                        "entryPrice": tr.entry,
+                        "stop": tr.stop,
+                        "target": tr.target,
+                        "fillTime": tr.fill_time,
+                        "exitTime": tr.exit_time,
+                        "exitPrice": tr.exit_price,
+                        "reason": tr.reason,
+                        "stopNow": tr.stop_now,
+                        "rNet": tr.r_net,
+                        "rGross": tr.r_gross,
+                    }
+                    rows.append(
+                        (
+                            tr.entry_kind,
+                            tr.exit_kind,
+                            symbol,
+                            t.time,
+                            t.pattern,
+                            t.direction,
+                            tr.status,
+                            now,
+                            detail,
+                        )
+                    )
+        changed = self.store.upsert_forward(RULESET_VERSION, pair, rows)
+        prev = self.store.forward_meta(RULESET_VERSION, pair) or {"meta": {}}
+        seen = set(map(tuple, prev["meta"].get("signals", []))) | signals
+        meta = {
+            "signals": sorted([list(x) for x in seen]),
+            "coins": list(self.settings.playbook_universe),
+            "failed": failed,
+        }
+        self.store.forward_ran(RULESET_VERSION, pair, now, meta)
+        return {"started": started, "trades": len(rows), "changed": changed, "failed": failed}
+
+    def forward(self, htf: Timeframe, ltf: Timeframe, entry: str, exit: str) -> ForwardOut:
+        if entry not in pb.ENTRIES or exit not in pb.EXITS:
+            raise BadRequest(
+                f"entry must be one of {', '.join(pb.ENTRIES)}; exit one of {', '.join(pb.EXITS)}"
+            )
+        pair = pair_key(htf, ltf)
+        m = self.store.forward_meta(RULESET_VERSION, pair)
+        trades = []
+        for t in self.store.forward_trades(RULESET_VERSION, pair, entry, exit):
+            fill = t.get("fillTime")
+            late = fill is not None and t["firstSeen"] > fill + TF_MS[ltf]
+            trades.append(ForwardTradeOut.model_validate({**t, "late": late}))
+        meta = (m or {}).get("meta", {})
+        return ForwardOut(
+            ruleset=RULESET_VERSION,
+            htf=htf,
+            ltf=ltf,
+            entry=entry,  # type: ignore[arg-type]
+            exit=exit,  # type: ignore[arg-type]
+            started_at=(m or {}).get("started_at"),
+            last_run=(m or {}).get("last_run"),
+            signals=len(meta.get("signals", [])),
+            coins=meta.get("coins", []),
+            failed=meta.get("failed", []),
+            trades=trades,
         )

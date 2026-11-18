@@ -101,6 +101,42 @@ export interface FlowOut {
   cvdDivergence: boolean | null;
 }
 
+export interface ForwardOut {
+  ruleset: string;
+  htf: string;
+  ltf: string;
+  entry: "market" | "fib" | "fvg";
+  exit: "target" | "trail" | "managed";
+  startedAt: number | null;
+  lastRun: number | null;
+  signals: number;
+  coins: string[];
+  failed: string[];
+  trades: ForwardTradeOut[];
+}
+
+export interface ForwardTradeOut {
+  symbol: string;
+  time: number;
+  pattern: string;
+  direction: "long" | "short";
+  location: string;
+  status: "pending" | "skipped" | "cancelled" | "open" | "closed";
+  note?: string;
+  entryPrice: number | null;
+  stop: number | null;
+  target: number | null;
+  fillTime: number | null;
+  exitTime: number | null;
+  exitPrice: number | null;
+  reason: "stop" | "target" | "trail" | "breakeven" | "time" | null;
+  stopNow: number | null;
+  rNet: number;
+  rGross: number;
+  firstSeen: number;
+  late: boolean;
+}
+
 export interface FvgOut {
   kind: "bullish" | "bearish";
   low: number;
@@ -233,6 +269,7 @@ export interface PlaybookTradeOut {
   reason: "stop" | "target" | "trail" | "breakeven" | "time" | null;
   stopNow: number | null;
   rNet: number;
+  rGross?: number;
 }
 
 export interface PlaybookTradesOut {

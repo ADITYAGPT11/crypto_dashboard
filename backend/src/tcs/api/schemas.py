@@ -375,6 +375,7 @@ class PlaybookTradeOut(Out):
     #: Where the stop is now (open trades: after breakeven / trailing).
     stop_now: float | None
     r_net: float
+    r_gross: float = 0.0
 
 
 class PlaybookTriggerOut(Out):
@@ -435,3 +436,47 @@ class PlaybookTradesOut(Out):
     run: RunOut | None
     #: Oldest first by fill time.
     trades: list[PaperTradeOut]
+
+
+class ForwardTradeOut(Out):
+    """A playbook trade recorded live, as it happened (forward paper trading)."""
+
+    symbol: str
+    #: Open time of the HTF setup candle.
+    time: int
+    pattern: str
+    direction: Literal["long", "short"]
+    location: str
+    status: Literal["pending", "skipped", "cancelled", "open", "closed"]
+    note: str = ""
+    entry_price: float | None
+    stop: float | None
+    target: float | None
+    fill_time: int | None
+    exit_time: int | None
+    exit_price: float | None
+    reason: Literal["stop", "target", "trail", "breakeven", "time"] | None
+    stop_now: float | None
+    r_net: float
+    r_gross: float
+    #: When the system first recorded this trade, and whether that was after its entry had
+    #: already happened (the server was off: a trader could not have acted in time).
+    first_seen: int
+    late: bool
+
+
+class ForwardOut(Out):
+    ruleset: str
+    htf: str
+    ltf: str
+    entry: Literal["market", "fib", "fvg"]
+    exit: Literal["target", "trail", "managed"]
+    #: Forward tracking of this rule set began here; only setups known after it count.
+    started_at: int | None
+    last_run: int | None
+    #: Setups at a level seen since the start (all variants share them).
+    signals: int
+    coins: list[str]
+    failed: list[str]
+    #: Oldest first.
+    trades: list[ForwardTradeOut]
