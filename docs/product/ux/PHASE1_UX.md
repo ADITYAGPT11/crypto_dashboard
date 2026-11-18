@@ -77,6 +77,13 @@ solid bordered cards, pill badges, top navigation) with **modern detailing**:
 - Frosted **floating chart toolbar** and legend over the chart; frosted sticky top bar, search
   and explainer drawer.
 - Hover lift on watchlist cards, gradient primary buttons, a faint ambient glow behind the page.
+- **Selected pattern, drawn like TradingView's pattern tools / Bulkowski's figures**
+  (`utils/patternGeometry.ts`, `ChartPage/drawPattern.ts`): green for longs, red for shorts; the
+  formation shaded (W / M, head and shoulders, triangle, wedge, flag box) with its neckline or
+  trendlines solid; key points tagged B1/B2, T1/T2, LS/H/RS; a ring on the breakout close; a
+  dashed measured-move arrow to the target; a position box over the 30-candle outcome window
+  (target green, stop red, R:R and the outcome, a dot where it resolved). Zones, blocks and the
+  volume profile fade to 35% while a pattern is selected; Entry / Stop / Target stay on the axis.
 - **Parallax** only in the dashboard header band (contour field, dot grid, price trace), off under
   `prefers-reduced-motion`.
 

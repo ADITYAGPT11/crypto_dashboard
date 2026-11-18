@@ -25,7 +25,8 @@ import { DrawingManager, type DrawingKind } from "lightweight-charts-drawing";
 import type { Candle, CandleInterval } from "../../types/marketData";
 import type { Direction, OutcomeResult } from "../../types/analysis";
 import type { ViewLevel, ViewPattern } from "../../utils/timeframeMapping";
-import { patternShort } from "../../utils/patternLabels";
+import { patternLabel, patternShort } from "../../utils/patternLabels";
+import { drawPattern } from "./drawPattern";
 import type { BookSample } from "../../utils/liquidityHeatmap";
 import type { HeatContrast } from "../../utils/heatmapRender";
 import { timeToLogical } from "../../utils/orderFlow";
@@ -624,6 +625,8 @@ const PriceChart: React.FC<Props> = ({
     if (heatOn) drawHeatmap(heatRef.current!, hm, xAt, y, plotW, h, ly.heatContrast);
     else clearHeatmap(heatRef.current);
 
+    // A selected pattern is the subject: levels and the volume profile step back.
+    g.globalAlpha = ly.pattern && sel ? 0.35 : 1;
     const LEVEL_STYLE = {
       zone: { on: ly.zones, alpha: 0.12 },
       orderBlock: { on: ly.orderBlocks, alpha: 0.1 },
@@ -725,8 +728,8 @@ const PriceChart: React.FC<Props> = ({
       }
     }
 
+    g.globalAlpha = 1;
     if (ly.pattern && sel) {
-      const color = TF_COLOR[sel.tf] ?? C.fg;
       const barW = ts.options().barSpacing;
       // Source candles wider than one view bar (e.g. 4h on 1h) are shaded as blocks.
       for (const b of sel.blocks) {
@@ -740,51 +743,7 @@ const PriceChart: React.FC<Props> = ({
         g.strokeRect(x1 + 0.5, 0.5, x2 - x1 - 1, h - 1);
         g.setLineDash([]);
       }
-      g.strokeStyle = color;
-      g.lineWidth = 2;
-      if (sel.points.length >= 3) {
-        // Chart patterns: the path through their key points.
-        g.beginPath();
-        sel.points.forEach((p, k) => {
-          const px = x(p.x);
-          const py = y(p.price);
-          if (px === null || py === null) return;
-          if (k === 0) g.moveTo(px, py);
-          else g.lineTo(px, py);
-        });
-        g.stroke();
-      }
-      for (const ln of sel.lines) {
-        const x1 = x(ln.x1);
-        const x2 = x(ln.x2);
-        const y1 = y(ln.p1);
-        const y2 = y(ln.p2);
-        if (x1 === null || x2 === null || y1 === null || y2 === null) continue;
-        g.setLineDash([4, 4]);
-        g.beginPath();
-        g.moveTo(x1, y1);
-        g.lineTo(x2, y2);
-        g.stroke();
-        g.setLineDash([]);
-        g.fillStyle = color;
-        if (ln.label) g.fillText(`${sel.tf} ${ln.label.toLowerCase()}`, x1 + 4, y1 - 10);
-      }
-      if (sel.points.length < 3) {
-        // Candlestick patterns: a box around their candles.
-        const first = sel.blocks[0];
-        const last = sel.blocks[sel.blocks.length - 1];
-        const x1 = x(Math.min(first.from, sel.startX));
-        const x2 = x(last.to);
-        const i0 = Math.max(0, Math.round(Math.min(first.from, sel.startX) + 0.5));
-        const i1 = Math.min(cs.length - 1, Math.round(last.to - 0.5));
-        const span = cs.slice(i0, i1 + 1);
-        const yHigh = span.length ? y(Math.max(...span.map((c) => c.high))) : null;
-        const yLow = span.length ? y(Math.min(...span.map((c) => c.low))) : null;
-        if (x1 !== null && x2 !== null && yHigh !== null && yLow !== null) {
-          const pad = Math.max(0, (barW * 1.4 - (x2 - x1)) / 2);
-          g.strokeRect(x1 - pad, yHigh - 6, x2 - x1 + pad * 2, yLow - yHigh + 12);
-        }
-      }
+      drawPattern(g, sel, `${patternLabel(sel.pattern)} · ${sel.tf}`, cs, x, y, barW);
       g.lineWidth = 1;
     }
     // Last, so live prints stay visible above zones and the pattern drawing.
@@ -816,7 +775,7 @@ const PriceChart: React.FC<Props> = ({
         position: m.direction === "long" ? ("belowBar" as const) : ("aboveBar" as const),
         shape: m.direction === "long" ? ("arrowUp" as const) : ("arrowDown" as const),
         color: m.result === "win" ? C.up : m.result === "loss" ? C.down : C.muted,
-        text: m.current ? "now" : m.result === "win" ? "W" : m.result === "loss" ? "L" : "–",
+        text: m.current ? "" : m.result === "win" ? "W" : m.result === "loss" ? "L" : "–",
       }))
       .sort((a, b) => (a.time as number) - (b.time as number));
     markersRef.current?.setMarkers(layers.pattern ? ms : []);
@@ -829,6 +788,8 @@ const PriceChart: React.FC<Props> = ({
             title,
             lineStyle: style,
             lineWidth: 1,
+            // The position box on the chart shows the levels; the axis keeps the prices.
+            lineVisible: false,
             axisLabelVisible: true,
           }),
         );
@@ -840,7 +801,9 @@ const PriceChart: React.FC<Props> = ({
       if (focusKey !== null && focusKey !== focusedRef.current) {
         focusedRef.current = focusKey;
         const len = propsRef.current.candles.length;
-        const span = Math.max(110, selected.entryX - selected.startX + 40);
+        // Candlestick patterns are a few candles: a closer view keeps their shape readable.
+        const minSpan = selected.lines.length > 0 ? 110 : 60;
+        const span = Math.max(minSpan, selected.entryX - selected.startX + 40);
         chart.timeScale().setVisibleLogicalRange({
           from: Math.max(0, selected.startX - (span - (selected.entryX - selected.startX)) * 0.7),
           to: Math.min(len + 10, selected.entryX + 50),

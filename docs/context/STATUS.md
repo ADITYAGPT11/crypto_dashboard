@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-11 · branch `claude/eloquent-maxwell-vyoqfw`_
+_Last verified: 2026-11-18 · branch `claude/eager-bohr-2rpt9a`_
 
 ## Phase
 
@@ -49,8 +49,9 @@ Verified 2026-11-11 (test counts 2026-11-17):
   `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner,depth}`; `depth/` order-book recorder.
   `src/api/schema.ts` is generated from it (`npm run api:types`; a test fails when stale).
 - **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
-  live forming candle) plus the service's patterns (direction arrows, outlines, necklines,
-  trendlines), demand/supply zones, order blocks, fair value gaps, volume profile and a
+  live forming candle) plus the service's patterns, the selected one drawn after the industry
+  convention (shaded W / M, H&S, triangle, wedge or flag box, key-point tags, breakout ring,
+  measured move, position box over the outcome window; other overlays fade), demand/supply zones, order blocks, fair value gaps, volume profile and a
   **liquidity heatmap** layer with a pools table. Only **key levels** are drawn (Overlays →
   Display settings, saved per browser): intact, nearest 2 of each kind, zones ≥ 2 ATR departure,
   overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options. Detection settings per pattern (from the
@@ -91,6 +92,15 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-18: **Chart patterns drawn to industry standard** (owner review): the selected pattern
+  is shaded in green (long) or red (short) with its neckline or trendlines, tags B1/B2, T1/T2,
+  LS/H/RS, a breakout ring, the measured move and a TradingView-style position box (target /
+  stop, R:R, outcome, exit dot); zones, blocks and the volume profile fade while it is selected;
+  Entry / Stop / Target stay as axis labels only; candlestick picks zoom to ~60 candles. Fixed:
+  bearish twins kept the bullish labels (a double top's highs named "Low 1", a triangle's lower
+  line "Upper"). Verified on real BTC / ETH / SOL 4h in headless Chromium, all 22 pattern kinds.
+  Found, not changed (rule decision, ROADMAP parking lot): 12 setups whose target was already
+  behind the entry count as wins at negative R.
 - 2026-11-17: **Heatmap aggregates all three exchanges** (owner): Delta Exchange India's book
   (`l2_orderbook` full snapshots on `socket.india.delta.exchange`, contract size from its public
   API) joins Binance and OKX in the browser and the recorder. Liquidity is added up within ±2% of

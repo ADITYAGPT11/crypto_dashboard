@@ -99,6 +99,18 @@ describe("toViewPattern", () => {
     const vp = toViewPattern(occ, "4h", series(80, H1), "1h");
     expect(vp.lines).toEqual([{ x1: 17.5, p1: 100, x2: 49.5, p2: 102, label: "Neckline" }]);
   });
+
+  it("places the exit candle's close and the 30-candle outcome window", () => {
+    const occ = occurrence({
+      time: 10 * H4,
+      outcome: { result: "loss", exitTime: 13 * H4, movePct: -2, r: -1, bars: 3 },
+    });
+    const vp = toViewPattern(occ, "4h", series(80, H4), "4h");
+    expect(vp.entryX).toBe(10.5);
+    expect(vp.exitX).toBe(13.5);
+    expect(vp.windowEndX).toBe(40.5); // beyond the loaded candles it extrapolates by time
+    expect(vp.outcome).toEqual({ result: "loss", r: -1 });
+  });
 });
 
 describe("toViewLevels and markers", () => {

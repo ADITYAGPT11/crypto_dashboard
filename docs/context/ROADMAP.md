@@ -125,6 +125,9 @@ criteria met.
 
 ## Parking lot (ideas, not scheduled)
 
+- Owner decision (rule change, new `RULESET_VERSION`): skip or re-target setups whose measured
+  target is at or behind the entry, or whose reward / risk is under 0.5 (2026-11-18 sample: 12
+  "wins" at negative R, 89 of 453 double bottoms/tops under 0.5 R).
 - Order-book features for research: full depth needs snapshot + diff sync (today: top-20 partial book).
 - Liquidity heatmap (old Module 9); candidate renderer: nazmiefearmutcu/flowmap (see TOOLING).
 - Order-flow toolkit, free rebuild of paid tools (DeepCharts, Bookmap, CoinGlass, LuxAlgo); order and

@@ -86,6 +86,30 @@ def test_bearish_patterns_are_mirrored_bullish_ones(series: Series) -> None:
 
 
 @pytest.mark.parametrize("series", SERIES.values(), ids=SERIES.keys())
+def test_labels_name_the_part_they_sit_on(series: Series) -> None:
+    """Mirrored (bearish) hits are relabelled: a 'Top' is above the 'Trough', 'Upper' above 'Lower'."""
+    hits = [*detect_chart_patterns(series), *detect_trendline_patterns(series)]
+    assert {h.direction for h in hits} == {"long", "short"}
+    for h in hits:
+        at = {p.label: p.price for p in h.points if p.label}
+        at |= {ln.label: ln.a.price for ln in h.lines}
+        for high, low in (
+            ("Top 1", "Trough"),
+            ("Top 2", "Trough"),
+            ("Peak", "Bottom 1"),
+            ("Peak", "Bottom 2"),
+            ("Upper", "Lower"),
+            ("Flag high", "Flag low"),
+            ("Top", "Pole"),
+            ("Pole", "Bottom"),
+        ):
+            if high in at and low in at:
+                assert at[high] >= at[low], (h.pattern, high, low)
+        if h.direction == "short":
+            assert not {"Bottom 1", "Bottom 2", "Peak", "Top"} & at.keys(), h.pattern
+
+
+@pytest.mark.parametrize("series", SERIES.values(), ids=SERIES.keys())
 def test_levels_known_when_formed(series: Series) -> None:
     """A zone / block / gap formed on candle f exists, with the same edges, at f's close."""
     lv = detect_levels(series)
