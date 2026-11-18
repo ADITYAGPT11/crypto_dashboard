@@ -292,6 +292,7 @@ class Service:
                 entry_bars=pb.ENTRY_BARS,
                 stop_atr=pb.STOP_ATR,
                 max_risk_htf_atr=pb.MAX_RISK_HTF_ATR,
+                min_stop_pct=pb.MIN_STOP_PCT,
                 fib_level=pb.FIB_LEVEL,
                 max_hold_bars=pb.MAX_HOLD_BARS,
                 breakeven_r=pb.BREAKEVEN_R,

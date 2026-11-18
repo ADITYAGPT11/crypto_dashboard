@@ -86,8 +86,9 @@ criteria met.
 - [x] Multi-timeframe playbook 4h → 15m with entry × exit variants, Binance costs, random-entry
       baseline and an older / newer split (2026-11-18; first result: no edge, fees 0.15–0.24R a
       trade with tight 15m stops)
-- [ ] Playbook tuning, one change per rule-set version (1d levels, order-flow filter at the
-      CHoCH, minimum reward : risk, entry window)
+- [x] Playbook tuning 1: minimum stop distance 1% (r4; fees fall, still no edge)
+- [ ] Playbook tuning, one change per rule-set version (stronger trigger: 1d levels, confluence,
+      trend filter, delta at the CHoCH; minimum reward : risk)
 
 - [ ] Feature library (TA, funding percentile, basis, OI change, regime)
 - [ ] Multiple-testing correction on the verdict (Bonferroni or FDR across every setup tested;

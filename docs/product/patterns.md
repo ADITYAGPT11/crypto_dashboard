@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r3`)
+# Pattern, zone and order-block rules (rule set `2026.11-r4`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -72,7 +72,9 @@ run it on the mirrored series. Nothing looks ahead (swings only after `known_at`
 3. **Entry** variants: `market` (CHoCH close) · `fib` (limit at the 0.618 retracement of the
    impulse) · `fvg` (limit at the top of the last 15m bullish FVG, ≥ 0.1 ATR, inside the impulse).
    Limits must fill within 12 × 15m.
-4. **Stop**: impulse low − 0.1 × 15m ATR; skipped if the risk exceeds 1 × 4h ATR.
+4. **Stop**: impulse low − 0.1 × 15m ATR; skipped if the risk exceeds 1 × 4h ATR, or (r4) if it
+   is closer than 1% of the price (a round trip of fees and slippage is 0.04–0.14% of the price,
+   so a tighter stop pays more than ~0.1R in costs).
 5. **Exit** variants: `target` (the 4h pattern's target) · `trail` (stop under each newly confirmed
    15m higher low, − 0.1 ATR) · `managed` (+1R → stop to entry, +2R → half off, rest trails).
    At most 672 × 15m (7 days), then at the close. Stop counted first on an ambiguous candle.

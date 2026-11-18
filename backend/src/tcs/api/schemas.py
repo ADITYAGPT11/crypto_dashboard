@@ -335,6 +335,8 @@ class PlaybookParamsOut(Out):
     entry_bars: int
     stop_atr: float
     max_risk_htf_atr: float
+    #: Minimum stop distance, percent of the price (trades with a tighter stop are skipped).
+    min_stop_pct: float
     fib_level: float
     max_hold_bars: int
     breakeven_r: float

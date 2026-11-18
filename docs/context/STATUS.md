@@ -13,11 +13,10 @@ confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-0. Playbook tuning with the owner: no edge yet, before or after costs (see History). Candidates,
-   one at a time, judged on the newer data: a minimum stop distance (fees ≤ 0.1R, i.e. stop
-   ≥ ~1% of price) or a 1h entry timeframe; stronger triggers (1d levels, confluence only, trend
-   filter, delta with the trade at the CHoCH); a minimum reward : risk to the 4h target. Each is a
-   new rule-set version.
+0. Playbook tuning with the owner: no edge yet (see History; minimum stop tried in r4). Next,
+   one at a time and judged on the newer data: stronger triggers (1d levels, confluence only,
+   trend filter, delta with the trade at the CHoCH); then a minimum reward : risk to the 4h
+   target. Each is a new rule-set version.
 1. Owner: run `npm start` where Binance and OKX are reachable and check the depth recorder goes
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
    r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
@@ -39,7 +38,7 @@ Verified 2026-11-11 (test counts 2026-11-17):
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
 | `npm test`                                                       | ✅ 351 tests, 36 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 135 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 136 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -96,6 +95,13 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-18: **Playbook r4: minimum stop distance** (owner's tuning option 1): trades whose stop
+  is closer than 1% of the price are skipped. Fees per trade drop from ~0.22R to ~0.07R, but the
+  setup has no edge before fees (−0.10R to +0.11R), so after fees the 9 variants range from
+  −0.17R to +0.04R, all "no edge"; Fib entries fall from 1 792 trades to 130 (pullback entries
+  have tight stops), and every variant is clearly negative on the newer 30%. Compared in research
+  only (not shipped): 0.5% and 1.5% thresholds and widening the stop to 1% instead of skipping;
+  none produces an edge either. Conclusion: costs were a drag, the trigger is the weak link.
 - 2026-11-18: **Playbook 4h → 15m** (owner's flow; rule set `2026.11-r3`): 4h pattern at a zone /
   order block → 15m change of character → entry (CHoCH close, 0.618 Fib limit, FVG limit) × exit
   (pattern target, trail under 15m higher lows, breakeven 1R + half at 2R + trail), stop beyond

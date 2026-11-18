@@ -59,9 +59,9 @@ export function PlaybookCard({
           1. A {htf} pattern confirms at a demand / supply zone or order block (the trigger, valid
           for 6 {htf} candles). 2. On {ltf}, wait for a change of character: a close beyond the last{" "}
           {ltf} swing. 3. Enter by the chosen variant; the stop goes beyond the {ltf} swing that
-          started the move. 4. Exit by the chosen rule. Every variant is measured over two years of
-          the research coins after Binance fees; pick one below or on Pattern stats. The system
-          never places orders.
+          started the move (no trade if it is closer than 1% of the price: fees would eat it). 4.
+          Exit by the chosen rule. Every variant is measured over two years of the research coins
+          after Binance fees; pick one below or on Pattern stats. The system never places orders.
         </Explain>
         <p>
           <label className={styles.pick}>

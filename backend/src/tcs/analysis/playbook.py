@@ -16,7 +16,9 @@ uses only candles that had closed when it happened (swings only after ``known_at
    - ``fvg``: limit at the top of the last bullish LTF fair value gap formed inside the impulse.
    A limit must fill within ``ENTRY_BARS`` LTF candles, else the trade is skipped.
 4. **Stop**: impulse low - ``STOP_ATR`` x LTF ATR. Skipped when the risk exceeds
-   ``MAX_RISK_HTF_ATR`` x HTF ATR (too wide for the setup) or is not positive.
+   ``MAX_RISK_HTF_ATR`` x HTF ATR (too wide for the setup), is not positive, or is closer than
+   ``MIN_STOP_PCT`` % of the price (r4): with a tighter stop, fees and slippage alone cost more
+   than about 0.1R a trade (a round trip is 0.04-0.14% of the price).
 5. **Exit**, three variants:
    - ``target``: the HTF pattern's own target, or the stop;
    - ``trail``: the stop trails under each newly confirmed LTF higher low;
@@ -51,6 +53,10 @@ TRIGGER_BARS = 6
 ENTRY_BARS = 12
 STOP_ATR = 0.1
 MAX_RISK_HTF_ATR = 1.0
+MIN_STOP_PCT = 1.0
+#: What a too-tight stop does: the rule skips the trade. "widen" (move the stop out to the
+#: minimum) exists only to compare the two in research; it is not used by the statistics.
+MIN_STOP_MODE: Literal["skip", "widen"] = "skip"
 FIB_LEVEL = 0.618
 MAX_HOLD_BARS = 672  # 7 days of 15m
 BREAKEVEN_R = 1.0
@@ -262,6 +268,11 @@ def _trade(
     risk = entry - stop
     if risk <= 0 or not math.isfinite(htf_atr) or risk > MAX_RISK_HTF_ATR * htf_atr:
         return Trade(entry_kind, exit_kind, "skipped", "stop too wide", entry, stop)
+    floor = MIN_STOP_PCT / 100 * abs(entry)
+    if risk < floor:
+        if MIN_STOP_MODE == "skip":
+            return Trade(entry_kind, exit_kind, "skipped", "stop too tight for fees", entry, stop)
+        stop, risk = entry - floor, floor
     tgt = target if exit_kind == "target" else None
     if tgt is not None and tgt <= entry:
         return Trade(entry_kind, exit_kind, "skipped", "target below entry", entry, stop, tgt)

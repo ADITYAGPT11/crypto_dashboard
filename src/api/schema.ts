@@ -181,6 +181,7 @@ export interface PlaybookParamsOut {
   entryBars: number;
   stopAtr: number;
   maxRiskHtfAtr: number;
+  minStopPct: number;
   fibLevel: number;
   maxHoldBars: number;
   breakevenR: number;

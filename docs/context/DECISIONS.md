@@ -403,3 +403,11 @@ same entry fee as the variant (maker for limits), so "vs random" measures timing
 Costs use the absolute price (shorts run on the mirrored series, whose prices are negative).
 First result: no edge before or after costs; tuning follows one change at a time, each as a new
 rule-set version.
+
+### 2026-11-18 · Playbook minimum stop: skip, not widen (r4)
+
+Why: owner's tuning option 1. A stop closer than 1% of the price pays more than ~0.1R in fees and
+slippage, so such trades are skipped: the stop stays where the 15m structure says it belongs.
+Widening the stop to 1% was measured as the alternative (research only, `MIN_STOP_MODE`); it
+keeps more trades but is no better after costs. The 1% threshold was set from the fee arithmetic
+before measuring; 0.5% and 1.5% were looked at for information, not picked from.

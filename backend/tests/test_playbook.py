@@ -125,6 +125,44 @@ def test_costs_are_charged_on_shorts_too() -> None:
     assert tgt.r_net < -1
 
 
+def test_stops_tighter_than_the_minimum_are_skipped() -> None:
+    """The same scenario 10 000 higher: a ~4-point stop is 0.04% of the price, far inside the
+    1% minimum, so fees would eat the trade."""
+    htf, ltf, hit = scenario()
+    up = 10_000.0
+
+    def lift(s: Series) -> Series:
+        return Series(
+            s.symbol,
+            s.tf,
+            s.open_time,
+            s.open + up,
+            s.high + up,
+            s.low + up,
+            s.close + up,
+            s.volume,
+            s.taker_buy,
+        )
+
+    high = PatternHit(
+        hit.pattern,
+        "long",
+        hit.index,
+        hit.entry + up,
+        hit.stop + up,
+        hit.target + up,
+        hit.start,
+        hit.extreme + up,
+    )
+    (t,) = run_playbook(lift(htf), lift(ltf), [(high, "zone")])
+    assert t.stage == "confirmed"
+    assert {x.status for x in t.trades} == {"skipped"}
+    assert {x.note for x in t.trades if x.entry_kind == "market"} == {"stop too tight for fees"}
+    # At the original prices the same stop is ~4% away: traded.
+    (ok,) = run_playbook(htf, ltf, [(hit, "zone")])
+    assert trade(ok, "market", "trail").status == "closed"
+
+
 def test_invalidated_when_price_closes_below_the_setup_stop() -> None:
     htf = htf_flat()
     ltf = path([(0, 100), (176, 100), (180, 85), (300, 85)], tf="15m", wick=0.2)
