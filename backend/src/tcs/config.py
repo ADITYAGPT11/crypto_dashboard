@@ -39,5 +39,10 @@ class Settings:
     depth_symbols: tuple[str, ...] = field(default_factory=_depth_symbols)
     #: Days of depth history kept.
     depth_days: int = field(default_factory=lambda: int(os.environ.get("TCS_DEPTH_DAYS", "7")))
+    #: Trading costs every statistic is measured after (percent of notional, per side).
+    fee_pct: float = field(default_factory=lambda: float(os.environ.get("TCS_FEE_PCT", "0.05")))
+    slippage_pct: float = field(
+        default_factory=lambda: float(os.environ.get("TCS_SLIPPAGE_PCT", "0.025"))
+    )
     host: str = field(default_factory=lambda: os.environ.get("TCS_HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: int(os.environ.get("TCS_PORT", "8000")))

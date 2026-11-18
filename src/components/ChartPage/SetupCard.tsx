@@ -171,7 +171,7 @@ const SetupCard: React.FC<Props> = ({
           )}
         </div>
         <div>
-          <span className={styles.lbl}>Expectancy (gross)</span>
+          <span className={styles.lbl}>Expectancy after costs</span>
           {pooled ? (
             <>
               <span
@@ -180,8 +180,9 @@ const SetupCard: React.FC<Props> = ({
                 {signedR(pooled.expectancyR)}
               </span>
               <small>
-                avg win {signedPct(pooled.avgWinPct)} · loss {signedPct(pooled.avgLossPct)} · median{" "}
-                {pooled.medianBars} candles
+                gross {signedR(pooled.expectancyGrossR)} · costs {signedR(-pooled.avgCostR)} a trade
+                · avg win {signedPct(pooled.avgWinPct)} · loss {signedPct(pooled.avgLossPct)} ·
+                median {pooled.medianBars} candles
               </small>
             </>
           ) : (
@@ -190,25 +191,27 @@ const SetupCard: React.FC<Props> = ({
         </div>
         <div>
           <span className={styles.lbl}>
-            Trailing TP (gross){" "}
+            Trailing TP after costs{" "}
             <Explain title="Trailing take-profit">
               The same cases managed differently: at the target the trade is not closed; the stop
               then follows the best price by 0.5 ATR until it is hit (or 120 candles pass). Every
-              closed case counts. Range = 95% range of the mean.
+              closed case counts, after fees, slippage and the funding paid while it was open. Range
+              = 95% range of the mean.
             </Explain>
           </span>
           {pooled?.trail && pooled.trail.n > 0 ? (
             <>
               <span
-                className={`${styles.num} ${pooled.trail.expectancyR >= 0 ? styles.up : styles.down}`}
+                className={`${styles.num} ${(pooled.trail.expectancyNetR ?? pooled.trail.expectancyR) >= 0 ? styles.up : styles.down}`}
               >
-                {signedR(pooled.trail.expectancyR)}
+                {signedR(pooled.trail.expectancyNetR ?? pooled.trail.expectancyR)}
               </span>
               <small>
                 {pooled.trail.expLow !== null && pooled.trail.expHigh !== null
                   ? `range ${signedR(pooled.trail.expLow)} to ${signedR(pooled.trail.expHigh)} · `
                   : ""}
-                {pct(pooled.trail.winRate)} closed in profit · n {pooled.trail.n}
+                gross {signedR(pooled.trail.expectancyR)} · {pct(pooled.trail.winRate)} closed in
+                profit · n {pooled.trail.n}
               </small>
             </>
           ) : (
@@ -347,12 +350,12 @@ const SetupCard: React.FC<Props> = ({
                   </td>
                   <td className={`${styles.r} ${styles.mute}`}>{c.bars} bars</td>
                   <td
-                    className={`${styles.r} ${(c.trailR ?? 0) > 0 ? styles.up : styles.down}`}
-                    title="Trailing take-profit result"
+                    className={`${styles.r} ${(c.trailNetR ?? 0) > 0 ? styles.up : styles.down}`}
+                    title="Trailing take-profit result after costs"
                   >
-                    {c.trailR === null || c.trailR === undefined
+                    {c.trailNetR === null || c.trailNetR === undefined
                       ? ""
-                      : `trail ${signedR(c.trailR)}`}
+                      : `trail ${signedR(c.trailNetR)}`}
                   </td>
                 </tr>
               ))}
@@ -385,8 +388,12 @@ const SetupCard: React.FC<Props> = ({
       </div>
 
       <p className={styles.note}>
-        Pattern history before fees and slippage. It becomes a confirmation only after a costed,
-        out-of-sample backtest (Phase 2) and a forward test (Phase 4).
+        Pattern history after estimated costs
+        {run?.costs
+          ? ` (${run.costs.feePct}% fee + ${run.costs.slippagePct}% slippage a side, and the funding paid)`
+          : ""}
+        . In-sample: it becomes a confirmation only after an out-of-sample backtest (Phase 2) and a
+        forward test (Phase 4).
       </p>
     </section>
   );

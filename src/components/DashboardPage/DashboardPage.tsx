@@ -342,7 +342,7 @@ const DashboardPage: React.FC = () => {
             </li>
             <li>
               <span className={styles.mkOk}>✓</span>
-              <span>Pattern history (gross)</span>
+              <span>Pattern history (after costs)</span>
               <Chip tone="up">Live</Chip>
             </li>
             <li>
@@ -378,11 +378,11 @@ const DashboardPage: React.FC = () => {
             Every past case of each setup on every coin, measured in the background. Break-even is
             the win rate needed to profit given the average win size (candlestick patterns target
             1.5× risk, so they need 40%). Edge candidate: at least {catalog?.minSample ?? 30} cases
-            and the whole 95% range above break-even. Results are before fees; Phase 2 re-tests
-            candidates with costs.
+            and the whole 95% range above the break-even after costs (fees, slippage, funding).
+            Phase 2 re-tests candidates out of sample.
           </Explain>
           <p>
-            {coins} coins · {days} days · {INTERVAL} · {zoneTf} levels · before fees. Location
+            {coins} coins · {days} days · {INTERVAL} · {zoneTf} levels · after costs. Location
             changes results, so each pattern is measured at zones, order blocks, both, and in open
             space.
           </p>

@@ -255,7 +255,7 @@ const AlertsPage: React.FC = () => {
                 <CiBar stats={record} />
                 <span className={styles.mute}>
                   {record.verdict === "edge"
-                    ? "Whole range sits above break-even. Still gross, and not yet backtested with costs."
+                    ? "Whole range sits above break-even after costs. Still in-sample: not yet tested out of sample."
                     : record.verdict === "noEdge"
                       ? "The range overlaps break-even: this setup hasn't shown an edge. The alert will say so."
                       : "Fewer than 30 resolved cases: the true win rate could be anywhere in that wide range."}

@@ -413,3 +413,13 @@ both years; it was the best on year 1 and stayed ahead on year 2. It is added as
 rather than replacing the fixed target, so the existing record stays comparable and the card shows
 both. A new exit is a statistics change, so the rule set is r3 and everything is re-measured. The
 trail parameter was chosen on year 1 only; the reported year-2 numbers are the honest ones.
+
+### 2026-11-18 · Statistics are measured after costs, funding from Binance's own history (r4)
+
+Why: gross numbers flattered short timeframes (a 1h trade costs about 0.14 R). Fees and slippage
+are fixed allowances (taker both ways, conservative: target exits could be maker orders);
+funding is the real history from data.binance.vision (whole months) plus REST for the current
+month, because funding over a multi-day hold is not negligible (about 42 events in 14 days). Costs
+are in R per case, so a tight stop pays more, as it does in practice. The verdict, break-even and
+expectancy shown everywhere are after costs; gross stays in the API and on the setup card so the
+effect is visible. Older runs (gross only) still render: the UI falls back to their gross fields.

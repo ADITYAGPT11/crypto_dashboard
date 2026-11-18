@@ -18,16 +18,19 @@ One rule set; both the chart and the background statistics call `analysis/engine
   context), `chart_patterns.py` (double bottom, inverse H&S, bull flag; twins by mirroring),
   `mirroring.py` (bearish twins back to real prices, labels flipped: Bottom ↔ Top, Upper ↔ Lower),
   `trendlines.py` (triangles, wedges), `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
-  `location.py`, `outcomes.py`, `flow.py` (order-flow context: delta, CVD divergence), `stats.py`
-  (Wilson, verdict), `engine.py`, `types.py`.
+  `location.py`, `outcomes.py` (fixed target + trailing take-profit), `costs.py` (fees, slippage,
+  funding → R per case), `flow.py` (order-flow context: delta, CVD divergence), `stats.py`
+  (Wilson, after-cost break-even, expectancy, verdict), `engine.py`, `types.py`.
   Rules in words: `docs/product/patterns.md`.
-- `marketdata/`: `binance.py` (REST klines + `data.binance.vision` zips, pacing, cooldown on
-  refusal), `history.py` (`ensure`: archive months → archive days → REST tail; coverage/gaps)
+- `marketdata/`: `binance.py` (REST klines and funding + `data.binance.vision` zips, pacing,
+  cooldown on refusal), `history.py` (`ensure`: archive months → archive days → REST tail;
+  coverage/gaps; `ensure_funding`: archive months → REST tail)
 - `depth/`: `books.py` (Binance / OKX book sync, port of `depthBook.ts`), `sampler.py` (books →
   one-minute bucket columns), `recorder.py` (`DepthRecorder`: per-symbol sockets with reconnect,
   2 s sampling, started in the API lifespan; `TCS_DEPTH_RECORD`, `TCS_DEPTH_SYMBOLS`,
   `TCS_DEPTH_DAYS`)
-- `store/sqlite.py`: candles, stats runs, setup stats (per order-flow context), setup cases,
+- `store/sqlite.py`: candles, funding rates (+ fetched months), stats runs, setup stats (per
+  order-flow context), setup cases,
   depth columns (WAL, swap per run)
 - `jobs/stats_job.py`: per pattern TF, every coin, every allowed level TF; aggregates per coin
   and pooled, per location and any location

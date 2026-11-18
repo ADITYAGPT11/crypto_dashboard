@@ -43,6 +43,9 @@ export interface CaseOut {
   trailR?: number | null;
   trailBars?: number | null;
   trailExitTime?: number | null;
+  costR?: number | null;
+  netR?: number | null;
+  trailNetR?: number | null;
 }
 
 export interface CatalogOut {
@@ -62,6 +65,13 @@ export interface CoinSummaryOut {
 export interface ContextSummaryOut {
   context: string;
   summary: SummaryOut;
+}
+
+export interface CostsOut {
+  feePct: number;
+  slippagePct: number;
+  roundTripPct: number;
+  fundingUntil: Record<string, number | null>;
 }
 
 export interface CoverageOut {
@@ -188,6 +198,7 @@ export interface RunOut {
   until: number | null;
   candles: number;
   days: number;
+  costs?: CostsOut | null;
 }
 
 export interface ScannerItemOut {
@@ -264,6 +275,9 @@ export interface SummaryOut {
   expectancyR: number;
   medianBars: number;
   verdict: "edge" | "noEdge" | "tooFew";
+  expectancyNetR?: number;
+  breakEvenNet?: number;
+  avgCostR?: number;
   trail?: TrailSummaryOut | null;
 }
 
@@ -284,9 +298,11 @@ export interface TrailSummaryOut {
   ciLow: number;
   ciHigh: number;
   expectancyR: number;
+  expectancyNetR?: number;
   expLow: number | null;
   expHigh: number | null;
   avgWinR: number;
+  avgCostR?: number;
   medianBars: number;
   verdict: "edge" | "noEdge" | "tooFew";
 }

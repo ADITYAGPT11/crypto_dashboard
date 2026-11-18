@@ -7,6 +7,7 @@ from typing import Any
 from tcs.analysis.engine import Analysis, Occurrence
 from tcs.analysis.types import Point
 from tcs.api.schemas import (
+    CostsOut,
     CoverageOut,
     FlowOut,
     FvgOut,
@@ -167,4 +168,5 @@ def run(r: dict[str, Any] | None) -> RunOut | None:
         until=m.get("until"),
         candles=m.get("candles", 0),
         days=m.get("days", 0),
+        costs=CostsOut.model_validate(m["costs"]) if m.get("costs") else None,
     )

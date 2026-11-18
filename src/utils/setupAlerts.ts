@@ -151,7 +151,7 @@ export function setupName(key: string): string {
 }
 
 const VERDICT_TEXT: Record<Verdict, string> = {
-  edge: "edge candidate (gross, not yet cost-tested)",
+  edge: "edge candidate after costs (in-sample, not yet forward-tested)",
   noEdge: "no edge: the range overlaps break-even",
   tooFew: "too few cases for a verdict",
 };
@@ -174,7 +174,7 @@ export function toTrigger(f: SetupAlertFiring): AlertTrigger {
       record: `${r.wins} of ${r.n} won (${pctText(r.winRate)}, 95% range ${pctText(r.ci[0])}–${pctText(r.ci[1])})`,
       verdict: VERDICT_TEXT[r.verdict],
     },
-    reason: `${f.symbol} printed a ${setupName(f.setupKey).toLowerCase()} setup on a closed ${f.interval} candle. Past record is before fees; you decide and trade.`,
+    reason: `${f.symbol} printed a ${setupName(f.setupKey).toLowerCase()} setup on a closed ${f.interval} candle. Past record is after estimated costs; you decide and trade.`,
   };
 }
 

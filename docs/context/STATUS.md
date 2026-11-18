@@ -79,8 +79,9 @@ Verified 2026-11-11 (test counts 2026-11-17):
    the setup card and the scanner show "not measured yet".
 3. **Setup alerts run in the browser** (every minute while a tab is open) and use same-timeframe
    levels; Telegram still goes through the Node prototype (`npm run backend`).
-4. **Statistics are gross** (no fees/slippage) and in-sample; Phase 2 adds costs and
-   out-of-sample tests. Many setups have too few cases per bucket on 1d.
+4. **Statistics are in-sample** (after estimated costs since r4); Phase 2 adds out-of-sample
+   tests. Funding for the current month is estimated where Binance REST is refused (the archive
+   publishes whole months). Many setups have too few cases per bucket on 1d.
 5. **Order-book depth**: Binance (1 000 levels, socket) + OKX (400 live, 5 000 from REST every
    5 s) + Delta (whole book every ~3 s) are added up within ±2% of the mid. Delta is USD-quoted
    and added at face value (USD ≈ USDT, inside one bucket). Heatmap history comes from the analysis
@@ -92,6 +93,13 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-18: **Costs in every statistic (rule set r4)**: fees (0.05% a side), slippage (0.025%
+  a side) and the funding actually paid (Binance funding history, new `funding` table) are
+  charged to each case in R; expectancy, break-even and the verdict are after costs, gross kept
+  alongside; the trailing record too. Every page that shows a record now shows it after costs;
+  the setup card shows gross, the cost per trade and the cost model. Effect (10 coins × 2 years):
+  median cost 0.14 R a trade on 1h, 0.06 on 4h, 0.03 on 1d; 4h fixed-target edge candidates 1 →
+  0; on 1d the bear flag stays an edge candidate (+0.67 R after costs, trailing +0.75 R).
 - 2026-11-18: **Trailing take-profit exit (rule set r3)**: every setup is also resolved with a
   trailing TP (at the target the stop follows the best price by 0.5 ATR, 120-candle cap); the
   statistics job stores its expectancy with a 95% range next to the fixed exit; the setup card

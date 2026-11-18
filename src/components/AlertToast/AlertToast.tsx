@@ -19,7 +19,7 @@ const AlertToast: React.FC = () => {
         </b>
         <span>
           Past record: {f.record.wins} of {f.record.n} ({pct(f.record.winRate)}, range{" "}
-          {pct(f.record.ci[0])}–{pct(f.record.ci[1])}), before fees.
+          {pct(f.record.ci[0])}–{pct(f.record.ci[1])}), break-even after costs.
           {unseen.length > 1 ? ` ${unseen.length - 1} more.` : ""}
         </span>
       </div>

@@ -146,15 +146,22 @@ class AnalysisOut(Out):
 
 
 class TrailSummaryOut(Out):
+    """Trailing take-profit record. Wins, the range and the verdict are after costs."""
+
     n: int
     wins: int
     win_rate: float
     ci_low: float
     ci_high: float
+    #: Mean R per trade before costs.
     expectancy_r: float
+    #: Mean R per trade after fees, slippage and funding (0 in runs before r4).
+    expectancy_net_r: float = 0.0
+    #: 95% range of the net expectancy.
     exp_low: float | None
     exp_high: float | None
     avg_win_r: float
+    avg_cost_r: float = 0.0
     median_bars: float
     verdict: Literal["edge", "noEdge", "tooFew"]
 
@@ -173,7 +180,14 @@ class SummaryOut(Out):
     avg_loss_pct: float
     expectancy_r: float
     median_bars: float
+    #: Wilson low of the win rate against the break-even after costs.
     verdict: Literal["edge", "noEdge", "tooFew"]
+    #: Mean R per resolved case after fees, slippage and funding.
+    expectancy_net_r: float = 0.0
+    #: Win rate needed to break even after costs (``break_even`` is before them).
+    break_even_net: float = 0.5
+    #: Mean cost per case in R.
+    avg_cost_r: float = 0.0
     #: The same cases exited with the trailing take-profit (missing in older runs).
     trail: TrailSummaryOut | None = None
 
@@ -184,6 +198,17 @@ class SetupStatOut(Out):
     #: A location, or "*" for every location together (the pattern's baseline).
     location: str
     summary: SummaryOut
+
+
+class CostsOut(Out):
+    """The cost model every statistic of a run is measured after."""
+
+    #: Exchange fee and slippage allowance per side, percent of notional.
+    fee_pct: float
+    slippage_pct: float
+    round_trip_pct: float
+    #: Last known funding event per coin (later holding time uses the last rate, estimated).
+    funding_until: dict[str, int | None]
 
 
 class RunOut(Out):
@@ -197,6 +222,8 @@ class RunOut(Out):
     until: int | None
     candles: int
     days: int
+    #: Missing in runs before rule set r4 (statistics were gross then).
+    costs: CostsOut | None = None
 
 
 class StatsOut(Out):
@@ -228,6 +255,10 @@ class CaseOut(Out):
     trail_r: float | None = None
     trail_bars: int | None = None
     trail_exit_time: int | None = None
+    #: Fees, slippage and funding of this case in R, and its R after them.
+    cost_r: float | None = None
+    net_r: float | None = None
+    trail_net_r: float | None = None
 
 
 class CoinSummaryOut(Out):
