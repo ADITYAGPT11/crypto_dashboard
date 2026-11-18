@@ -19,6 +19,7 @@ function view(partial: Partial<ViewPattern>): ViewPattern {
     outcome: { result: "open", r: 0 },
     exitX: null,
     windowEndX: 60.5,
+    trail: { result: "open", r: 0, exitX: null, exitPrice: null, activatedX: null, stops: [] },
     ...partial,
   };
 }

@@ -16,7 +16,7 @@ from tcs.analysis.chart_patterns import detect_chart_patterns
 from tcs.analysis.flow import FlowContext, flow_at
 from tcs.analysis.indicators import atr
 from tcs.analysis.location import locate
-from tcs.analysis.outcomes import Outcome, evaluate
+from tcs.analysis.outcomes import Outcome, Trail, evaluate, evaluate_trailing
 from tcs.analysis.smc import detect_fvgs, detect_structure
 from tcs.analysis.trendlines import detect_trendline_patterns
 from tcs.analysis.types import Levels, Location, PatternHit
@@ -31,6 +31,8 @@ class Occurrence:
     outcome: Outcome
     #: Order flow when the pattern confirmed (context the statistics are split by).
     flow: FlowContext
+    #: The same setup exited with the trailing take-profit (outcomes.py).
+    trail: Trail
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +85,7 @@ def analyze(
             locate(hit, s, float(a[hit.index]), lv_series, lv.zones, lv.order_blocks),
             evaluate(s, hit),
             flow_at(s, hit, mirrored),
+            evaluate_trailing(s, hit, a),
         )
         for hit in found
     ]

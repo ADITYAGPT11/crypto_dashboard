@@ -806,7 +806,7 @@ const PriceChart: React.FC<Props> = ({
         const span = Math.max(minSpan, selected.entryX - selected.startX + 40);
         chart.timeScale().setVisibleLogicalRange({
           from: Math.max(0, selected.startX - (span - (selected.entryX - selected.startX)) * 0.7),
-          to: Math.min(len + 10, selected.entryX + 50),
+          to: Math.min(len + 10, Math.max(selected.entryX + 50, (selected.trail.exitX ?? 0) + 8)),
         });
       }
     }

@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r2`)
+# Pattern, zone and order-block rules (rule set `2026.11-r3`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -23,9 +23,34 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
 - **Win rate** with a **Wilson 95%** range; **break-even** = 1 / (1 + average win in R).
 - **Verdict**: fewer than 30 resolved cases → too few; Wilson low above break-even → edge
   candidate; else no edge. Gross, before fees and slippage.
+- **Trailing take-profit** (second exit, since r3; `outcomes.py::evaluate_trailing`): the same
+  entry and stop; when a candle touches the target the trade stays open and, from that candle's
+  close, the stop follows the best price since entry by **0.5 ATR(14)**, only ever tightening.
+  Exit where a candle trades through the stop (stop first, as above); after **120 candles**
+  closed at the market. Profit = exit above entry (below for shorts). Statistics: every closed
+  case counts; expectancy with a 95% range of the mean; verdict "edge" only when that range
+  clears 0 R. Gross, like the fixed exit. Chosen in a walk-forward study (below).
 - **Setup** = pattern × direction × location × pattern timeframe × level timeframe. Pooled across
   the research coins; each coin also on its own; "any location" is the pattern's baseline.
   Pooled records are also split by order-flow context (below).
+
+### Exit study (2026-11-18, 10 coins × 2 years, costs 0.15% per round trip)
+
+Eleven exits on the same 45,425 setups, each also run on random entries with the same direction,
+stop and target distance. Picked on year 1, checked on year 2.
+
+| Group (net R per trade)        | Fixed 30 | Trailing TP 0.5 ATR | Random entry, trailing TP | Year 2 fixed / trailing |
+| ------------------------------ | -------: | ------------------: | ------------------------: | ----------------------- |
+| Chart patterns 1d              |   +0.155 |              +0.326 |                    +0.165 | +0.103 / +0.215         |
+| Chart patterns 1d, momentum ok |   +0.330 |              +0.489 |                    +0.176 | +0.228 / +0.332         |
+| Chart patterns 4h              |   −0.111 |              −0.012 |                    +0.030 | −0.175 / −0.103         |
+| Chart patterns 1h              |   −0.091 |              +0.001 |                    −0.012 | −0.089 / +0.024         |
+| Candlesticks (all)             |   −0.227 |              −0.142 |                    −0.105 | −0.229 / −0.133         |
+
+The trailing exit roughly doubles the daily chart patterns' result and wins out of sample, but
+random entries gain from it too: it improves the exit, not the pattern's edge over chance. It does
+not make 1h, 4h or candlestick setups profitable after costs. The study scripts are not in the
+repository yet (`ROADMAP.md → Parking lot`).
 
 ## Location
 

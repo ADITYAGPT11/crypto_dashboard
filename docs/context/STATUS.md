@@ -92,6 +92,14 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-18: **Trailing take-profit exit (rule set r3)**: every setup is also resolved with a
+  trailing TP (at the target the stop follows the best price by 0.5 ATR, 120-candle cap); the
+  statistics job stores its expectancy with a 95% range next to the fixed exit; the setup card
+  shows it and each recent case's trailing R; the chart draws the trailing stop (amber step
+  line), where it started and where it closed. Chosen in a walk-forward study over 10 coins × 2
+  years (`patterns.md → Exit study`): +0.33 R net per trade on daily chart patterns vs +0.16 R for
+  the fixed target (year 2: +0.22 vs +0.10), but random entries gain as much, and 1h / 4h /
+  candlesticks stay negative after costs. Statistics remain gross and in-sample.
 - 2026-11-18: **Chart patterns drawn to industry standard** (owner review): the selected pattern
   is shaded in green (long) or red (short) with its neckline or trendlines, tags B1/B2, T1/T2,
   LS/H/RS, a breakout ring, the measured move and a TradingView-style position box (target /

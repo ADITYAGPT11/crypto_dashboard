@@ -402,3 +402,14 @@ keep the bullish names ("Low 1" on a double top's highs, "Upper" on the lower li
 this is not a new rule-set version. The box also shows reward / risk at entry, which makes setups
 whose target was already passed at entry visible ("Target behind entry"); whether to drop them is
 a rule decision left to the owner (ROADMAP parking lot).
+
+### 2026-11-18 · A trailing take-profit is measured next to the fixed target (r3)
+
+Why: owner asked to maximise profit with a trailing TP. Eleven standard exits (fixed 30 / 120
+candles, ATR chandelier 2-4, breakeven + trail, trailing TP 0.5-2 ATR, half at target + trail,
+swing trail) were compared on the same setups with costs, a random-entry control with the same
+exit, and a year-1 pick checked on year 2. "Trailing TP 0.5 ATR" won on daily chart patterns in
+both years; it was the best on year 1 and stayed ahead on year 2. It is added as a second outcome
+rather than replacing the fixed target, so the existing record stays comparable and the card shows
+both. A new exit is a statistics change, so the rule set is r3 and everything is re-measured. The
+trail parameter was chosen on year 1 only; the reported year-2 numbers are the honest ones.

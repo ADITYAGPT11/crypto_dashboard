@@ -10,6 +10,7 @@ import type { ViewPattern } from "../../utils/timeframeMapping";
 
 const UP = "86,211,100";
 const DOWN = "244,112,103";
+const AMBER = "240,163,94";
 const INK = "#0B0F14";
 
 type XFn = (logical: number) => number | null;
@@ -121,7 +122,11 @@ export function drawPattern(
           ? "Expired"
           : "Open";
     const rrText = box.rr > 0 ? `R:R ${box.rr.toFixed(2)}` : "Target behind entry";
-    inside(yE + (towardT > 0 ? -11 : 11), `${rrText} · ${verdict}`, "rgba(230,237,243,0.9)");
+    inside(
+      yE + (towardT > 0 ? -11 : 11),
+      `${rrText} · fixed TP ${verdict}`,
+      "rgba(230,237,243,0.9)",
+    );
     // Where it resolved: a dotted path from the entry to the exit, and a dot there.
     const ex = box.exit ? x(box.exit.x) : null;
     const ey = box.exit ? y(box.exit.price) : null;
@@ -137,6 +142,80 @@ export function drawPattern(
       g.beginPath();
       g.arc(ex, ey, 4, 0, Math.PI * 2);
       g.fill();
+    }
+  }
+
+  // 1b. Trailing take-profit: once the target is touched the stop follows the best price; drawn
+  // as a step line from then until it closed (or the last candle while it is still running).
+  const tr = vp.trail;
+  const moved = tr.stops.slice(1);
+  if (moved.length > 0) {
+    const endX = tr.exitX ?? candles.length - 0.5;
+    g.strokeStyle = `rgb(${AMBER})`;
+    g.lineWidth = 1.5;
+    g.beginPath();
+    let started = false;
+    moved.forEach((st, k) => {
+      const xa = x(st.x);
+      const xb = x(Math.min(moved[k + 1]?.x ?? endX, endX));
+      const py = y(st.price);
+      if (xa === null || xb === null || py === null || st.x > endX) return;
+      if (started) g.lineTo(xa, py);
+      else g.moveTo(xa, py);
+      g.lineTo(xb, py);
+      started = true;
+    });
+    g.stroke();
+    const ax = tr.activatedX === null ? null : x(tr.activatedX);
+    const ay = y(vp.target);
+    if (ax !== null && ay !== null) {
+      g.fillStyle = `rgb(${AMBER})`;
+      g.beginPath();
+      g.arc(ax, ay, 3.5, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  if (tr.result !== "open" && tr.exitX !== null && tr.exitPrice !== null) {
+    const px = x(tr.exitX);
+    const py = y(tr.exitPrice);
+    if (px !== null && py !== null) {
+      g.fillStyle = `rgb(${AMBER})`;
+      g.beginPath();
+      g.moveTo(px, py - 6);
+      g.lineTo(px + 6, py);
+      g.lineTo(px, py + 6);
+      g.lineTo(px - 6, py);
+      g.closePath();
+      g.fill();
+      g.font = "bold 10px JetBrains Mono, monospace";
+      const sign = tr.r >= 0 ? "+" : "−";
+      const what =
+        tr.result === "expired" ? "Trailing TP: closed at 120 candles" : "Trailing TP exit";
+      pill(
+        g,
+        px + 9,
+        py + (long ? -14 : 14),
+        `${what} ${sign}${Math.abs(tr.r).toFixed(2)}R`,
+        `rgb(${AMBER})`,
+        INK,
+        "left",
+      );
+    }
+  } else if (tr.result === "open" && moved.length > 0) {
+    const cur = moved[moved.length - 1];
+    const px = x(candles.length - 0.5);
+    const py = y(cur.price);
+    if (px !== null && py !== null) {
+      g.font = "bold 10px JetBrains Mono, monospace";
+      pill(
+        g,
+        px + 4,
+        py,
+        `Trailing stop ${formatPrice(cur.price)} · running`,
+        `rgb(${AMBER})`,
+        INK,
+        "left",
+      );
     }
   }
 

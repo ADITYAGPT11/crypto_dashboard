@@ -36,6 +36,15 @@ function occ(
     lines: [],
     outcome: { result, exitTime: null, movePct: 0, r: 0, bars: 0 },
     flow: { deltaRatio: null, flow: null, cvdDivergence: null },
+    trail: {
+      result: "open",
+      exitTime: null,
+      exitPrice: null,
+      r: 0,
+      bars: 0,
+      activatedTime: null,
+      stops: [],
+    },
   };
 }
 

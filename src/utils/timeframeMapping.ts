@@ -79,6 +79,16 @@ export interface ViewPattern {
   exitX: number | null;
   /** End of the outcome window: OUTCOME_BARS pattern candles after the entry. */
   windowEndX: number;
+  /** The same trade exited with the trailing take-profit. */
+  trail: {
+    result: "win" | "loss" | "expired" | "open";
+    r: number;
+    exitX: number | null;
+    exitPrice: number | null;
+    activatedX: number | null;
+    /** The stop in force from `x` on (left edge of the candle it applies to). */
+    stops: { x: number; price: number }[];
+  };
 }
 
 /** Candles a setup has to reach its target (`backend/src/tcs/analysis/outcomes.py` MAX_HOLD_BARS). */
@@ -123,6 +133,14 @@ export function toViewPattern(
     outcome: { result: occ.outcome.result, r: occ.outcome.r },
     exitX: occ.outcome.exitTime === null ? null : span(occ.outcome.exitTime).to,
     windowEndX: logicalAt(view, vms, occ.time + ms * (1 + OUTCOME_BARS)),
+    trail: {
+      result: occ.trail.result,
+      r: occ.trail.r,
+      exitX: occ.trail.exitTime === null ? null : span(occ.trail.exitTime).to,
+      exitPrice: occ.trail.exitPrice,
+      activatedX: occ.trail.activatedTime === null ? null : span(occ.trail.activatedTime).to,
+      stops: occ.trail.stops.map((st) => ({ x: span(st.time).from, price: st.price })),
+    },
   };
 }
 

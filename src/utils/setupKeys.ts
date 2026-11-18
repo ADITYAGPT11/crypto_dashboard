@@ -105,6 +105,7 @@ export function toStats(
     expectancyR: s.expectancyR,
     medianBars: s.medianBars,
     verdict: s.verdict,
+    trail: s.trail ?? null,
   };
 }
 
