@@ -17,7 +17,9 @@ One rule set; both the chart and the background statistics call `analysis/engine
   (TA-Lib ATR/EMA/SMA), `swings.py` (pivots + `known_at`), `candlesticks.py` (TA-Lib shapes +
   context), `chart_patterns.py` (double bottom, inverse H&S, bull flag; twins by mirroring),
   `trendlines.py` (triangles, wedges), `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
-  `location.py`, `outcomes.py`, `flow.py` (order-flow context: delta, CVD divergence), `stats.py`
+  `location.py`, `outcomes.py`, `flow.py` (order-flow context: delta, CVD divergence),
+  `playbook.py` (4h trigger → 15m CHoCH → entry × exit variants, costs, random baseline),
+  `playbook_stats.py` (mean R with ranges, vs random, verdict), `stats.py`
   (Wilson, verdict), `engine.py`, `types.py`.
   Rules in words: `docs/product/patterns.md`.
 - `marketdata/`: `binance.py` (REST klines + `data.binance.vision` zips, pacing, cooldown on
@@ -28,6 +30,8 @@ One rule set; both the chart and the background statistics call `analysis/engine
   `TCS_DEPTH_DAYS`)
 - `store/sqlite.py`: candles, stats runs, setup stats (per order-flow context), setup cases,
   depth columns (WAL, swap per run)
+- `jobs/playbook_job.py`: playbook variants over the universe (4h > 15m), pooled + per coin,
+  older / newer split; scheduled after the statistics
 - `jobs/stats_job.py`: per pattern TF, every coin, every allowed level TF; aggregates per coin
   and pooled, per location and any location
 - `api/`: `app.py` (routes, scheduler in a worker process), `service.py`, `schemas.py`
@@ -119,7 +123,7 @@ price table, spread (arbitrage), order book, alerts.
   `/api/alerts/send` (injectable deps for tests)
 
 **Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
-`useScanner`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
+`useScanner`, `usePlaybookStats`, `usePlaybook`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
 `useDepthHistory` (recorded heatmap minutes from `/api/v1/depth`, once per enable),
 `useFootprint` (live footprint per view bar and row size; session trade buffer per symbol),
@@ -135,7 +139,8 @@ sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX 
 `l2_orderbook`), `liquidityHeatmap`
 (buckets, samples, pools, recorded columns → samples, history + live merge), `heatmapRender`
 (thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
-position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `footprint`
+position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `playbook`
+(variant labels, default pick, stage / trade lines), `footprint`
 (rows, `FootprintBook`, diagonal imbalance), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
 `src/api/schema.ts`; client `src/api/client.ts`.
@@ -168,7 +173,7 @@ names), `connection.ts`, `alertRules.ts`
 `TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`, `drawBigTrades`, `drawFootprint`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
 overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
-`AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
+`Playbook/` (`PlaybookCard` on the chart, `PlaybookTable` on Pattern stats), `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
 `RealTimeClock`)
 
 **Backend prototype** (`src/backend/`, `npm run backend` bundles it to `dist-backend/` and starts it on port 3001; type-checked via `tsconfig.backend.json`)

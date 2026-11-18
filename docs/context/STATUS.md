@@ -13,17 +13,22 @@ confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-0. Owner: run `npm start` where Binance and OKX are reachable and check the depth recorder goes
+0. Playbook tuning with the owner: no edge yet, before or after costs (see History). Candidates,
+   one at a time, judged on the newer data: a minimum stop distance (fees ≤ 0.1R, i.e. stop
+   ≥ ~1% of price) or a 1h entry timeframe; stronger triggers (1d levels, confluence only, trend
+   filter, delta with the trade at the CHoCH); a minimum reward : risk to the 4h target. Each is a
+   new rule-set version.
+1. Owner: run `npm start` where Binance and OKX are reachable and check the depth recorder goes
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
    r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
    the estimated liquidation map (`COMPETITORS.md` §4).
 1. Owner: run `npm start` on a machine that reaches Binance, let the first
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
-2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
-3. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
-4. Random-entry baseline per setup (does a pattern beat chance with the same stop/target?).
-5. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
+1. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
+1. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
+1. Random-entry baseline per setup (does a pattern beat chance with the same stop/target?).
+1. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
 
 ## Health
 
@@ -32,9 +37,9 @@ Verified 2026-11-11 (test counts 2026-11-17):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 348 tests, 35 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 351 tests, 36 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 121 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 135 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -46,7 +51,7 @@ Verified 2026-11-11 (test counts 2026-11-17):
   (`engine.analyze` is the single entry point; catalogue and `RULESET_VERSION` in `catalog.py`;
   rules written out in `docs/product/patterns.md`); `jobs/stats_job.py` background statistics;
   `marketdata/` Binance REST + `data.binance.vision` archive backfill; `store/sqlite.py`;
-  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner,depth}`; `depth/` order-book recorder.
+  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner,depth,playbook}`; `depth/` order-book recorder.
   `src/api/schema.ts` is generated from it (`npm run api:types`; a test fails when stale).
 - **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
   live forming candle) plus the service's patterns (direction arrows, outlines, necklines,
@@ -91,6 +96,20 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-18: **Playbook 4h → 15m** (owner's flow; rule set `2026.11-r3`): 4h pattern at a zone /
+  order block → 15m change of character → entry (CHoCH close, 0.618 Fib limit, FVG limit) × exit
+  (pattern target, trail under 15m higher lows, breakeven 1R + half at 2R + trail), stop beyond
+  the 15m swing, Binance fees and slippage in R, random-entry baseline, older 70% / newer 30%.
+  Background job (`jobs/playbook_job.py`, scheduled after the statistics), `/api/v1/playbook/stats`
+  and `/api/v1/playbook/{symbol}` (live stage per trigger). Chart sidebar: Playbook card (stage,
+  plan of the chosen variant, its record); Pattern stats: the 9 variants. **First measurement**
+  (10 coins, 2 years, archive data): no edge. Before costs every variant is about break-even
+  (−0.08R to +0.07R per trade); fees and slippage cost 0.15–0.24R a trade because the 15m stops
+  are tight (median 0.46% of price), so after costs all lose (−0.14R to −0.25R, ranges mostly
+  below 0) and the newer 30% is worse than the older 70%. No entry beats a random entry in the
+  same window (every difference's range includes 0). Two bugs caught while checking the live
+  card and fixed before this measurement: costs on shorts had the wrong sign (mirrored prices are
+  negative), and the random baseline paid taker fees where limit entries pay maker.
 - 2026-11-17: **Heatmap aggregates all three exchanges** (owner): Delta Exchange India's book
   (`l2_orderbook` full snapshots on `socket.india.delta.exchange`, contract size from its public
   API) joins Binance and OKX in the browser and the recorder. Liquidity is added up within ±2% of

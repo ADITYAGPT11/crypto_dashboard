@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r2`)
+# Pattern, zone and order-block rules (rule set `2026.11-r3`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -58,6 +58,31 @@ it so a setup can be compared with and without flow agreeing; it never creates a
 The 0.02 cut comes from the feature's own spread (median |ratio| 0.023 on real ETH 4h), not from
 outcomes. Unknown (no taker volume in the window) falls in no bucket. Context records are pooled
 across coins only (per-coin buckets would be too small).
+
+## Playbook 4h → 15m (`analysis/playbook.py`, since r3)
+
+A higher-timeframe setup at a level, entered on a lower timeframe. Long rule written once; shorts
+run it on the mirrored series. Nothing looks ahead (swings only after `known_at`).
+
+1. **Trigger (4h)**: a pattern confirmed at a zone, order block or both (not open space). Known at
+   its candle's close, valid 6 × 4h; dead once a 15m candle closes beyond the pattern's stop.
+2. **Confirmation (15m)**: change of character, the first 15m close beyond the latest 15m swing
+   high (low for shorts) known then. Impulse: lowest low since that swing → highest high to the
+   CHoCH candle.
+3. **Entry** variants: `market` (CHoCH close) · `fib` (limit at the 0.618 retracement of the
+   impulse) · `fvg` (limit at the top of the last 15m bullish FVG, ≥ 0.1 ATR, inside the impulse).
+   Limits must fill within 12 × 15m.
+4. **Stop**: impulse low − 0.1 × 15m ATR; skipped if the risk exceeds 1 × 4h ATR.
+5. **Exit** variants: `target` (the 4h pattern's target) · `trail` (stop under each newly confirmed
+   15m higher low, − 0.1 ATR) · `managed` (+1R → stop to entry, +2R → half off, rest trails).
+   At most 672 × 15m (7 days), then at the close. Stop counted first on an ambiguous candle.
+6. **Costs**: Binance USDⓈ-M VIP 0, maker 0.02% (limit entries, targets, the partial), taker
+   0.05% + 0.02% slippage (market entries, stops, time exits). Results in R net of costs.
+7. **Record per variant**: mean R with a 95% range, win rate (Wilson), profit factor, paired
+   difference from a random entry in the same trigger window (same stop distance, exit rule and
+   entry fee),
+   and the same record on the older 70% and the latest 30% of the period. Edge = ≥ 30 trades,
+   mean R range above 0 and difference-from-random range above 0.
 
 ## Chart patterns (in-house)
 

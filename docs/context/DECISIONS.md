@@ -388,3 +388,18 @@ Delta's public socket (`public-socket.…`) refuses order-book channels, so its 
 `socket.india.delta.exchange`. Delta is USD-quoted; USD vs USDT differs far less than one bucket,
 so its levels are added at face value. The panel shows each exchange's share so a missing
 exchange is visible, not silent.
+
+### 2026-11-18 · The owner's flow is built as a measured playbook with variants, not one fixed rule
+
+Why: the owner's flow (4h pattern at a zone / order block → 15m entry → trail, stop under the 15m
+swing) leaves open how to enter and exit, and those choices decide expectancy. So entry (CHoCH
+close, 0.618 Fib limit, FVG limit) × exit (pattern target, structure trail, breakeven + partial +
+trail) are all measured with the same trigger, stop and costs (Binance VIP 0 fees + slippage),
+against a random entry in the same window, on older and newer data. Defaults were fixed before
+measuring (owner-approved: trigger 6 × 4h, pullback within 12 × 15m, stop 0.1 ATR beyond the
+swing, breakeven 1R, half at 2R) so the newer-data split is a fair check. Headline is mean R with
+a 95% range, not win rate: trailing exits trade win rate for size. The random baseline pays the
+same entry fee as the variant (maker for limits), so "vs random" measures timing, not fees.
+Costs use the absolute price (shorts run on the mirrored series, whose prices are negative).
+First result: no edge before or after costs; tuning follows one change at a time, each as a new
+rule-set version.

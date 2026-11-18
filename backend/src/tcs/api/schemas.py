@@ -295,3 +295,108 @@ class DepthOut(Out):
     retention_days: int
     feeds: dict[str, DepthFeedOut]
     columns: list[DepthColumnOut]
+
+
+class RSummaryOut(Out):
+    """A playbook variant's record: R per trade after costs, with 95% ranges."""
+
+    n: int
+    wins: int
+    win_rate: float
+    ci_low: float
+    ci_high: float
+    mean_r: float
+    mean_r_low: float
+    mean_r_high: float
+    mean_gross_r: float
+    avg_win_r: float
+    avg_loss_r: float
+    profit_factor: float
+    median_bars: float
+    baseline_n: int
+    baseline_mean_r: float
+    edge_vs_random: float
+    edge_vs_random_low: float
+    edge_vs_random_high: float
+    verdict: Literal["edge", "noEdge", "tooFew"]
+
+
+class PlaybookVariantOut(Out):
+    entry: Literal["market", "fib", "fvg"]
+    exit: Literal["target", "trail", "managed"]
+    #: Whole period, then split in time: first 70% ("in") and the latest 30% ("out").
+    all: RSummaryOut | None
+    in_sample: RSummaryOut | None
+    out_of_sample: RSummaryOut | None
+
+
+class PlaybookParamsOut(Out):
+    trigger_bars: int
+    entry_bars: int
+    stop_atr: float
+    max_risk_htf_atr: float
+    fib_level: float
+    max_hold_bars: int
+    breakeven_r: float
+    partial_r: float
+    partial_share: float
+    maker: float
+    taker: float
+    slippage: float
+
+
+class PlaybookStatsOut(Out):
+    ruleset: str
+    htf: str
+    ltf: str
+    run: RunOut | None
+    #: Time (ms) splitting the in-sample and out-of-sample segments, or null before a run.
+    split: int | None
+    params: PlaybookParamsOut
+    variants: list[PlaybookVariantOut]
+
+
+class PlaybookTradeOut(Out):
+    entry_kind: Literal["market", "fib", "fvg"]
+    exit_kind: Literal["target", "trail", "managed"]
+    status: Literal["pending", "skipped", "cancelled", "open", "closed"]
+    note: str
+    entry: float | None
+    stop: float | None
+    target: float | None
+    fill_time: int | None
+    exit_time: int | None
+    exit_price: float | None
+    reason: Literal["stop", "target", "trail", "breakeven", "time"] | None
+    #: Where the stop is now (open trades: after breakeven / trailing).
+    stop_now: float | None
+    r_net: float
+
+
+class PlaybookTriggerOut(Out):
+    pattern: str
+    direction: Literal["long", "short"]
+    location: Literal["confluence", "zone", "orderBlock", "openSpace"]
+    #: Open time of the HTF confirmation candle; the trigger is known at its close.
+    time: int
+    known_at: int
+    window_end: int
+    stage: Literal["waiting", "confirmed", "expired", "invalidated"]
+    htf_stop: float
+    htf_target: float
+    choch_time: int | None
+    broke: float | None
+    impulse_low: float | None
+    impulse_high: float | None
+    trades: list[PlaybookTradeOut]
+
+
+class PlaybookLiveOut(Out):
+    symbol: str
+    htf: str
+    ltf: str
+    ruleset: str
+    coverage: CoverageOut
+    ltf_coverage: CoverageOut
+    #: Most recent first.
+    triggers: list[PlaybookTriggerOut]

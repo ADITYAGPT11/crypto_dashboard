@@ -166,10 +166,108 @@ export interface PatternOut {
   summary: string;
 }
 
+export interface PlaybookLiveOut {
+  symbol: string;
+  htf: string;
+  ltf: string;
+  ruleset: string;
+  coverage: CoverageOut;
+  ltfCoverage: CoverageOut;
+  triggers: PlaybookTriggerOut[];
+}
+
+export interface PlaybookParamsOut {
+  triggerBars: number;
+  entryBars: number;
+  stopAtr: number;
+  maxRiskHtfAtr: number;
+  fibLevel: number;
+  maxHoldBars: number;
+  breakevenR: number;
+  partialR: number;
+  partialShare: number;
+  maker: number;
+  taker: number;
+  slippage: number;
+}
+
+export interface PlaybookStatsOut {
+  ruleset: string;
+  htf: string;
+  ltf: string;
+  run: RunOut | null;
+  split: number | null;
+  params: PlaybookParamsOut;
+  variants: PlaybookVariantOut[];
+}
+
+export interface PlaybookTradeOut {
+  entryKind: "market" | "fib" | "fvg";
+  exitKind: "target" | "trail" | "managed";
+  status: "pending" | "skipped" | "cancelled" | "open" | "closed";
+  note: string;
+  entry: number | null;
+  stop: number | null;
+  target: number | null;
+  fillTime: number | null;
+  exitTime: number | null;
+  exitPrice: number | null;
+  reason: "stop" | "target" | "trail" | "breakeven" | "time" | null;
+  stopNow: number | null;
+  rNet: number;
+}
+
+export interface PlaybookTriggerOut {
+  pattern: string;
+  direction: "long" | "short";
+  location: "confluence" | "zone" | "orderBlock" | "openSpace";
+  time: number;
+  knownAt: number;
+  windowEnd: number;
+  stage: "waiting" | "confirmed" | "expired" | "invalidated";
+  htfStop: number;
+  htfTarget: number;
+  chochTime: number | null;
+  broke: number | null;
+  impulseLow: number | null;
+  impulseHigh: number | null;
+  trades: PlaybookTradeOut[];
+}
+
+export interface PlaybookVariantOut {
+  entry: "market" | "fib" | "fvg";
+  exit: "target" | "trail" | "managed";
+  all: RSummaryOut | null;
+  inSample: RSummaryOut | null;
+  outOfSample: RSummaryOut | null;
+}
+
 export interface PointOut {
   time: number;
   price: number;
   label: string;
+}
+
+export interface RSummaryOut {
+  n: number;
+  wins: number;
+  winRate: number;
+  ciLow: number;
+  ciHigh: number;
+  meanR: number;
+  meanRLow: number;
+  meanRHigh: number;
+  meanGrossR: number;
+  avgWinR: number;
+  avgLossR: number;
+  profitFactor: number;
+  medianBars: number;
+  baselineN: number;
+  baselineMeanR: number;
+  edgeVsRandom: number;
+  edgeVsRandomLow: number;
+  edgeVsRandomHigh: number;
+  verdict: "edge" | "noEdge" | "tooFew";
 }
 
 export interface RunOut {

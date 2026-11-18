@@ -3,11 +3,21 @@ import type { ApiResource, ResourceState } from "../services/ApiResource";
 import {
   analysisApi,
   analysisKey,
+  playbookKey,
+  playbookStatsKey,
   scannerKey,
   setupDetailKey,
   statsKey,
 } from "../services/AnalysisApi";
-import type { AnalysisOut, CatalogOut, ScannerOut, SetupDetailOut, StatsOut } from "../api/schema";
+import type {
+  AnalysisOut,
+  CatalogOut,
+  PlaybookLiveOut,
+  PlaybookStatsOut,
+  ScannerOut,
+  SetupDetailOut,
+  StatsOut,
+} from "../api/schema";
 import type { CandleInterval } from "../types/marketData";
 
 const IDLE: ResourceState<never> = { data: null, error: null, loading: false, updatedAt: null };
@@ -59,4 +69,21 @@ export function useScanner(
   symbols: readonly string[],
 ): ResourceState<ScannerOut> {
   return useResource(analysisApi().scanner, scannerKey(tf, zoneTf, symbols));
+}
+
+/** Measured records of every playbook variant (background job). */
+export function usePlaybookStats(
+  htf: CandleInterval,
+  ltf: CandleInterval,
+): ResourceState<PlaybookStatsOut> {
+  return useResource(analysisApi().playbookStats, playbookStatsKey(htf, ltf));
+}
+
+/** Recent higher-timeframe setups at a level and their stage on the lower timeframe. */
+export function usePlaybook(
+  symbol: string | null,
+  htf: CandleInterval,
+  ltf: CandleInterval,
+): ResourceState<PlaybookLiveOut> {
+  return useResource(analysisApi().playbook, symbol ? playbookKey(symbol, htf, ltf) : null);
 }

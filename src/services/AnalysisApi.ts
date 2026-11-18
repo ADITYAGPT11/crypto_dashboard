@@ -7,7 +7,15 @@
  * - stats: every 15 s while the background job is running, else every 5 min;
  * - scanner: after each candle close; catalogue: once.
  */
-import type { AnalysisOut, CatalogOut, ScannerOut, SetupDetailOut, StatsOut } from "../api/schema";
+import type {
+  AnalysisOut,
+  CatalogOut,
+  PlaybookLiveOut,
+  PlaybookStatsOut,
+  ScannerOut,
+  SetupDetailOut,
+  StatsOut,
+} from "../api/schema";
 import { apiGet } from "../api/client";
 import type { CandleInterval } from "../types/marketData";
 import { setCatalog } from "../utils/patternLabels";
@@ -36,6 +44,15 @@ export function setupDetailKey(
   location: string,
 ) {
   return [tf, zoneTf, pattern, direction, location].join("|");
+}
+/** Days of higher-timeframe setups the playbook card follows. */
+export const PLAYBOOK_DAYS = 7;
+
+export function playbookStatsKey(htf: CandleInterval, ltf: CandleInterval) {
+  return `${htf}|${ltf}`;
+}
+export function playbookKey(symbol: string, htf: CandleInterval, ltf: CandleInterval) {
+  return `${symbol}|${htf}|${ltf}`;
 }
 export function scannerKey(tf: CandleInterval, zoneTf: CandleInterval, symbols: readonly string[]) {
   return `${tf}|${zoneTf}|${symbols.join(",")}`;
@@ -70,6 +87,21 @@ function createResources() {
         return apiGet<SetupDetailOut>("/stats/setup", { tf, zoneTf, pattern, direction, location });
       },
       refreshIn: () => 300_000,
+    }),
+    playbookStats: new ApiResource<PlaybookStatsOut>({
+      fetch: (key) => {
+        const [htf, ltf] = key.split("|");
+        return apiGet<PlaybookStatsOut>("/playbook/stats", { htf, ltf });
+      },
+      refreshIn: (d) => (d.run?.status === "running" || !d.run ? 15_000 : 300_000),
+    }),
+    playbook: new ApiResource<PlaybookLiveOut>({
+      fetch: (key) => {
+        const [symbol, htf, ltf] = key.split("|");
+        return apiGet<PlaybookLiveOut>(`/playbook/${symbol}`, { htf, ltf, days: PLAYBOOK_DAYS });
+      },
+      // The lower timeframe drives the stages: refresh after each of its candles closes.
+      refreshIn: (_d, key, now) => untilNextClose(key.split("|")[2] as CandleInterval, now),
     }),
     scanner: new ApiResource<ScannerOut>({
       fetch: (key) => {

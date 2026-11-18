@@ -83,6 +83,12 @@ criteria met.
 
 ## Phase 2 · Research + backtest (M3)
 
+- [x] Multi-timeframe playbook 4h → 15m with entry × exit variants, Binance costs, random-entry
+      baseline and an older / newer split (2026-11-18; first result: no edge, fees 0.15–0.24R a
+      trade with tight 15m stops)
+- [ ] Playbook tuning, one change per rule-set version (1d levels, order-flow filter at the
+      CHoCH, minimum reward : risk, entry window)
+
 - [ ] Feature library (TA, funding percentile, basis, OI change, regime)
 - [ ] Multiple-testing correction on the verdict (Bonferroni or FDR across every setup tested;
       from PR #6: on a random walk the uncorrected 95% rule flagged 2 of 146 patterns as edges)

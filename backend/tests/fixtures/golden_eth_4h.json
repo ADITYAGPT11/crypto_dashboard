@@ -1,5 +1,5 @@
 {
- "ruleset": "2026.11-r2",
+ "ruleset": "2026.11-r3",
  "candles": 2190,
  "hits": {
   "ascendingTriangle|orderBlock|loss": 1,

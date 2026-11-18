@@ -175,3 +175,31 @@ def test_stats_can_be_restricted_to_one_context(client: TestClient) -> None:
         assert s["summary"]["n"] <= n_all[(s["pattern"], s["direction"], s["location"])]
     bad = client.get("/api/v1/stats", params={"tf": "4h", "context": "nope"})
     assert bad.status_code == 422
+
+
+def test_playbook_job_and_endpoints(
+    client: TestClient, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tcs.jobs import playbook_job
+
+    monkeypatch.setattr(playbook_job, "History", lambda s: History(s, FakeSource()))  # type: ignore[arg-type]
+    meta = playbook_job.run_playbook_stats(settings, "4h", "15m", now=NOW)
+    assert meta["done"] == 2 and meta["failed"] == []
+    body = client.get("/api/v1/playbook/stats", params={"htf": "4h", "ltf": "15m"}).json()
+    assert body["run"]["status"] == "done"
+    assert body["params"]["taker"] == 0.0005
+    assert len(body["variants"]) == 9
+    measured = [v for v in body["variants"] if v["all"]]
+    assert measured, "no playbook trades on the random walks"
+    for v in measured:
+        s = v["all"]
+        assert s["meanRLow"] <= s["meanR"] <= s["meanRHigh"] or s["n"] < 2
+        assert s["n"] >= (v["inSample"] or {"n": 0})["n"]
+    live = client.get("/api/v1/playbook/AAA-USDT", params={"days": 14}).json()
+    assert live["symbol"] == "AAA-USDT"
+    for t in live["triggers"]:
+        assert t["stage"] in ("waiting", "confirmed", "expired", "invalidated")
+        assert t["location"] != "openSpace"
+    assert (
+        client.get("/api/v1/playbook/stats", params={"htf": "1d", "ltf": "15m"}).status_code == 422
+    )

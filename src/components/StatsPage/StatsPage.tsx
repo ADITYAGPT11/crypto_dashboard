@@ -1,6 +1,12 @@
 import { Fragment, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useCatalog, useSetupDetail, useStats } from "../../custom-hooks/useAnalysisApi";
+import {
+  useCatalog,
+  usePlaybookStats,
+  useSetupDetail,
+  useStats,
+} from "../../custom-hooks/useAnalysisApi";
+import { PlaybookTable } from "../Playbook";
 import { patternLabel } from "../../utils/patternLabels";
 import { locationLabel, parseSetupKey, toStats } from "../../utils/setupKeys";
 import { analysisApi, statsKey } from "../../services/AnalysisApi";
@@ -119,6 +125,36 @@ function CoinBreakdown({
         </tbody>
       </table>
     </>
+  );
+}
+
+/** The multi-timeframe playbook's variants, measured after Binance fees. */
+function PlaybookSection() {
+  const res = usePlaybookStats("4h", "15m");
+  const stats = res.data;
+  const run = stats?.run;
+  return (
+    <section className={styles.card} aria-labelledby="pb-title">
+      <div className={styles.cardHead}>
+        <h2 id="pb-title">Playbook 4h → 15m</h2>
+        <Explain title="The playbook">
+          A 4h pattern at a demand / supply zone or order block triggers; a 15m change of character
+          confirms; then each entry rule (at the CHoCH close, limit at the 0.618 Fib of the 15m
+          move, limit at its fair value gap) is combined with each exit rule (pattern target,
+          trailing under 15m higher lows, breakeven at 1R + half at 2R + trail). Stop beyond the 15m
+          swing that started the move. Results in R after Binance fees and slippage.
+        </Explain>
+        <p>
+          {run?.status === "running"
+            ? `Measuring in the background: ${run.done}/${run.coins.length} coins…`
+            : run
+              ? `${run.coins.length - run.failed.length} coins over ${Math.round((run.days / 365) * 10) / 10} years, after fees. Updated ${shortDate(run.finishedAt ?? run.startedAt)}.`
+              : "Not measured yet: the background job runs with the analysis service."}
+        </p>
+      </div>
+      {res.error && <p className={styles.mute}>{res.error}</p>}
+      {stats && <PlaybookTable stats={stats} />}
+    </section>
   );
 }
 
@@ -453,6 +489,8 @@ const StatsPage: React.FC = () => {
         </p>
       </section>
 
+      <PlaybookSection />
+
       <div className={styles.two}>
         <section className={styles.card} aria-labelledby="path-title">
           <div className={styles.cardHead}>
@@ -529,8 +567,8 @@ const StatsPage: React.FC = () => {
               range can clear break-even by chance about 1 time in 20. Out-of-sample data decides.
             </li>
             <li>
-              <b>Gross for now.</b> Fees and slippage arrive in Phase 2 and will lower every number
-              here.
+              <b>Gross for now.</b> The pattern records above are before fees; the playbook's are
+              after Binance fees and slippage.
             </li>
           </ul>
         </section>

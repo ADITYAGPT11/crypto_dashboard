@@ -58,6 +58,20 @@ CREATE TABLE IF NOT EXISTS depth_columns (
 
 CREATE INDEX IF NOT EXISTS setup_cases_key
   ON setup_cases (ruleset, tf, zone_tf, pattern, direction, location, time);
+
+CREATE TABLE IF NOT EXISTS playbook_stats (
+  ruleset TEXT NOT NULL, pair TEXT NOT NULL, symbol TEXT NOT NULL,
+  entry TEXT NOT NULL, exit TEXT NOT NULL, segment TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  PRIMARY KEY (ruleset, pair, symbol, entry, exit, segment)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS playbook_trades (
+  ruleset TEXT NOT NULL, pair TEXT NOT NULL, symbol TEXT NOT NULL,
+  entry TEXT NOT NULL, exit TEXT NOT NULL, time INTEGER NOT NULL, detail TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS playbook_trades_key
+  ON playbook_trades (ruleset, pair, entry, exit, time);
 """
 
 
@@ -169,14 +183,14 @@ class Store:
 
     # Statistics --------------------------------------------------------------
 
-    def start_run(self, ruleset: str, tf: Timeframe, now: int, meta: dict[str, Any]) -> None:
+    def start_run(self, ruleset: str, tf: str, now: int, meta: dict[str, Any]) -> None:
         with self.tx() as db:
             db.execute(
                 "INSERT OR REPLACE INTO stats_runs VALUES (?,?,?,?,?,?)",
                 (ruleset, tf, "running", now, None, json.dumps(meta)),
             )
 
-    def update_run(self, ruleset: str, tf: Timeframe, meta: dict[str, Any]) -> None:
+    def update_run(self, ruleset: str, tf: str, meta: dict[str, Any]) -> None:
         with self.tx() as db:
             db.execute(
                 "UPDATE stats_runs SET meta=? WHERE ruleset=? AND tf=?",
@@ -184,7 +198,7 @@ class Store:
             )
 
     def finish_run(
-        self, ruleset: str, tf: Timeframe, now: int, status: str, meta: dict[str, Any]
+        self, ruleset: str, tf: str, now: int, status: str, meta: dict[str, Any]
     ) -> None:
         with self.tx() as db:
             db.execute(
@@ -192,7 +206,7 @@ class Store:
                 (status, now, json.dumps(meta), ruleset, tf),
             )
 
-    def run(self, ruleset: str, tf: Timeframe) -> dict[str, Any] | None:
+    def run(self, ruleset: str, tf: str) -> dict[str, Any] | None:
         row = (
             self._conn()
             .execute(
@@ -369,3 +383,55 @@ class Store:
             )
             for r in rows
         ]
+
+    # Playbook (multi-timeframe) statistics ------------------------------------
+
+    def replace_playbook(
+        self,
+        ruleset: str,
+        pair: str,
+        stats: Sequence[tuple[str, str, str, str, dict[str, Any]]],
+        trades: Sequence[tuple[str, str, str, int, dict[str, Any]]],
+    ) -> None:
+        """Swap in a finished playbook run (stats: symbol, entry, exit, segment, summary;
+        trades: symbol, entry, exit, time, detail)."""
+        with self.tx() as db:
+            db.execute("DELETE FROM playbook_stats WHERE ruleset=? AND pair=?", (ruleset, pair))
+            db.execute("DELETE FROM playbook_trades WHERE ruleset=? AND pair=?", (ruleset, pair))
+            db.executemany(
+                "INSERT INTO playbook_stats VALUES (?,?,?,?,?,?,?)",
+                [(ruleset, pair, *row[:4], json.dumps(row[4])) for row in stats],
+            )
+            db.executemany(
+                "INSERT INTO playbook_trades VALUES (?,?,?,?,?,?,?)",
+                [(ruleset, pair, *row[:4], json.dumps(row[4])) for row in trades],
+            )
+
+    def playbook_stats(
+        self, ruleset: str, pair: str, symbol: str = "*"
+    ) -> list[tuple[str, str, str, dict[str, Any]]]:
+        """(entry, exit, segment, summary) rows."""
+        rows = (
+            self._conn()
+            .execute(
+                "SELECT entry, exit, segment, summary FROM playbook_stats "
+                "WHERE ruleset=? AND pair=? AND symbol=?",
+                (ruleset, pair, symbol),
+            )
+            .fetchall()
+        )
+        return [(r[0], r[1], r[2], json.loads(r[3])) for r in rows]
+
+    def playbook_trades(
+        self, ruleset: str, pair: str, entry: str, exit: str, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        rows = (
+            self._conn()
+            .execute(
+                "SELECT symbol, time, detail FROM playbook_trades WHERE ruleset=? AND pair=? "
+                "AND entry=? AND exit=? ORDER BY time DESC LIMIT ?",
+                (ruleset, pair, entry, exit, limit),
+            )
+            .fetchall()
+        )
+        return [{"symbol": r[0], "time": r[1], **json.loads(r[2])} for r in rows]

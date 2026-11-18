@@ -57,6 +57,7 @@ import { useLiveCandle } from "../../custom-hooks/useLiveCandle";
 import { useLiquidity } from "../../custom-hooks/useLiquidity";
 import { useBigTrades } from "../../custom-hooks/useBigTrades";
 import { useFootprint } from "../../custom-hooks/useFootprint";
+import { PlaybookCard } from "../Playbook";
 import { autoStep } from "../../utils/footprint";
 import { formatCompactUsd } from "../../utils/priceUtils";
 import { liquidityPools, mergeSamples } from "../../utils/liquidityHeatmap";
@@ -805,6 +806,7 @@ const ChartPage: React.FC = () => {
               checks={checks}
             />
           )}
+          <PlaybookCard symbol={symbol} />
         </aside>
       </div>
       {dialog?.kind === "overlays" && (

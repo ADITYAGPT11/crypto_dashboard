@@ -8,12 +8,13 @@ import time
 from collections import OrderedDict
 from typing import Any
 
+from tcs.analysis import playbook as pb
 from tcs.analysis.catalog import CATALOG, RULESET_VERSION
 from tcs.analysis.engine import analyze
 from tcs.analysis.flow import CONTEXTS
 from tcs.analysis.outcomes import MAX_HOLD_BARS
 from tcs.analysis.stats import MIN_SAMPLE
-from tcs.analysis.types import Direction
+from tcs.analysis.types import Direction, Location, PatternHit
 from tcs.api import convert
 from tcs.api.schemas import (
     AnalysisOut,
@@ -23,6 +24,13 @@ from tcs.api.schemas import (
     CoinSummaryOut,
     ContextSummaryOut,
     PatternOut,
+    PlaybookLiveOut,
+    PlaybookParamsOut,
+    PlaybookStatsOut,
+    PlaybookTradeOut,
+    PlaybookTriggerOut,
+    PlaybookVariantOut,
+    RSummaryOut,
     ScannerItemOut,
     ScannerOut,
     SetupDetailOut,
@@ -32,6 +40,7 @@ from tcs.api.schemas import (
 )
 from tcs.common.timeframes import TF_MS, Timeframe, is_at_least, last_closed_open
 from tcs.config import Settings
+from tcs.jobs.playbook_job import pair_key
 from tcs.jobs.stats_job import STATS_TFS
 from tcs.marketdata.history import History
 from tcs.store.sqlite import Store
@@ -258,4 +267,126 @@ class Service:
             items=items,
             failed=failed,
             run=convert.run(self.store.run(RULESET_VERSION, tf)),
+        )
+
+    # Playbook (multi-timeframe) --------------------------------------------------
+
+    def playbook_stats(self, htf: Timeframe, ltf: Timeframe) -> PlaybookStatsOut:
+        pair = pair_key(htf, ltf)
+        rows = self.store.playbook_stats(RULESET_VERSION, pair)
+        by = {(e, x, seg): s for e, x, seg, s in rows}
+
+        def summ(e: str, x: str, seg: str) -> RSummaryOut | None:
+            d = by.get((e, x, seg))
+            return None if d is None else RSummaryOut.model_validate(d)
+
+        r = self.store.run(RULESET_VERSION, pair)
+        return PlaybookStatsOut(
+            ruleset=RULESET_VERSION,
+            htf=htf,
+            ltf=ltf,
+            run=convert.run(r),
+            split=(r or {}).get("meta", {}).get("split"),
+            params=PlaybookParamsOut(
+                trigger_bars=pb.TRIGGER_BARS,
+                entry_bars=pb.ENTRY_BARS,
+                stop_atr=pb.STOP_ATR,
+                max_risk_htf_atr=pb.MAX_RISK_HTF_ATR,
+                fib_level=pb.FIB_LEVEL,
+                max_hold_bars=pb.MAX_HOLD_BARS,
+                breakeven_r=pb.BREAKEVEN_R,
+                partial_r=pb.PARTIAL_R,
+                partial_share=pb.PARTIAL_SHARE,
+                maker=pb.MAKER,
+                taker=pb.TAKER,
+                slippage=pb.SLIPPAGE,
+            ),
+            variants=[
+                PlaybookVariantOut(
+                    entry=e,
+                    exit=x,
+                    all=summ(e, x, "all"),
+                    in_sample=summ(e, x, "in"),
+                    out_of_sample=summ(e, x, "out"),
+                )
+                for e in pb.ENTRIES
+                for x in pb.EXITS
+            ],
+        )
+
+    def playbook_live(
+        self, symbol: str, htf: Timeframe, ltf: Timeframe, days: int, now: int | None = None
+    ) -> PlaybookLiveOut:
+        """Recent HTF setups at a level and where each stands on the LTF right now."""
+        now = now or now_ms()
+        # HTF history long enough for its levels; LTF from the oldest trigger shown on.
+        h_since = (
+            last_closed_open(now, htf)
+            - (LEVEL_WARMUP + days * 86_400_000 // TF_MS[htf]) * TF_MS[htf]
+        )
+        l_since = now - (days + 2) * 86_400_000
+        with self._symbol_lock(f"{symbol}|{htf}"):
+            hcov = self.history.ensure(symbol, htf, h_since, now)
+        with self._symbol_lock(f"{symbol}|{ltf}"):
+            lcov = self.history.ensure(symbol, ltf, l_since, now)
+        h = self.history.load(symbol, htf, h_since, now)
+        lt = self.history.load(symbol, ltf, l_since, now)
+        a = analyze(h)
+        cutoff = now - days * 86_400_000
+        recent: list[tuple[PatternHit, Location]] = [
+            (o.hit, o.location) for o in a.occurrences if int(h.open_time[o.hit.index]) >= cutoff
+        ]
+        triggers = pb.run_playbook(h, lt, recent) if len(lt) else []
+
+        def at(i: int | None) -> int | None:
+            return None if i is None or i >= len(lt) else int(lt.open_time[i])
+
+        def num(x: float | None) -> float | None:
+            return None if x is None or not math.isfinite(x) else x
+
+        out = [
+            PlaybookTriggerOut(
+                pattern=t.hit.pattern,
+                direction=t.hit.direction,
+                location=t.location,
+                time=int(h.open_time[t.hit.index]),
+                known_at=h.close_time(t.hit.index),
+                window_end=h.close_time(t.hit.index) + pb.TRIGGER_BARS * TF_MS[htf],
+                stage=t.stage,
+                htf_stop=t.hit.stop,
+                htf_target=t.hit.target,
+                choch_time=at(t.choch_index),
+                broke=t.broke,
+                impulse_low=t.impulse_low,
+                impulse_high=t.impulse_high,
+                trades=[
+                    PlaybookTradeOut(
+                        entry_kind=tr.entry_kind,
+                        exit_kind=tr.exit_kind,
+                        status=tr.status,
+                        note=tr.note,
+                        entry=num(tr.entry),
+                        stop=num(tr.stop),
+                        target=num(tr.target),
+                        fill_time=at(tr.fill_index),
+                        exit_time=at(tr.exit_index),
+                        exit_price=num(tr.exit_price),
+                        reason=tr.reason,
+                        stop_now=num(tr.stop_now),
+                        r_net=tr.r_net,
+                    )
+                    for tr in t.trades
+                ],
+            )
+            for t in triggers
+        ]
+        out.sort(key=lambda t: -t.time)
+        return PlaybookLiveOut(
+            symbol=symbol,
+            htf=htf,
+            ltf=ltf,
+            ruleset=RULESET_VERSION,
+            coverage=convert.coverage(hcov),
+            ltf_coverage=convert.coverage(lcov),
+            triggers=out,
         )

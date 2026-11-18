@@ -1,0 +1,144 @@
+@use "../../styles/page" as *;
+
+.card {
+  @include card;
+}
+.feature {
+  @include feature;
+}
+.head {
+  @include card-head;
+}
+.lbl {
+  @include lbl;
+  display: block;
+}
+.note {
+  @include note;
+}
+.tbl {
+  @include tbl;
+  td {
+    font-variant-numeric: tabular-nums;
+  }
+  tbody tr[class] {
+    cursor: default;
+  }
+}
+.scroll {
+  overflow-x: auto;
+}
+.r {
+  text-align: right;
+}
+.sub {
+  display: block;
+  font-size: 11px;
+  color: var(--t-muted);
+}
+.mute {
+  color: var(--t-muted);
+}
+.up {
+  color: var(--t-up);
+}
+.down {
+  color: var(--t-down);
+}
+.rowNow td {
+  background: var(--t-signal-soft);
+}
+.pick {
+  display: block;
+  min-width: 0;
+}
+.pick select {
+  width: 100%;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--t-line);
+  background: var(--t-well);
+  color: var(--t-fg);
+  font: inherit;
+  font-size: 13px;
+}
+.record {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 4px;
+  > div {
+    padding: 10px 12px;
+    border: 1px solid var(--t-inner);
+    border-radius: 10px;
+    background: var(--t-well);
+    min-width: 0;
+  }
+  small {
+    display: block;
+    color: var(--t-muted);
+    font-size: 12px;
+  }
+  .verdict {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+.num {
+  display: block;
+  font-family: var(--t-font-data);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 2px 0;
+}
+.subhead {
+  margin: 16px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.triggers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  li {
+    padding: 10px 12px;
+    border: 1px solid var(--t-inner);
+    border-radius: 10px;
+  }
+}
+.trigHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  font-size: 13px;
+}
+.line {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--t-muted);
+}
+.plan {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0 0;
+  div {
+    min-width: 0;
+  }
+  dt {
+    @include lbl;
+    font-size: 11px;
+  }
+  dd {
+    margin: 2px 0 0;
+    font-family: var(--t-font-data);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+}

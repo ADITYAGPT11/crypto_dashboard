@@ -22,6 +22,8 @@ from tcs.api.schemas import (
     DepthFeedOut,
     DepthOut,
     HealthOut,
+    PlaybookLiveOut,
+    PlaybookStatsOut,
     ScannerOut,
     SetupDetailOut,
     StatsOut,
@@ -31,6 +33,7 @@ from tcs.common.timeframes import TF_MS, Timeframe, last_closed_open, parse_time
 from tcs.common.universe import is_canonical
 from tcs.config import Settings
 from tcs.depth.recorder import DepthRecorder
+from tcs.jobs.playbook_job import PAIRS, pair_key, run_playbook_stats
 from tcs.jobs.stats_job import STATS_TFS, run_stats
 
 log = logging.getLogger(__name__)
@@ -43,6 +46,13 @@ def _tf(value: str) -> Timeframe:
         return parse_timeframe(value)
     except ValueError as err:
         raise HTTPException(422, str(err)) from err
+
+
+def _pair(htf: str, ltf: str) -> tuple[Timeframe, Timeframe]:
+    pair = (_tf(htf), _tf(ltf))
+    if pair not in PAIRS:
+        raise HTTPException(422, f"playbook pairs: {', '.join(pair_key(*p) for p in PAIRS)}")
+    return pair
 
 
 def _symbol(value: str) -> str:
@@ -67,6 +77,18 @@ def _stale(svc: Service, tf: Timeframe, now: int) -> bool:
     )
 
 
+def _playbook_stale(svc: Service, htf: Timeframe, now: int) -> bool:
+    """Due when none exists for this ruleset, or one HTF candle after the last one finished."""
+    pair = next(pair_key(h, lt) for h, lt in PAIRS if h == htf)
+    run = svc.store.run(RULESET_VERSION, pair)
+    if run is None:
+        return True
+    if run["status"] == "running":
+        return False
+    finished = run["finished_at"] or 0
+    return now - finished >= (3_600_000 if run["status"] == "failed" else TF_MS[htf])
+
+
 async def _scheduler(svc: Service, pool: ProcessPoolExecutor) -> None:
     loop = asyncio.get_running_loop()
     while True:
@@ -77,6 +99,13 @@ async def _scheduler(svc: Service, pool: ProcessPoolExecutor) -> None:
                     await loop.run_in_executor(pool, run_stats, svc.settings, tf)
                 except Exception:
                     log.exception("statistics run for %s failed", tf)
+        for htf, ltf in PAIRS:
+            if _playbook_stale(svc, htf, now_ms()):
+                log.info("playbook run for %s starting", pair_key(htf, ltf))
+                try:
+                    await loop.run_in_executor(pool, run_playbook_stats, svc.settings, htf, ltf)
+                except Exception:
+                    log.exception("playbook run for %s failed", pair_key(htf, ltf))
         await asyncio.sleep(SCHEDULE_EVERY_S)
 
 
@@ -94,10 +123,10 @@ def create_app(
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
         # Interrupted runs (process killed) restart from scratch.
-        for tf in STATS_TFS:
-            r = svc.store.run(RULESET_VERSION, tf)
+        for key in [*STATS_TFS, *(pair_key(h, lt) for h, lt in PAIRS)]:
+            r = svc.store.run(RULESET_VERSION, key)
             if r and r["status"] == "running":
-                svc.store.finish_run(RULESET_VERSION, tf, now_ms(), "failed", r["meta"])
+                svc.store.finish_run(RULESET_VERSION, key, now_ms(), "failed", r["meta"])
         task: asyncio.Task[None] | None = None
         pool: ProcessPoolExecutor | None = None
         if settings.schedule:
@@ -169,6 +198,22 @@ def create_app(
                 for c in cols
             ],
         )
+
+    @r.get("/playbook/stats")
+    def playbook_stats(htf: str = "4h", ltf: str = "15m") -> PlaybookStatsOut:
+        h, lt = _pair(htf, ltf)
+        return svc.playbook_stats(h, lt)
+
+    @r.get("/playbook/{symbol}")
+    def playbook_live(
+        symbol: str,
+        htf: str = "4h",
+        ltf: str = "15m",
+        days: Annotated[int, Query(ge=1, le=14)] = 3,
+    ) -> PlaybookLiveOut:
+        """Recent HTF setups at a level and their stage on the LTF (no orders are placed)."""
+        h, lt = _pair(htf, ltf)
+        return svc.playbook_live(_symbol(symbol), h, lt, days)
 
     @r.get("/candles/{symbol}")
     def candles(
