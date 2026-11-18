@@ -14,6 +14,7 @@ import type {
   CatalogOut,
   PlaybookLiveOut,
   PlaybookStatsOut,
+  PlaybookTradesOut,
   ScannerOut,
   SetupDetailOut,
   StatsOut,
@@ -86,4 +87,14 @@ export function usePlaybook(
   ltf: CandleInterval,
 ): ResourceState<PlaybookLiveOut> {
   return useResource(analysisApi().playbook, symbol ? playbookKey(symbol, htf, ltf) : null);
+}
+
+/** Every measured trade of one playbook variant, oldest first (paper account replay). */
+export function usePlaybookTrades(
+  htf: CandleInterval,
+  ltf: CandleInterval,
+  entry: string,
+  exit: string,
+): ResourceState<PlaybookTradesOut> {
+  return useResource(analysisApi().playbookTrades, `${htf}|${ltf}|${entry}|${exit}`);
 }

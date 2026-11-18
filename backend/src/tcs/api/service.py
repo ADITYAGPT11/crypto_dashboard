@@ -23,11 +23,13 @@ from tcs.api.schemas import (
     CatalogOut,
     CoinSummaryOut,
     ContextSummaryOut,
+    PaperTradeOut,
     PatternOut,
     PlaybookLiveOut,
     PlaybookParamsOut,
     PlaybookStatsOut,
     PlaybookTradeOut,
+    PlaybookTradesOut,
     PlaybookTriggerOut,
     PlaybookVariantOut,
     RSummaryOut,
@@ -390,4 +392,27 @@ class Service:
             coverage=convert.coverage(hcov),
             ltf_coverage=convert.coverage(lcov),
             triggers=out,
+        )
+
+    def playbook_trades(
+        self, htf: Timeframe, ltf: Timeframe, entry: str, exit: str
+    ) -> PlaybookTradesOut:
+        if entry not in pb.ENTRIES or exit not in pb.EXITS:
+            raise BadRequest(
+                f"entry must be one of {', '.join(pb.ENTRIES)}; exit one of {', '.join(pb.EXITS)}"
+            )
+        pair = pair_key(htf, ltf)
+        rows = self.store.playbook_all_trades(RULESET_VERSION, pair, entry, exit)
+        return PlaybookTradesOut.model_validate(
+            {
+                "ruleset": RULESET_VERSION,
+                "htf": htf,
+                "ltf": ltf,
+                "entry": entry,
+                "exit": exit,
+                "run": convert.run(self.store.run(RULESET_VERSION, pair)),
+                "trades": [
+                    PaperTradeOut.model_validate({"rGross": t.get("rNet", 0.0), **t}) for t in rows
+                ],
+            }
         )

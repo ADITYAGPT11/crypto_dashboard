@@ -36,7 +36,7 @@ Verified 2026-11-11 (test counts 2026-11-17):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 351 tests, 36 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 357 tests, 37 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
 | `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 136 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
@@ -50,7 +50,7 @@ Verified 2026-11-11 (test counts 2026-11-17):
   (`engine.analyze` is the single entry point; catalogue and `RULESET_VERSION` in `catalog.py`;
   rules written out in `docs/product/patterns.md`); `jobs/stats_job.py` background statistics;
   `marketdata/` Binance REST + `data.binance.vision` archive backfill; `store/sqlite.py`;
-  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner,depth,playbook}`; `depth/` order-book recorder.
+  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner,depth,playbook,playbook/trades}`; `depth/` order-book recorder.
   `src/api/schema.ts` is generated from it (`npm run api:types`; a test fails when stale).
 - **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
   live forming candle) plus the service's patterns (direction arrows, outlines, necklines,
@@ -60,6 +60,8 @@ Verified 2026-11-11 (test counts 2026-11-17):
   overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options. Detection settings per pattern (from the
   catalogue) and level source. Setup card: pooled record, the pattern's any-location baseline,
   this coin only, last cases across coins, plan, context checks.
+- **Paper trading** (`/paper`): the playbook's measured trades in a dummy-money account (R in
+  dollars, balance curve, every trade, fees, worst fall).
 - **Pattern stats** (`/stats`): every pattern × direction × location on 1h/4h/1d with a level
   source and location filter, per-coin breakdown, run progress.
 - **Dashboard** (`/`): market overview (unchanged), scanner from the service (last 3 closed
@@ -95,6 +97,14 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-18: **Paper trading page** (`/paper`, owner: "make R easier to understand"): the
+  playbook's measured trades replayed oldest first in a dummy-money account (start balance, risk %
+  per trade and compounding adjustable, saved per browser): what 1R means in dollars, balance now,
+  trades won / lost, fees paid, worst fall, a balance-over-time chart and every trade with its
+  size, dollars risked, result, fees and balance. `/api/v1/playbook/trades` returns a variant's
+  trades (now with R before costs). $10 000 at 1% over 2 years: Fib + trail $10 520 (+5%), Fib +
+  managed $9 780 (−2%), FVG + managed $9 235 (−8%), CHoCH close + trail $1 567 (−84%, 1 526
+  trades at −0.11R each). Replay of past trades, not a forward test.
 - 2026-11-18: **Playbook r4: minimum stop distance** (owner's tuning option 1): trades whose stop
   is closer than 1% of the price are skipped. Fees per trade drop from ~0.22R to ~0.07R, but the
   setup has no edge before fees (−0.10R to +0.11R), so after fees the 9 variants range from

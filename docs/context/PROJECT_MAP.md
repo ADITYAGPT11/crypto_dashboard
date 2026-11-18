@@ -85,7 +85,7 @@ price table, spread (arbitrage), order book, alerts.
   one failing never stops the others (except the web app), Ctrl+C stops the process trees
 
 - `index.html` → `src/main.tsx` → `src/App.tsx`: `TopNav` + routes `/` (Dashboard),
-  `/chart/:symbol` (Chart, lazy-loaded), `/markets` (older dashboard), `/about`
+  `/chart/:symbol` (Chart, lazy-loaded), `/paper` (Paper trading, lazy-loaded), `/markets` (older dashboard), `/about`
 - `src/styles/tokens.css` (`--t-*` design tokens, dark), `src/styles/_page.scss` (page mixins)
 - `src/components/MainContainer/`: dashboard; watchlist + panel layout state (persisted),
   starts streaming, renders panels in "Edit layout" order
@@ -123,7 +123,7 @@ price table, spread (arbitrage), order book, alerts.
   `/api/alerts/send` (injectable deps for tests)
 
 **Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
-`useScanner`, `usePlaybookStats`, `usePlaybook`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
+`useScanner`, `usePlaybookStats`, `usePlaybook`, `usePlaybookTrades`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
 `useDepthHistory` (recorded heatmap minutes from `/api/v1/depth`, once per enable),
 `useFootprint` (live footprint per view bar and row size; session trade buffer per symbol),
@@ -140,7 +140,8 @@ sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX 
 (buckets, samples, pools, recorded columns → samples, history + live merge), `heatmapRender`
 (thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
 position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `playbook`
-(variant labels, default pick, stage / trade lines), `footprint`
+(variant labels, default pick, stage / trade lines), `paperAccount` (R → dollars: sizing,
+compounding, fees, drawdown), `footprint`
 (rows, `FootprintBook`, diagonal imbalance), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
 `src/api/schema.ts`; client `src/api/client.ts`.
@@ -173,7 +174,8 @@ names), `connection.ts`, `alertRules.ts`
 `TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`, `drawBigTrades`, `drawFootprint`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
 overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
-`Playbook/` (`PlaybookCard` on the chart, `PlaybookTable` on Pattern stats), `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
+`Playbook/` (`PlaybookCard` on the chart, `PlaybookTable` on Pattern stats), `PaperPage/`
+(dummy-money replay of the playbook's trades, `EquityChart`), `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
 `RealTimeClock`)
 
 **Backend prototype** (`src/backend/`, `npm run backend` bundles it to `dist-backend/` and starts it on port 3001; type-checked via `tsconfig.backend.json`)

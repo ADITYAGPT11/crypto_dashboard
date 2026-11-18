@@ -111,6 +111,7 @@ criteria met.
 
 ## Phase 4 · Forward test (M5)
 
+- [x] Paper trading page: past playbook trades replayed in a dummy-money account (2026-11-18)
 - [ ] Paper ledger for every signal and veto; drift detection + auto-pause
 
 **Exit:** ≥ 30 forward trades per promoted strategy inside the backtest 95 % band.

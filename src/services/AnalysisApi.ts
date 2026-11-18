@@ -12,6 +12,7 @@ import type {
   CatalogOut,
   PlaybookLiveOut,
   PlaybookStatsOut,
+  PlaybookTradesOut,
   ScannerOut,
   SetupDetailOut,
   StatsOut,
@@ -94,6 +95,13 @@ function createResources() {
         return apiGet<PlaybookStatsOut>("/playbook/stats", { htf, ltf });
       },
       refreshIn: (d) => (d.run?.status === "running" || !d.run ? 15_000 : 300_000),
+    }),
+    playbookTrades: new ApiResource<PlaybookTradesOut>({
+      fetch: (key) => {
+        const [htf, ltf, entry, exit] = key.split("|");
+        return apiGet<PlaybookTradesOut>("/playbook/trades", { htf, ltf, entry, exit });
+      },
+      refreshIn: () => 600_000,
     }),
     playbook: new ApiResource<PlaybookLiveOut>({
       fetch: (key) => {

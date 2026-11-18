@@ -435,3 +435,20 @@ class Store:
             .fetchall()
         )
         return [{"symbol": r[0], "time": r[1], **json.loads(r[2])} for r in rows]
+
+    def playbook_all_trades(
+        self, ruleset: str, pair: str, entry: str, exit: str
+    ) -> list[dict[str, Any]]:
+        """Every closed trade of one variant, oldest first by fill time (paper account replay)."""
+        rows = (
+            self._conn()
+            .execute(
+                "SELECT symbol, time, detail FROM playbook_trades WHERE ruleset=? AND pair=? "
+                "AND entry=? AND exit=?",
+                (ruleset, pair, entry, exit),
+            )
+            .fetchall()
+        )
+        out = [{"symbol": r[0], "time": r[1], **json.loads(r[2])} for r in rows]
+        out.sort(key=lambda t: (t.get("fillTime") or t["time"], t["symbol"]))
+        return out

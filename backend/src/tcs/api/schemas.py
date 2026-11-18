@@ -402,3 +402,34 @@ class PlaybookLiveOut(Out):
     ltf_coverage: CoverageOut
     #: Most recent first.
     triggers: list[PlaybookTriggerOut]
+
+
+class PaperTradeOut(Out):
+    """One measured playbook trade, for replaying in a paper (dummy-money) account."""
+
+    symbol: str
+    pattern: str
+    direction: Literal["long", "short"]
+    location: str
+    #: Open time of the HTF setup candle.
+    time: int
+    entry_price: float
+    stop: float
+    exit_price: float | None
+    reason: Literal["stop", "target", "trail", "breakeven", "time"] | None
+    #: Result in R after costs, and before costs (the gap is fees and slippage).
+    r_net: float
+    r_gross: float
+    fill_time: int | None
+    exit_time: int | None
+
+
+class PlaybookTradesOut(Out):
+    ruleset: str
+    htf: str
+    ltf: str
+    entry: Literal["market", "fib", "fvg"]
+    exit: Literal["target", "trail", "managed"]
+    run: RunOut | None
+    #: Oldest first by fill time.
+    trades: list[PaperTradeOut]

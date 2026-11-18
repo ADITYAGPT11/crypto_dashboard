@@ -203,3 +203,14 @@ def test_playbook_job_and_endpoints(
     assert (
         client.get("/api/v1/playbook/stats", params={"htf": "1d", "ltf": "15m"}).status_code == 422
     )
+    v = max(measured, key=lambda v: v["all"]["n"])
+    paper = client.get(
+        "/api/v1/playbook/trades", params={"entry": v["entry"], "exit": v["exit"]}
+    ).json()
+    trades = paper["trades"]
+    assert len(trades) == v["all"]["n"]  # every closed trade, pooled over coins
+    fills = [t["fillTime"] for t in trades]
+    assert fills == sorted(fills)
+    assert all(t["rGross"] >= t["rNet"] for t in trades)  # costs only ever lower R
+    bad = client.get("/api/v1/playbook/trades", params={"entry": "x", "exit": "trail"})
+    assert bad.status_code == 422

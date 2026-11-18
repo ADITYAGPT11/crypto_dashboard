@@ -24,6 +24,7 @@ from tcs.api.schemas import (
     HealthOut,
     PlaybookLiveOut,
     PlaybookStatsOut,
+    PlaybookTradesOut,
     ScannerOut,
     SetupDetailOut,
     StatsOut,
@@ -203,6 +204,17 @@ def create_app(
     def playbook_stats(htf: str = "4h", ltf: str = "15m") -> PlaybookStatsOut:
         h, lt = _pair(htf, ltf)
         return svc.playbook_stats(h, lt)
+
+    @r.get("/playbook/trades")
+    def playbook_trades(
+        entry: str, exit: str, htf: str = "4h", ltf: str = "15m"
+    ) -> PlaybookTradesOut:
+        """Every measured trade of one variant, oldest first, to replay in a paper account."""
+        h, lt = _pair(htf, ltf)
+        try:
+            return svc.playbook_trades(h, lt, entry, exit)
+        except BadRequest as err:
+            raise HTTPException(422, str(err)) from err
 
     @r.get("/playbook/{symbol}")
     def playbook_live(

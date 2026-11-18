@@ -122,6 +122,7 @@ def _detail(t: Trigger, tr: Trade, lt: Series) -> dict[str, Any]:
         "exitPrice": None if tr.exit_price is None else round(tr.exit_price, 8),
         "reason": tr.reason,
         "rNet": round(tr.r_net, 4),
+        "rGross": round(tr.r_gross, 4),
         "baselineR": None if tr.baseline_r is None else round(tr.baseline_r, 4),
         "fillTime": at(tr.fill_index),
         "exitTime": at(tr.exit_index),

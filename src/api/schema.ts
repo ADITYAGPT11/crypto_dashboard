@@ -157,6 +157,22 @@ export interface OutcomeOut {
   bars: number;
 }
 
+export interface PaperTradeOut {
+  symbol: string;
+  pattern: string;
+  direction: "long" | "short";
+  location: string;
+  time: number;
+  entryPrice: number;
+  stop: number;
+  exitPrice: number | null;
+  reason: "stop" | "target" | "trail" | "breakeven" | "time" | null;
+  rNet: number;
+  rGross: number;
+  fillTime: number | null;
+  exitTime: number | null;
+}
+
 export interface PatternOut {
   id: string;
   label: string;
@@ -216,6 +232,16 @@ export interface PlaybookTradeOut {
   reason: "stop" | "target" | "trail" | "breakeven" | "time" | null;
   stopNow: number | null;
   rNet: number;
+}
+
+export interface PlaybookTradesOut {
+  ruleset: string;
+  htf: string;
+  ltf: string;
+  entry: "market" | "fib" | "fvg";
+  exit: "target" | "trail" | "managed";
+  run: RunOut | null;
+  trades: PaperTradeOut[];
 }
 
 export interface PlaybookTriggerOut {
