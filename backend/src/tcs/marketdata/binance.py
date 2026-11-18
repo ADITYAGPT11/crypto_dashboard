@@ -126,3 +126,28 @@ class BinanceKlines:
     def archive_day(self, symbol: str, tf: Timeframe, day: str) -> list[Candle] | None:
         s = to_exchange_symbol(symbol)
         return self._zip(f"{ARCHIVE}/daily/klines/{s}/{tf}/{s}-{tf}-{day}.zip")
+
+    def funding_month(self, symbol: str, year: int, month: int) -> list[tuple[int, float]] | None:
+        """Funding rates (time ms, rate as a fraction) of one month from the public archive.
+
+        None when the month is not published (the current month, or the coin was not listed).
+        """
+        s = to_exchange_symbol(symbol)
+        url = f"{ARCHIVE}/monthly/fundingRate/{s}/{s}-fundingRate-{year:04d}-{month:02d}.zip"
+        try:
+            res = self.client.get(url)
+        except httpx.HTTPError as err:
+            raise SourceUnavailable(f"archive unreachable: {err}") from err
+        if res.status_code == 404:
+            return None
+        if res.status_code != 200:
+            raise SourceUnavailable(f"archive HTTP {res.status_code}")
+        with zipfile.ZipFile(io.BytesIO(res.content)) as z:
+            text = z.read(z.namelist()[0]).decode()
+        out: list[tuple[int, float]] = []
+        for line in text.splitlines():
+            if not line or not line[0].isdigit():
+                continue  # header: calc_time,funding_interval_hours,last_funding_rate
+            p = line.split(",")
+            out.append((int(p[0]), float(p[-1])))
+        return out

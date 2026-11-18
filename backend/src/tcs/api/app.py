@@ -12,6 +12,7 @@ from typing import Annotated
 from fastapi import APIRouter, FastAPI, HTTPException, Query
 
 from tcs.analysis.catalog import PATTERN_IDS, RULESET_VERSION
+from tcs.analysis.ingredients import INGREDIENTS_VERSION
 from tcs.analysis.types import LOCATIONS
 from tcs.api import convert
 from tcs.api.schemas import (
@@ -23,6 +24,7 @@ from tcs.api.schemas import (
     DepthOut,
     ForwardOut,
     HealthOut,
+    IngredientsOut,
     PlaybookLiveOut,
     PlaybookStatsOut,
     PlaybookTradesOut,
@@ -35,6 +37,8 @@ from tcs.common.timeframes import TF_MS, Timeframe, last_closed_open, parse_time
 from tcs.common.universe import is_canonical
 from tcs.config import Settings
 from tcs.depth.recorder import DepthRecorder
+from tcs.jobs.ingredients_job import RUN_KEY as INGREDIENTS_RUN
+from tcs.jobs.ingredients_job import run_ingredients
 from tcs.jobs.playbook_job import PAIRS, pair_key, run_playbook_stats
 from tcs.jobs.stats_job import STATS_TFS, run_stats
 
@@ -77,6 +81,17 @@ def _stale(svc: Service, tf: Timeframe, now: int) -> bool:
     return (
         last_closed_open(now, tf) + TF_MS[tf] > finished + TF_MS[tf] and now - finished >= TF_MS[tf]
     )
+
+
+def _research_stale(svc: Service, now: int) -> bool:
+    """The ingredient study reruns daily (or after a failure, hourly)."""
+    run = svc.store.run(INGREDIENTS_VERSION, INGREDIENTS_RUN)
+    if run is None:
+        return True
+    if run["status"] == "running":
+        return False
+    wait = 3_600_000 if run["status"] == "failed" else 86_400_000
+    return now - (run["finished_at"] or 0) >= wait
 
 
 def _playbook_stale(svc: Service, htf: Timeframe, now: int) -> bool:
@@ -124,6 +139,12 @@ async def _scheduler(svc: Service, pool: ProcessPoolExecutor) -> None:
                     await loop.run_in_executor(pool, run_playbook_stats, svc.settings, htf, ltf)
                 except Exception:
                     log.exception("playbook run for %s failed", pair_key(htf, ltf))
+        if _research_stale(svc, now_ms()):
+            log.info("ingredient study starting")
+            try:
+                await loop.run_in_executor(pool, run_ingredients, svc.settings)
+            except Exception:
+                log.exception("ingredient study failed")
         await asyncio.sleep(SCHEDULE_EVERY_S)
 
 
@@ -141,10 +162,14 @@ def create_app(
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
         # Interrupted runs (process killed) restart from scratch.
-        for key in [*STATS_TFS, *(pair_key(h, lt) for h, lt in PAIRS)]:
-            r = svc.store.run(RULESET_VERSION, key)
+        for version, key in [
+            *((RULESET_VERSION, k) for k in STATS_TFS),
+            *((RULESET_VERSION, pair_key(h, lt)) for h, lt in PAIRS),
+            (INGREDIENTS_VERSION, INGREDIENTS_RUN),
+        ]:
+            r = svc.store.run(version, key)
             if r and r["status"] == "running":
-                svc.store.finish_run(RULESET_VERSION, key, now_ms(), "failed", r["meta"])
+                svc.store.finish_run(version, key, now_ms(), "failed", r["meta"])
         task: asyncio.Task[None] | None = None
         forward: asyncio.Task[None] | None = None
         pool: ProcessPoolExecutor | None = None
@@ -237,6 +262,11 @@ def create_app(
             return svc.playbook_trades(h, lt, entry, exit)
         except BadRequest as err:
             raise HTTPException(422, str(err)) from err
+
+    @r.get("/research/ingredients")
+    def research_ingredients() -> IngredientsOut:
+        """Does any single ingredient predict direction? Measured before costs, 25 coins."""
+        return svc.ingredients()
 
     @r.get("/paper/forward")
     def paper_forward(entry: str, exit: str, htf: str = "4h", ltf: str = "15m") -> ForwardOut:

@@ -13,10 +13,9 @@ confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-0. Playbook: no edge on 25 coins (the r5 FVG lead did not replicate on new coins; see History).
-   The forward test keeps running. Decide with the owner: keep tuning the trigger (trend filter,
-   confluence only, delta at the CHoCH; each judged on the 15 new coins and the newer data), or
-   step back to Phase 2 basics (which single ingredients have any edge at all before costs).
+0. Research (Phase 2): build on the ingredients that hold up (see History / `/research`): test
+   the 1-day reversal over 4 days as a strategy with costs, and delta + trend as filters; each
+   judged on the 15 new coins and the newer months. The playbook forward test keeps running.
 1. Owner: run `npm start` where Binance and OKX are reachable and check the depth recorder goes
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
    r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
@@ -36,9 +35,9 @@ Verified 2026-11-11 (test counts 2026-11-17):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 358 tests, 37 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 360 tests, 38 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 139 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 148 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -50,7 +49,7 @@ Verified 2026-11-11 (test counts 2026-11-17):
   (`engine.analyze` is the single entry point; catalogue and `RULESET_VERSION` in `catalog.py`;
   rules written out in `docs/product/patterns.md`); `jobs/stats_job.py` background statistics;
   `marketdata/` Binance REST + `data.binance.vision` archive backfill; `store/sqlite.py`;
-  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner,depth,playbook,playbook/trades,paper/forward}`; `depth/` order-book recorder.
+  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner,depth,playbook,playbook/trades,paper/forward,research/ingredients}`; `depth/` order-book recorder.
   `src/api/schema.ts` is generated from it (`npm run api:types`; a test fails when stale).
 - **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
   live forming candle) plus the service's patterns (direction arrows, outlines, necklines,
@@ -63,6 +62,8 @@ Verified 2026-11-11 (test counts 2026-11-17):
 - **Paper trading** (`/paper`): the playbook in a dummy-money account (R in dollars, balance
   curve, every trade, fees, worst fall): a live forward test since tracking started, and the
   2-year replay.
+- **Research** (`/research`): which single ingredients predict direction before costs (25 coins,
+  3 horizons, corrected ranges, splits by coins and time).
 - **Pattern stats** (`/stats`): every pattern × direction × location on 1h/4h/1d with a level
   source and location filter, per-coin breakdown, run progress.
 - **Dashboard** (`/`): market overview (unchanged), scanner from the service (last 3 closed
@@ -98,6 +99,18 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-18: **Research page: ingredient study** (Phase 2, owner's option 2). 13 single
+  ingredients (`analysis/ingredients.py`: trend, EMA cross, momentum 1d / 1w, breakout, RSI
+  extreme, delta, CVD divergence, liquidity sweep, funding extreme from the archive, patterns at
+  daily levels / in open space, always-long reference) measured before costs over 25 coins × 2
+  years of 4h: non-overlapping forward moves at 4h / 1 day / 4 days in ATR, Bonferroni-adjusted
+  ranges over 39 tests, splits by coins (10 / 15 new) and time (older / newer), round-trip cost
+  in ATR (`analysis/ingredient_stats.py`, `jobs/ingredients_job.py`, daily;
+  `/api/v1/research/ingredients`; `/research`). **Results**: patterns at daily levels, sweeps,
+  CVD divergence and funding extremes show nothing; consistent effects: delta (3 candles) +0.049
+  ATR over 1 day, trend (200 EMA) and weekly momentum +0.008 ATR over 4h, RSI extremes reversed
+  −0.034 ATR over 4h, 1-day momentum reversed −0.199 ATR over 4 days (≈ 3× a round trip's cost).
+  None is proven after costs.
 - 2026-11-18: **Forward paper trading** + **25 coins for the playbook**. The analysis service
   records the live playbook every 5 minutes (`record_forward`, `TCS_FORWARD`), every variant, for
   setups known after tracking started (per rule set; nothing backfilled); closed trades are

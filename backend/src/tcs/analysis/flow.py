@@ -108,3 +108,9 @@ CONTEXTS: tuple[str, ...] = (
     "cvdDiv:yes",
     "cvdDiv:no",
 )
+
+
+def divergence_at(s: Series, i: int) -> bool | None:
+    """Bullish CVD divergence when candle ``i`` closes (None without taker volume or history).
+    For the bearish twin pass ``mirror(s)``."""
+    return _bullish(s, i).divergence

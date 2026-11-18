@@ -19,7 +19,9 @@ One rule set; both the chart and the background statistics call `analysis/engine
   `trendlines.py` (triangles, wedges), `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
   `location.py`, `outcomes.py`, `flow.py` (order-flow context: delta, CVD divergence),
   `playbook.py` (4h trigger → 15m CHoCH → entry × exit variants, costs, random baseline),
-  `playbook_stats.py` (mean R with ranges, vs random, verdict), `stats.py`
+  `playbook_stats.py` (mean R with ranges, vs random, verdict), `ingredients.py` (13 single
+  signals for the research study), `ingredient_stats.py` (forward moves in ATR, adjusted ranges,
+  verdict), `stats.py`
   (Wilson, verdict), `engine.py`, `types.py`.
   Rules in words: `docs/product/patterns.md`.
 - `marketdata/`: `binance.py` (REST klines + `data.binance.vision` zips, pacing, cooldown on
@@ -32,6 +34,8 @@ One rule set; both the chart and the background statistics call `analysis/engine
   setups known after the start only, closed trades frozen (`forward_meta`, `forward_trades`)
 - `store/sqlite.py`: candles, stats runs, setup stats (per order-flow context), setup cases,
   depth columns (WAL, swap per run)
+- `jobs/ingredients_job.py`: ingredient study over 25 coins (daily); `marketdata/binance.py`
+  `funding_month` + `History.ensure_funding` (archive funding rates)
 - `jobs/playbook_job.py`: playbook variants over `PLAYBOOK_UNIVERSE` (25 coins; 4h > 15m), pooled + per coin,
   older / newer split; scheduled after the statistics
 - `jobs/stats_job.py`: per pattern TF, every coin, every allowed level TF; aggregates per coin
@@ -87,7 +91,7 @@ price table, spread (arbitrage), order book, alerts.
   one failing never stops the others (except the web app), Ctrl+C stops the process trees
 
 - `index.html` → `src/main.tsx` → `src/App.tsx`: `TopNav` + routes `/` (Dashboard),
-  `/chart/:symbol` (Chart, lazy-loaded), `/paper` (Paper trading, lazy-loaded), `/markets` (older dashboard), `/about`
+  `/chart/:symbol` (Chart, lazy-loaded), `/paper` (Paper trading, lazy-loaded), `/research` (Research, lazy-loaded), `/markets` (older dashboard), `/about`
 - `src/styles/tokens.css` (`--t-*` design tokens, dark), `src/styles/_page.scss` (page mixins)
 - `src/components/MainContainer/`: dashboard; watchlist + panel layout state (persisted),
   starts streaming, renders panels in "Edit layout" order
@@ -125,7 +129,7 @@ price table, spread (arbitrage), order book, alerts.
   `/api/alerts/send` (injectable deps for tests)
 
 **Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
-`useScanner`, `usePlaybookStats`, `usePlaybook`, `usePlaybookTrades`, `useForward`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
+`useScanner`, `usePlaybookStats`, `usePlaybook`, `usePlaybookTrades`, `useForward`, `useIngredients`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
 `useDepthHistory` (recorded heatmap minutes from `/api/v1/depth`, once per enable),
 `useFootprint` (live footprint per view bar and row size; session trade buffer per symbol),
@@ -143,7 +147,7 @@ sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX 
 (thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
 position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `playbook`
 (variant labels, default pick, stage / trade lines), `paperAccount` (R → dollars: sizing,
-compounding, fees, drawdown; forward trades → replay), `footprint`
+compounding, fees, drawdown; forward trades → replay), `research` (verdict labels, ordering, findings), `footprint`
 (rows, `FootprintBook`, diagonal imbalance), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
 `src/api/schema.ts`; client `src/api/client.ts`.
@@ -177,7 +181,8 @@ names), `connection.ts`, `alertRules.ts`
 overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
 `Playbook/` (`PlaybookCard` on the chart, `PlaybookTable` on Pattern stats), `PaperPage/`
-(dummy-money replay of the playbook's trades, `EquityChart`), `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
+(dummy-money replay of the playbook's trades, `EquityChart`), `ResearchPage/` (ingredient study,
+`EffectChart`), `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
 `RealTimeClock`)
 
 **Backend prototype** (`src/backend/`, `npm run backend` bundles it to `dist-backend/` and starts it on port 3001; type-checked via `tsconfig.backend.json`)

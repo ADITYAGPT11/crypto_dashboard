@@ -70,6 +70,21 @@ CREATE TABLE IF NOT EXISTS playbook_trades (
   ruleset TEXT NOT NULL, pair TEXT NOT NULL, symbol TEXT NOT NULL,
   entry TEXT NOT NULL, exit TEXT NOT NULL, time INTEGER NOT NULL, detail TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS funding (
+  symbol TEXT NOT NULL, time INTEGER NOT NULL, rate REAL NOT NULL,
+  PRIMARY KEY (symbol, time)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS funding_months (
+  symbol TEXT NOT NULL, month TEXT NOT NULL, PRIMARY KEY (symbol, month)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS research_stats (
+  version TEXT NOT NULL, ingredient TEXT NOT NULL, horizon INTEGER NOT NULL,
+  segment TEXT NOT NULL, summary TEXT NOT NULL,
+  PRIMARY KEY (version, ingredient, horizon, segment)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS forward_meta (
   ruleset TEXT NOT NULL, pair TEXT NOT NULL,
   started_at INTEGER NOT NULL, last_run INTEGER, meta TEXT NOT NULL DEFAULT '{}',
@@ -550,3 +565,55 @@ class Store:
             }
             for r in rows
         ]
+
+    # Funding rates (archive) ----------------------------------------------------------
+
+    def funding_month_done(self, symbol: str, month: str) -> bool:
+        row = (
+            self._conn()
+            .execute("SELECT 1 FROM funding_months WHERE symbol=? AND month=?", (symbol, month))
+            .fetchone()
+        )
+        return row is not None
+
+    def put_funding(self, symbol: str, month: str, rows: Sequence[tuple[int, float]]) -> None:
+        """Store one archived month (and remember it was fetched, even when empty)."""
+        with self.tx() as db:
+            db.executemany(
+                "INSERT OR REPLACE INTO funding VALUES (?,?,?)", [(symbol, t, r) for t, r in rows]
+            )
+            db.execute("INSERT OR REPLACE INTO funding_months VALUES (?,?)", (symbol, month))
+
+    def funding(self, symbol: str, since: int) -> list[tuple[int, float]]:
+        rows = (
+            self._conn()
+            .execute(
+                "SELECT time, rate FROM funding WHERE symbol=? AND time >= ? ORDER BY time",
+                (symbol, since),
+            )
+            .fetchall()
+        )
+        return [(int(r[0]), float(r[1])) for r in rows]
+
+    # Research (ingredient study) ------------------------------------------------------
+
+    def replace_research(
+        self, version: str, rows: Sequence[tuple[str, int, str, dict[str, Any]]]
+    ) -> None:
+        with self.tx() as db:
+            db.execute("DELETE FROM research_stats WHERE version=?", (version,))
+            db.executemany(
+                "INSERT INTO research_stats VALUES (?,?,?,?,?)",
+                [(version, i, h, seg, json.dumps(s)) for i, h, seg, s in rows],
+            )
+
+    def research(self, version: str) -> list[tuple[str, int, str, dict[str, Any]]]:
+        rows = (
+            self._conn()
+            .execute(
+                "SELECT ingredient, horizon, segment, summary FROM research_stats WHERE version=?",
+                (version,),
+            )
+            .fetchall()
+        )
+        return [(r[0], int(r[1]), r[2], json.loads(r[3])) for r in rows]

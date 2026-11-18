@@ -13,6 +13,7 @@ import type {
   AnalysisOut,
   CatalogOut,
   ForwardOut,
+  IngredientsOut,
   PlaybookLiveOut,
   PlaybookStatsOut,
   PlaybookTradesOut,
@@ -108,4 +109,9 @@ export function useForward(
   exit: string,
 ): ResourceState<ForwardOut> {
   return useResource(analysisApi().forward, `${htf}|${ltf}|${entry}|${exit}`);
+}
+
+/** Phase 2 research: does any single ingredient predict direction (before costs)? */
+export function useIngredients(): ResourceState<IngredientsOut> {
+  return useResource(analysisApi().ingredients, "all");
 }

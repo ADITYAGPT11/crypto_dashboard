@@ -432,3 +432,14 @@ record), entries first seen after they happened are flagged late, and a rule cha
 record. Alongside, the playbook alone measures 25 coins (research 10 + 15 liquid perpetuals with
 2+ years of history) so a lead can be checked on coins it was never looked at; the dashboard and
 pattern statistics keep the research 10. First use: the r5 FVG lead failed on the 15 new coins.
+
+### 2026-11-18 · Phase 2 starts with single ingredients, measured before costs
+
+Why: five playbook rounds found no edge, and the ingredient study shows why: patterns at levels
+predict nothing. Before combining anything, each simple ingredient is measured alone: forward
+moves in ATR (comparable across coins), non-overlapping per coin, Bonferroni-adjusted over every
+ingredient × horizon tested, and a verdict that also needs the same sign on 15 coins and the
+latest months the study was not designed on. Ingredients have their own version
+(`INGREDIENTS_VERSION`), separate from the pattern rule set, because they feed only the research
+page. Open interest (daily archive files, ~18 000 downloads for 25 coins × 2 years) is left out
+for now.

@@ -12,6 +12,8 @@ from tcs.analysis import playbook as pb
 from tcs.analysis.catalog import CATALOG, RULESET_VERSION
 from tcs.analysis.engine import analyze
 from tcs.analysis.flow import CONTEXTS
+from tcs.analysis.ingredient_stats import HORIZONS
+from tcs.analysis.ingredients import INGREDIENTS, INGREDIENTS_VERSION
 from tcs.analysis.outcomes import MAX_HOLD_BARS
 from tcs.analysis.stats import MIN_SAMPLE
 from tcs.analysis.types import Direction, Location, PatternHit
@@ -25,6 +27,9 @@ from tcs.api.schemas import (
     ContextSummaryOut,
     ForwardOut,
     ForwardTradeOut,
+    IngredientOut,
+    IngredientResultOut,
+    IngredientsOut,
     PaperTradeOut,
     PatternOut,
     PlaybookLiveOut,
@@ -44,6 +49,7 @@ from tcs.api.schemas import (
 )
 from tcs.common.timeframes import TF_MS, Timeframe, is_at_least, last_closed_open
 from tcs.config import Settings
+from tcs.jobs.ingredients_job import RUN_KEY as INGREDIENTS_RUN
 from tcs.jobs.playbook_job import pair_key
 from tcs.jobs.stats_job import STATS_TFS
 from tcs.marketdata.history import History
@@ -519,4 +525,46 @@ class Service:
             coins=meta.get("coins", []),
             failed=meta.get("failed", []),
             trades=trades,
+        )
+
+    # Research: ingredients --------------------------------------------------------
+
+    def ingredients(self) -> IngredientsOut:
+        rows = self.store.research(INGREDIENTS_VERSION)
+        by = {(i, h, seg): d for i, h, seg, d in rows}
+        r = self.store.run(INGREDIENTS_VERSION, INGREDIENTS_RUN)
+        out: list[IngredientOut] = []
+        for ing in INGREDIENTS:
+            results = []
+            for h in HORIZONS:
+                if (ing.id, h, "all") not in by:
+                    continue
+                a = dict(by[(ing.id, h, "all")])
+                v = a.pop("verdict", "none")
+                results.append(
+                    IngredientResultOut.model_validate(
+                        {
+                            "horizon": h,
+                            "verdict": v,
+                            "all": a,
+                            **{
+                                seg: by[(ing.id, h, seg)]
+                                for seg in ("orig10", "new15", "older", "newer")
+                            },
+                        }
+                    )
+                )
+            out.append(
+                IngredientOut(
+                    id=ing.id, label=ing.label, kind=ing.kind, rule=ing.rule, results=results
+                )
+            )
+        meta = (r or {}).get("meta", {})
+        return IngredientsOut(
+            version=INGREDIENTS_VERSION,
+            run=convert.run(r),
+            tests=meta.get("tests", len(INGREDIENTS) * len(HORIZONS)),
+            split=meta.get("split"),
+            horizons=list(HORIZONS),
+            ingredients=out,
         )

@@ -9,6 +9,7 @@ const LINKS = [
   { to: "/chart", label: "Chart", end: false },
   { to: "/stats", label: "Pattern stats", end: false },
   { to: "/paper", label: "Paper trading", end: false },
+  { to: "/research", label: "Research", end: false },
   { to: "/risk", label: "Risk", end: false },
   { to: "/alerts", label: "Alerts", end: false },
   { to: "/markets", label: "Markets", end: false },

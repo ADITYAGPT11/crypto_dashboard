@@ -91,6 +91,7 @@ criteria met.
 - [ ] Playbook tuning, one change per rule-set version (stronger trigger: 1d levels, confluence,
       trend filter, delta at the CHoCH; minimum reward : risk)
 
+- [x] Ingredient study: 13 single signals, 25 coins, before costs, corrected ranges (2026-11-18)
 - [ ] Feature library (TA, funding percentile, basis, OI change, regime)
 - [ ] Multiple-testing correction on the verdict (Bonferroni or FDR across every setup tested;
       from PR #6: on a random walk the uncorrected 95% rule flagged 2 of 146 patterns as edges)

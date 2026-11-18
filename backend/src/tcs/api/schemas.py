@@ -480,3 +480,52 @@ class ForwardOut(Out):
     failed: list[str]
     #: Oldest first.
     trades: list[ForwardTradeOut]
+
+
+class MoveSummaryOut(Out):
+    """What price did after an ingredient's signals, in its direction, before costs."""
+
+    n: int
+    #: Mean move in ATR units, 95% range, and the range adjusted for every test run at once.
+    mean_atr: float
+    low: float
+    high: float
+    low_adj: float
+    high_adj: float
+    mean_pct: float
+    hit_rate: float
+    #: Round-trip cost in ATR, and the mean move after it (adjusted range low end).
+    cost_atr: float
+    net_atr: float
+    net_low_adj: float
+
+
+class IngredientResultOut(Out):
+    #: Horizon in 4h candles (1 = 4 hours, 6 = 1 day, 24 = 4 days).
+    horizon: int
+    verdict: Literal[
+        "edgeAfterCosts", "edgeBeforeCosts", "reversed", "inconsistent", "none", "tooFew"
+    ]
+    all: MoveSummaryOut
+    orig10: MoveSummaryOut
+    new15: MoveSummaryOut
+    older: MoveSummaryOut
+    newer: MoveSummaryOut
+
+
+class IngredientOut(Out):
+    id: str
+    label: str
+    kind: Literal["state", "event"]
+    rule: str
+    results: list[IngredientResultOut]
+
+
+class IngredientsOut(Out):
+    version: str
+    run: RunOut | None
+    #: Number of ingredient x horizon tests (the adjusted ranges account for all of them).
+    tests: int
+    split: int | None
+    horizons: list[int]
+    ingredients: list[IngredientOut]

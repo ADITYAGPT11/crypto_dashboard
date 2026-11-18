@@ -1,0 +1,169 @@
+@use "../../styles/page" as *;
+
+.page {
+  @include page;
+}
+.pagehead {
+  @include pagehead;
+}
+.card {
+  @include card;
+}
+.feature {
+  @include feature;
+}
+.cardHead {
+  @include card-head;
+}
+.note {
+  @include note;
+}
+.tbl {
+  @include tbl;
+  td {
+    font-family: var(--t-font-data);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  td:first-child {
+    font-family: inherit;
+    white-space: normal;
+    min-width: 180px;
+  }
+}
+.stack {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.mute {
+  color: var(--t-muted);
+}
+.up {
+  color: var(--t-up);
+}
+.down {
+  color: var(--t-down);
+}
+.r {
+  text-align: right;
+}
+.sub {
+  display: block;
+  font-size: 11px;
+  color: var(--t-muted);
+  font-family: var(--t-font-ui);
+  white-space: normal;
+}
+.scroll {
+  overflow-x: auto;
+}
+.pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pill {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--t-line);
+  background: transparent;
+  color: var(--t-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  &[aria-pressed="true"] {
+    color: var(--t-fg);
+    background: var(--t-signal-soft);
+    border-color: var(--t-signal);
+  }
+}
+.findings {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+.method {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  color: var(--t-muted);
+  font-size: 13px;
+}
+.chartBox {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--t-muted);
+  i {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+}
+.chart {
+  display: block;
+  font-family: var(--t-font-ui);
+}
+.costBand {
+  fill: rgba(240, 163, 94, 0.1);
+}
+.zero {
+  stroke: var(--t-line-2, #3a4558);
+  stroke-width: 1;
+}
+.tick {
+  fill: var(--t-muted);
+  font-size: 11px;
+  font-family: var(--t-font-data);
+}
+.label {
+  fill: var(--t-muted);
+  font-size: 12.5px;
+}
+.hit {
+  fill: transparent;
+}
+.adj {
+  stroke: var(--t-muted);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+.ci {
+  stroke: var(--t-muted);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.dot {
+  fill: var(--t-muted);
+  stroke: var(--t-surface);
+  stroke-width: 2;
+}
+.strong {
+  .label {
+    fill: var(--t-fg);
+    font-weight: 600;
+  }
+  .ci,
+  .adj {
+    stroke: var(--t-signal);
+  }
+  .dot {
+    fill: var(--t-signal);
+  }
+}
+.hover .hit {
+  fill: rgba(148, 170, 200, 0.06);
+}

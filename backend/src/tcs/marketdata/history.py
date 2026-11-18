@@ -143,3 +143,17 @@ class History:
     def load(self, symbol: str, tf: Timeframe, since: int, now: int) -> Series:
         """Closed candles from ``since`` (never the forming candle)."""
         return self.store.series(symbol, tf, since=since, until=last_closed_open(now, tf))
+
+    def ensure_funding(self, symbol: str, since: int, now: int) -> list[tuple[int, float]]:
+        """Funding rates from ``since``, fetching archive months not stored yet. The current
+        month is never archived yet, so the data ends at the last complete month."""
+        cur = dt.datetime.fromtimestamp(now / 1000, dt.UTC)
+        for y, m in _month_starts(since, now):
+            if (y, m) >= (cur.year, cur.month):
+                break
+            key = f"{y:04d}-{m:02d}"
+            if self.store.funding_month_done(symbol, key):
+                continue
+            rows = self.source.funding_month(symbol, y, m)
+            self.store.put_funding(symbol, key, rows or [])
+        return self.store.funding(symbol, since)

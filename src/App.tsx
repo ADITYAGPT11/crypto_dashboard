@@ -15,6 +15,7 @@ import { SetupAlertService } from "./services/SetupAlertService";
 const ChartPage = lazy(() => import("./components/ChartPage"));
 const StatsPage = lazy(() => import("./components/StatsPage"));
 const PaperPage = lazy(() => import("./components/PaperPage"));
+const ResearchPage = lazy(() => import("./components/ResearchPage"));
 
 function App() {
   // Setup alerts are checked while any GreenMTM page is open (Phase 1a, browser-side).
@@ -30,6 +31,7 @@ function App() {
           <Route path="/chart/:symbol" element={<ChartPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/paper" element={<PaperPage />} />
+          <Route path="/research" element={<ResearchPage />} />
           <Route path="/risk" element={<RiskPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/markets" element={<Markets />} />

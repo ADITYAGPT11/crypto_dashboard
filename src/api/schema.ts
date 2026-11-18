@@ -152,10 +152,51 @@ export interface HealthOut {
   runs: Record<string, RunOut | null>;
 }
 
+export interface IngredientOut {
+  id: string;
+  label: string;
+  kind: "state" | "event";
+  rule: string;
+  results: IngredientResultOut[];
+}
+
+export interface IngredientResultOut {
+  horizon: number;
+  verdict: "edgeAfterCosts" | "edgeBeforeCosts" | "reversed" | "inconsistent" | "none" | "tooFew";
+  all: MoveSummaryOut;
+  orig10: MoveSummaryOut;
+  new15: MoveSummaryOut;
+  older: MoveSummaryOut;
+  newer: MoveSummaryOut;
+}
+
+export interface IngredientsOut {
+  version: string;
+  run: RunOut | null;
+  tests: number;
+  split: number | null;
+  horizons: number[];
+  ingredients: IngredientOut[];
+}
+
 export interface LineOut {
   a: PointOut;
   b: PointOut;
   label: string;
+}
+
+export interface MoveSummaryOut {
+  n: number;
+  meanAtr: number;
+  low: number;
+  high: number;
+  lowAdj: number;
+  highAdj: number;
+  meanPct: number;
+  hitRate: number;
+  costAtr: number;
+  netAtr: number;
+  netLowAdj: number;
 }
 
 export interface OccurrenceOut {

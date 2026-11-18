@@ -11,6 +11,7 @@ import type {
   AnalysisOut,
   CatalogOut,
   ForwardOut,
+  IngredientsOut,
   PlaybookLiveOut,
   PlaybookStatsOut,
   PlaybookTradesOut,
@@ -103,6 +104,10 @@ function createResources() {
         return apiGet<PlaybookTradesOut>("/playbook/trades", { htf, ltf, entry, exit });
       },
       refreshIn: () => 600_000,
+    }),
+    ingredients: new ApiResource<IngredientsOut>({
+      fetch: () => apiGet<IngredientsOut>("/research/ingredients"),
+      refreshIn: (d) => (d.run?.status === "running" || !d.run ? 15_000 : 600_000),
     }),
     forward: new ApiResource<ForwardOut>({
       fetch: (key) => {

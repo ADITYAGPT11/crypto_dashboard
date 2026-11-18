@@ -48,6 +48,13 @@ class FakeSource:
     def archive_month(self, *_: object) -> list[Candle] | None:
         raise SourceUnavailable("offline")
 
+    def funding_month(self, symbol: str, year: int, month: int) -> list[tuple[int, float]] | None:
+        """Every 8 hours, a rate drifting with the month (enough for the funding ingredient)."""
+        import datetime as dt
+
+        start = int(dt.datetime(year, month, 1, tzinfo=dt.UTC).timestamp() * 1000)
+        return [(start + k * 8 * 3_600_000, 0.0001 * ((k * 7) % 11 - 5)) for k in range(90)]
+
     def archive_day(self, *_: object) -> list[Candle] | None:
         raise SourceUnavailable("offline")
 
@@ -220,3 +227,26 @@ def test_playbook_job_and_endpoints(
     assert all(t["rGross"] >= t["rNet"] for t in trades)  # costs only ever lower R
     bad = client.get("/api/v1/playbook/trades", params={"entry": "x", "exit": "trail"})
     assert bad.status_code == 422
+
+
+def test_ingredient_study_and_endpoint(
+    client: TestClient, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tcs.jobs import ingredients_job
+
+    monkeypatch.setattr(ingredients_job, "History", lambda s: History(s, FakeSource()))  # type: ignore[arg-type]
+    meta = ingredients_job.run_ingredients(settings, now=NOW)
+    assert meta["done"] == 2 and meta["failed"] == [] and meta["tests"] == 39
+    body = client.get("/api/v1/research/ingredients").json()
+    assert body["run"]["status"] == "done" and body["horizons"] == [1, 6, 24]
+    by = {i["id"]: i for i in body["ingredients"]}
+    assert len(by) == 13
+    long_ = by["always_long"]["results"][0]
+    assert long_["all"]["n"] > 100
+    for i in body["ingredients"]:
+        for r in i["results"]:
+            a = r["all"]
+            assert (
+                a["lowAdj"] <= a["low"] <= a["meanAtr"] <= a["high"] <= a["highAdj"] or a["n"] < 2
+            )
+            assert a["n"] == r["older"]["n"] + r["newer"]["n"]
