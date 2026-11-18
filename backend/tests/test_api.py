@@ -183,11 +183,16 @@ def test_playbook_job_and_endpoints(
     from tcs.jobs import playbook_job
 
     monkeypatch.setattr(playbook_job, "History", lambda s: History(s, FakeSource()))  # type: ignore[arg-type]
+    # The fake source draws an unrelated random walk per timeframe, so its daily zones never sit
+    # at its 4h prices: locate against the (same-walk) 4h levels here. Real data uses daily.
+    monkeypatch.setattr(playbook_job, "LEVEL_TF", "4h")
+    monkeypatch.setattr("tcs.analysis.playbook.LEVEL_TF", "4h")
     meta = playbook_job.run_playbook_stats(settings, "4h", "15m", now=NOW)
     assert meta["done"] == 2 and meta["failed"] == []
     body = client.get("/api/v1/playbook/stats", params={"htf": "4h", "ltf": "15m"}).json()
     assert body["run"]["status"] == "done"
     assert body["params"]["taker"] == 0.0005
+    assert body["params"]["levelTf"] == "4h"
     assert len(body["variants"]) == 9
     measured = [v for v in body["variants"] if v["all"]]
     assert measured, "no playbook trades on the random walks"

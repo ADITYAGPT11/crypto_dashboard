@@ -337,6 +337,8 @@ class PlaybookParamsOut(Out):
     max_risk_htf_atr: float
     #: Minimum stop distance, percent of the price (trades with a tighter stop are skipped).
     min_stop_pct: float
+    #: Timeframe of the zones and order blocks a trigger must be at.
+    level_tf: str
     fib_level: float
     max_hold_bars: int
     breakeven_r: float

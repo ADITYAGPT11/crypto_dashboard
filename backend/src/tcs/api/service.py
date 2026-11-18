@@ -295,6 +295,7 @@ class Service:
                 stop_atr=pb.STOP_ATR,
                 max_risk_htf_atr=pb.MAX_RISK_HTF_ATR,
                 min_stop_pct=pb.MIN_STOP_PCT,
+                level_tf=pb.LEVEL_TF,
                 fib_level=pb.FIB_LEVEL,
                 max_hold_bars=pb.MAX_HOLD_BARS,
                 breakeven_r=pb.BREAKEVEN_R,
@@ -332,9 +333,14 @@ class Service:
             hcov = self.history.ensure(symbol, htf, h_since, now)
         with self._symbol_lock(f"{symbol}|{ltf}"):
             lcov = self.history.ensure(symbol, ltf, l_since, now)
+        lv_tf = pb.LEVEL_TF
+        lv_since = h_since - pb.LEVEL_WARMUP_BARS * TF_MS[lv_tf]
+        with self._symbol_lock(f"{symbol}|{lv_tf}"):
+            self.history.ensure(symbol, lv_tf, lv_since, now)
         h = self.history.load(symbol, htf, h_since, now)
         lt = self.history.load(symbol, ltf, l_since, now)
-        a = analyze(h)
+        lv = self.history.load(symbol, lv_tf, lv_since, now)
+        a = analyze(h, level_series=lv)
         cutoff = now - days * 86_400_000
         recent: list[tuple[PatternHit, Location]] = [
             (o.hit, o.location) for o in a.occurrences if int(h.open_time[o.hit.index]) >= cutoff

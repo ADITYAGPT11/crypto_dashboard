@@ -87,6 +87,7 @@ criteria met.
       baseline and an older / newer split (2026-11-18; first result: no edge, fees 0.15–0.24R a
       trade with tight 15m stops)
 - [x] Playbook tuning 1: minimum stop distance 1% (r4; fees fall, still no edge)
+- [x] Playbook tuning 2: trigger at daily levels (r5; FVG entries become a lead, unconfirmed)
 - [ ] Playbook tuning, one change per rule-set version (stronger trigger: 1d levels, confluence,
       trend filter, delta at the CHoCH; minimum reward : risk)
 

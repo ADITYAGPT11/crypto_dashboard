@@ -411,3 +411,13 @@ slippage, so such trades are skipped: the stop stays where the 15m structure say
 Widening the stop to 1% was measured as the alternative (research only, `MIN_STOP_MODE`); it
 keeps more trades but is no better after costs. The 1% threshold was set from the fee arithmetic
 before measuring; 0.5% and 1.5% were looked at for information, not picked from.
+
+### 2026-11-18 · Playbook trigger at daily levels (r5)
+
+Why: owner's flow says "higher time frame zones", and r3–r4 showed the 4h-at-4h-level trigger has
+no direction edge before costs. Locating the 4h pattern against daily zones / order blocks is one
+change (the engine already places patterns against higher-timeframe levels by time); daily
+candles load 300 days before the measured period so levels exist from its start. Result: worse
+for CHoCH-close and Fib entries, better for FVG entries (the first variant that holds on the newer
+data and beats random entries). Kept because it is closer to the owner's intent and produced the
+only lead so far; the lead is unconfirmed (9 variants compared, ~186 trades).

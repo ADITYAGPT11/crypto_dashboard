@@ -18,10 +18,10 @@ from typing import Any
 
 from tcs.analysis.catalog import RULESET_VERSION
 from tcs.analysis.engine import analyze
-from tcs.analysis.playbook import Trade, Trigger, run_playbook
+from tcs.analysis.playbook import LEVEL_TF, LEVEL_WARMUP_BARS, Trade, Trigger, run_playbook
 from tcs.analysis.playbook_stats import ClosedTrade, summarize_r
 from tcs.common.series import Series
-from tcs.common.timeframes import Timeframe
+from tcs.common.timeframes import TF_MS, Timeframe
 from tcs.config import Settings
 from tcs.marketdata.history import History
 from tcs.store.sqlite import Store
@@ -64,9 +64,11 @@ def run_playbook_stats(
             try:
                 h = _load(history, symbol, htf, since, now)
                 lt = _load(history, symbol, ltf, since, now)
+                lv_since = since - LEVEL_WARMUP_BARS * TF_MS[LEVEL_TF]
+                lv = _load(history, symbol, LEVEL_TF, lv_since, now)
                 if len(h) < 100 or len(lt) < 1000:
                     raise ValueError(f"only {len(h)} {htf} / {len(lt)} {ltf} candles")
-                a = analyze(h)
+                a = analyze(h, level_series=lv)
                 triggers = run_playbook(h, lt, [(o.hit, o.location) for o in a.occurrences])
                 for t in triggers:
                     when = int(h.open_time[t.hit.index])

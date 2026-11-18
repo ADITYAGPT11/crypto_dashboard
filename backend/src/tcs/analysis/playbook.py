@@ -5,7 +5,8 @@ supply zone is a demand zone and a lower low is a higher high. Nothing looks ahe
 uses only candles that had closed when it happened (swings only after ``known_at``).
 
 1. **Trigger** (HTF, e.g. 4h): a pattern confirmed AT a level (location zone, order block or
-   confluence). Known when its HTF candle closes; valid for ``TRIGGER_BARS`` HTF candles; dead
+   confluence) of the ``LEVEL_TF`` timeframe (r5: daily zones and order blocks; the caller
+   locates the patterns against them with ``engine.analyze(htf, level_series=...)``). Known when its HTF candle closes; valid for ``TRIGGER_BARS`` HTF candles; dead
    once an LTF candle closes below the pattern's own stop.
 2. **Confirmation** (LTF, e.g. 15m): a change of character, the first LTF close above the
    latest LTF swing high known at that time. Impulse = from the lowest low since that swing high
@@ -48,7 +49,12 @@ from tcs.analysis.indicators import atr
 from tcs.analysis.swings import Swing, swing_highs, swing_lows
 from tcs.analysis.types import Location, PatternHit
 from tcs.common.series import FloatArray, Series, mirror
+from tcs.common.timeframes import Timeframe
 
+#: Timeframe of the zones and order blocks a trigger must be at (r5; was the HTF itself in r3-r4).
+LEVEL_TF: Timeframe = "1d"
+#: Level candles loaded before the measured period so its zones exist from the start.
+LEVEL_WARMUP_BARS = 300
 TRIGGER_BARS = 6
 ENTRY_BARS = 12
 STOP_ATR = 0.1
@@ -411,7 +417,7 @@ def run_playbook(
     htf: Series, ltf: Series, setups: Sequence[tuple[PatternHit, Location]]
 ) -> list[Trigger]:
     """Every HTF setup at a level, followed through the LTF. ``setups`` are HTF pattern hits
-    with their location (from ``engine.analyze`` on the HTF series)."""
+    with their location (from ``engine.analyze`` on the HTF series, levels from ``LEVEL_TF``)."""
     at_level: list[tuple[PatternHit, Location]] = [(h, at) for h, at in setups if at in AT_LEVEL]
     if not at_level or len(ltf) == 0:
         return []

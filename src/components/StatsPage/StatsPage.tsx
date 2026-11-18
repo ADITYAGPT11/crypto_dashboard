@@ -138,13 +138,13 @@ function PlaybookSection() {
       <div className={styles.cardHead}>
         <h2 id="pb-title">Playbook 4h → 15m</h2>
         <Explain title="The playbook">
-          A 4h pattern at a demand / supply zone or order block triggers; a 15m change of character
-          confirms; then each entry rule (at the CHoCH close, limit at the 0.618 Fib of the 15m
-          move, limit at its fair value gap) is combined with each exit rule (pattern target,
-          trailing under 15m higher lows, breakeven at 1R + half at 2R + trail). Stop beyond the 15m
-          swing that started the move; trades whose stop is closer than 1% of the price are skipped,
-          since fees alone would cost more than about 0.1R. Results in R after Binance fees and
-          slippage.
+          A 4h pattern at a daily demand / supply zone or order block triggers; a 15m change of
+          character confirms; then each entry rule (at the CHoCH close, limit at the 0.618 Fib of
+          the 15m move, limit at its fair value gap) is combined with each exit rule (pattern
+          target, trailing under 15m higher lows, breakeven at 1R + half at 2R + trail). Stop beyond
+          the 15m swing that started the move; trades whose stop is closer than 1% of the price are
+          skipped, since fees alone would cost more than about 0.1R. Results in R after Binance fees
+          and slippage.
         </Explain>
         <p>
           {run?.status === "running"

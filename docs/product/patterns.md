@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r4`)
+# Pattern, zone and order-block rules (rule set `2026.11-r5`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -64,8 +64,9 @@ across coins only (per-coin buckets would be too small).
 A higher-timeframe setup at a level, entered on a lower timeframe. Long rule written once; shorts
 run it on the mirrored series. Nothing looks ahead (swings only after `known_at`).
 
-1. **Trigger (4h)**: a pattern confirmed at a zone, order block or both (not open space). Known at
-   its candle's close, valid 6 × 4h; dead once a 15m candle closes beyond the pattern's stop.
+1. **Trigger (4h)**: a pattern confirmed at a **daily** zone, order block or both (r5; 4h levels
+   in r3–r4), not open space, located by time like every higher-timeframe level. Known at its
+   candle's close, valid 6 × 4h; dead once a 15m candle closes beyond the pattern's stop.
 2. **Confirmation (15m)**: change of character, the first 15m close beyond the latest 15m swing
    high (low for shorts) known then. Impulse: lowest low since that swing → highest high to the
    CHoCH candle.

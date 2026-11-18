@@ -73,7 +73,7 @@ const PaperPage: React.FC = () => {
         <div>
           <h1>Paper trading</h1>
           <p>
-            The playbook's measured trades (4h setup at a level, 15m entry) replayed in a
+            The playbook's measured trades (4h pattern at a daily level, 15m entry) replayed in a
             dummy-money account, oldest first, after Binance fees. No real money, no orders.
           </p>
         </div>
@@ -268,11 +268,11 @@ const PaperPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {recent.slice(0, shown).map((f) => {
+                    {recent.slice(0, shown).map((f, i) => {
                       const t = f.trade;
                       const long = t.direction === "long";
                       return (
-                        <tr key={`${t.symbol}${t.fillTime}${t.time}`}>
+                        <tr key={`${i}|${t.symbol}|${t.pattern}|${t.fillTime}`}>
                           <td>{t.exitTime ? shortDate(t.exitTime) : "—"}</td>
                           <td>
                             <Link to={`/chart/${t.symbol}`}>{t.symbol.replace("-USDT", "")}</Link>

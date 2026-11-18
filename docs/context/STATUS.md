@@ -13,10 +13,10 @@ confirmations yet (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
-0. Playbook tuning with the owner: no edge yet (see History; minimum stop tried in r4). Next,
-   one at a time and judged on the newer data: stronger triggers (1d levels, confluence only,
-   trend filter, delta with the trade at the CHoCH); then a minimum reward : risk to the 4h
-   target. Each is a new rule-set version.
+0. Playbook tuning with the owner: daily levels (r5) give the first lead (FVG entries; see
+   History). Next, to confirm or kill it: forward paper trading of the live signals (data no rule
+   has seen), and more coins for sample size. Further trigger filters (trend, confluence only,
+   delta at the CHoCH) one at a time, judged on the newer data, each a new rule-set version.
 1. Owner: run `npm start` where Binance and OKX are reachable and check the depth recorder goes
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
    r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
@@ -97,6 +97,13 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-18: **Playbook r5: daily levels** (tuning option 2, stronger trigger): the 4h pattern
+  must be at a daily zone / order block. Most variants get worse (CHoCH-close entries ≈ −0.13R
+  after fees; Fib entries fall to 93 trades), but **FVG entries improve**: FVG + trail +0.06R
+  (−0.13 to +0.25), +0.10R on the newer 30%, and beat random entries by +0.27R (+0.06 to +0.49);
+  FVG + managed +0.04R, +0.26R vs random (+0.07 to +0.45). First variant to hold on newer data and
+  beat random with the whole range above 0, but still "no edge" (overall range includes 0, ~186
+  trades, 9 variants compared): a lead to confirm, not a result.
 - 2026-11-18: **Paper trading page** (`/paper`, owner: "make R easier to understand"): the
   playbook's measured trades replayed oldest first in a dummy-money account (start balance, risk %
   per trade and compounding adjustable, saved per browser): what 1R means in dollars, balance now,
