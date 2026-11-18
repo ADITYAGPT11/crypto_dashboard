@@ -26,7 +26,7 @@ from typing import Any
 from tcs.analysis.catalog import RULESET_VERSION
 from tcs.analysis.engine import Occurrence, analyze, detect_levels, detect_patterns
 from tcs.analysis.flow import contexts
-from tcs.analysis.stats import Resolved, summarize
+from tcs.analysis.stats import Resolved, summarize, summarize_trailing
 from tcs.common.series import Series
 from tcs.common.timeframes import TIMEFRAMES, Timeframe, is_at_least
 from tcs.config import Settings
@@ -131,6 +131,12 @@ def _case(s: Series, o: Occurrence) -> dict[str, Any]:
         "deltaRatio": None if o.flow.delta_ratio is None else round(o.flow.delta_ratio, 4),
         "flow": o.flow.flow,
         "cvdDivergence": o.flow.divergence,
+        "trailResult": o.trail.result,
+        "trailR": round(o.trail.r, 4),
+        "trailBars": o.trail.bars,
+        "trailExitTime": None
+        if o.trail.exit_index is None
+        else int(s.open_time[o.trail.exit_index]),
     }
 
 
@@ -164,6 +170,9 @@ def _aggregate(
         done, expired = _resolved(occ)
         summary = asdict(summarize(done, expired))
         summary["open"] = sum(1 for o in occ if o.outcome.result == "open")
+        summary["trail"] = asdict(
+            summarize_trailing([(o.trail.r, o.trail.bars) for o in occ if o.trail.result != "open"])
+        )
         out.append((*key, summary))
     return out
 

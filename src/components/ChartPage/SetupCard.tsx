@@ -188,6 +188,33 @@ const SetupCard: React.FC<Props> = ({
             <small>—</small>
           )}
         </div>
+        <div>
+          <span className={styles.lbl}>
+            Trailing TP (gross){" "}
+            <Explain title="Trailing take-profit">
+              The same cases managed differently: at the target the trade is not closed; the stop
+              then follows the best price by 0.5 ATR until it is hit (or 120 candles pass). Every
+              closed case counts. Range = 95% range of the mean.
+            </Explain>
+          </span>
+          {pooled?.trail && pooled.trail.n > 0 ? (
+            <>
+              <span
+                className={`${styles.num} ${pooled.trail.expectancyR >= 0 ? styles.up : styles.down}`}
+              >
+                {signedR(pooled.trail.expectancyR)}
+              </span>
+              <small>
+                {pooled.trail.expLow !== null && pooled.trail.expHigh !== null
+                  ? `range ${signedR(pooled.trail.expLow)} to ${signedR(pooled.trail.expHigh)} · `
+                  : ""}
+                {pct(pooled.trail.winRate)} closed in profit · n {pooled.trail.n}
+              </small>
+            </>
+          ) : (
+            <small>Not measured yet</small>
+          )}
+        </div>
       </div>
 
       <dl className={styles.plan}>
@@ -319,6 +346,14 @@ const SetupCard: React.FC<Props> = ({
                     {signedPct(c.movePct)}
                   </td>
                   <td className={`${styles.r} ${styles.mute}`}>{c.bars} bars</td>
+                  <td
+                    className={`${styles.r} ${(c.trailR ?? 0) > 0 ? styles.up : styles.down}`}
+                    title="Trailing take-profit result"
+                  >
+                    {c.trailR === null || c.trailR === undefined
+                      ? ""
+                      : `trail ${signedR(c.trailR)}`}
+                  </td>
                 </tr>
               ))}
             </tbody>

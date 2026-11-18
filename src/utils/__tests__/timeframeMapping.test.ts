@@ -43,6 +43,15 @@ function occurrence(partial: Partial<OccurrenceOut>): OccurrenceOut {
     lines: [],
     outcome: { result: "open", exitTime: null, movePct: 0, r: 0, bars: 0 },
     flow: { deltaRatio: null, flow: null, cvdDivergence: null },
+    trail: {
+      result: "open",
+      exitTime: null,
+      exitPrice: null,
+      r: 0,
+      bars: 0,
+      activatedTime: null,
+      stops: [],
+    },
     ...partial,
   };
 }
@@ -98,6 +107,43 @@ describe("toViewPattern", () => {
     });
     const vp = toViewPattern(occ, "4h", series(80, H1), "1h");
     expect(vp.lines).toEqual([{ x1: 17.5, p1: 100, x2: 49.5, p2: 102, label: "Neckline" }]);
+  });
+
+  it("places the exit candle's close and the 30-candle outcome window", () => {
+    const occ = occurrence({
+      time: 10 * H4,
+      outcome: { result: "loss", exitTime: 13 * H4, movePct: -2, r: -1, bars: 3 },
+    });
+    const vp = toViewPattern(occ, "4h", series(80, H4), "4h");
+    expect(vp.entryX).toBe(10.5);
+    expect(vp.exitX).toBe(13.5);
+    expect(vp.windowEndX).toBe(40.5); // beyond the loaded candles it extrapolates by time
+    expect(vp.outcome).toEqual({ result: "loss", r: -1 });
+  });
+
+  it("maps the trailing exit: each stop from the left edge of the candle it applies to", () => {
+    const occ = occurrence({
+      time: 10 * H4,
+      trail: {
+        result: "win",
+        exitTime: 16 * H4,
+        exitPrice: 114,
+        r: 2.8,
+        bars: 6,
+        activatedTime: 13 * H4,
+        stops: [
+          { time: 11 * H4, price: 95 },
+          { time: 14 * H4, price: 111 },
+        ],
+      },
+    });
+    const vp = toViewPattern(occ, "4h", series(80, H1), "1h");
+    expect(vp.trail.exitX).toBe(67.5); // close of 4h candle 16 = 1h bar 67
+    expect(vp.trail.activatedX).toBe(55.5);
+    expect(vp.trail.stops).toEqual([
+      { x: 43.5, price: 95 },
+      { x: 55.5, price: 111 },
+    ]);
   });
 });
 

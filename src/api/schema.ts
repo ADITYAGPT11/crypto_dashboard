@@ -39,6 +39,10 @@ export interface CaseOut {
   deltaRatio?: number | null;
   flow?: "confirms" | "against" | "neutral" | null;
   cvdDivergence?: boolean | null;
+  trailResult?: "win" | "loss" | "expired" | "open" | null;
+  trailR?: number | null;
+  trailBars?: number | null;
+  trailExitTime?: number | null;
 }
 
 export interface CatalogOut {
@@ -136,6 +140,7 @@ export interface OccurrenceOut {
   lines: LineOut[];
   outcome: OutcomeOut;
   flow: FlowOut;
+  trail: TrailOut;
 }
 
 export interface OrderBlockOut {
@@ -231,6 +236,11 @@ export interface StatsOut {
   setups: SetupStatOut[];
 }
 
+export interface StopOut {
+  time: number;
+  price: number;
+}
+
 export interface StructureOut {
   kind: "bos" | "choch";
   direction: "up" | "down";
@@ -252,6 +262,31 @@ export interface SummaryOut {
   avgWinPct: number;
   avgLossPct: number;
   expectancyR: number;
+  medianBars: number;
+  verdict: "edge" | "noEdge" | "tooFew";
+  trail?: TrailSummaryOut | null;
+}
+
+export interface TrailOut {
+  result: "win" | "loss" | "expired" | "open";
+  exitTime: number | null;
+  exitPrice: number | null;
+  r: number;
+  bars: number;
+  activatedTime: number | null;
+  stops: StopOut[];
+}
+
+export interface TrailSummaryOut {
+  n: number;
+  wins: number;
+  winRate: number;
+  ciLow: number;
+  ciHigh: number;
+  expectancyR: number;
+  expLow: number | null;
+  expHigh: number | null;
+  avgWinR: number;
   medianBars: number;
   verdict: "edge" | "noEdge" | "tooFew";
 }

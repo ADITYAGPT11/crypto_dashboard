@@ -33,6 +33,26 @@ class OutcomeOut(Out):
     bars: int
 
 
+class StopOut(Out):
+    #: Open time of the first candle this stop applies to.
+    time: int
+    price: float
+
+
+class TrailOut(Out):
+    """The setup exited with the trailing take-profit (``analysis/outcomes.py``)."""
+
+    result: Literal["win", "loss", "expired", "open"]
+    exit_time: int | None
+    exit_price: float | None
+    r: float
+    bars: int
+    #: Open time of the candle that first touched the target (trailing starts at its close).
+    activated_time: int | None
+    #: The stop each time it moved, starting with the original stop.
+    stops: list[StopOut]
+
+
 class FlowOut(Out):
     """Order flow when the setup confirmed (``analysis/flow.py``); nulls where unmeasurable."""
 
@@ -57,6 +77,7 @@ class OccurrenceOut(Out):
     lines: list[LineOut]
     outcome: OutcomeOut
     flow: FlowOut
+    trail: TrailOut
 
 
 class ZoneOut(Out):
@@ -124,6 +145,20 @@ class AnalysisOut(Out):
     structure: list[StructureOut]
 
 
+class TrailSummaryOut(Out):
+    n: int
+    wins: int
+    win_rate: float
+    ci_low: float
+    ci_high: float
+    expectancy_r: float
+    exp_low: float | None
+    exp_high: float | None
+    avg_win_r: float
+    median_bars: float
+    verdict: Literal["edge", "noEdge", "tooFew"]
+
+
 class SummaryOut(Out):
     n: int
     wins: int
@@ -139,6 +174,8 @@ class SummaryOut(Out):
     expectancy_r: float
     median_bars: float
     verdict: Literal["edge", "noEdge", "tooFew"]
+    #: The same cases exited with the trailing take-profit (missing in older runs).
+    trail: TrailSummaryOut | None = None
 
 
 class SetupStatOut(Out):
@@ -187,6 +224,10 @@ class CaseOut(Out):
     delta_ratio: float | None = None
     flow: Literal["confirms", "against", "neutral"] | None = None
     cvd_divergence: bool | None = None
+    trail_result: Literal["win", "loss", "expired", "open"] | None = None
+    trail_r: float | None = None
+    trail_bars: int | None = None
+    trail_exit_time: int | None = None
 
 
 class CoinSummaryOut(Out):

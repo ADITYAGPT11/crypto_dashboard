@@ -87,3 +87,52 @@ def summarize(cases: Sequence[Resolved], expired: int = 0) -> Summary:
         median_bars=statistics.median([c.bars for c in cases]) if cases else 0.0,
         verdict=verdict_for(n, lo, break_even),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class TrailSummary:
+    """Setups exited with the trailing take-profit (``outcomes.evaluate_trailing``).
+
+    Every closed case counts, including those closed at the market after the holding limit, so
+    the expectancy is the mean result per trade. There is no fixed reward, so the verdict asks
+    whether the 95% range of the expectancy (normal approximation) clears zero. Before fees.
+    """
+
+    n: int
+    wins: int
+    win_rate: float
+    ci_low: float
+    ci_high: float
+    expectancy_r: float
+    #: 95% range of the expectancy; None with fewer than two cases.
+    exp_low: float | None
+    exp_high: float | None
+    avg_win_r: float
+    median_bars: float
+    verdict: Verdict
+
+
+def summarize_trailing(cases: Sequence[tuple[float, int]]) -> TrailSummary:
+    """``cases`` = (R, candles held) of each closed trade."""
+    rs = [r for r, _ in cases]
+    n = len(rs)
+    k = sum(1 for r in rs if r > 0)
+    lo, hi = wilson(k, n)
+    mean = _mean(rs)
+    half = 1.96 * statistics.stdev(rs) / math.sqrt(n) if n > 1 else None
+    verdict: Verdict = (
+        "tooFew" if n < MIN_SAMPLE or half is None else "edge" if mean - half > 0 else "noEdge"
+    )
+    return TrailSummary(
+        n=n,
+        wins=k,
+        win_rate=k / n if n else 0.0,
+        ci_low=lo,
+        ci_high=hi,
+        expectancy_r=mean,
+        exp_low=None if half is None else mean - half,
+        exp_high=None if half is None else mean + half,
+        avg_win_r=_mean([r for r in rs if r > 0]),
+        median_bars=statistics.median([b for _, b in cases]) if cases else 0.0,
+        verdict=verdict,
+    )

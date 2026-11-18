@@ -11,6 +11,7 @@ import type {
   OrderBlockOut,
   StructureOut,
   SummaryOut,
+  TrailSummaryOut,
   ZoneOut,
 } from "../api/schema";
 
@@ -55,6 +56,8 @@ export interface SetupStats {
   expectancyR: number;
   medianBars: number;
   verdict: Verdict;
+  /** The same cases exited with the trailing take-profit (null in older runs). */
+  trail: TrailSummaryOut | null;
 }
 
 export interface VolumeProfile {

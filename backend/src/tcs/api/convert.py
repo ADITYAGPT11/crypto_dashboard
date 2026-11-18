@@ -16,8 +16,10 @@ from tcs.api.schemas import (
     OutcomeOut,
     PointOut,
     RunOut,
+    StopOut,
     StructureOut,
     SummaryOut,
+    TrailOut,
     ZoneOut,
 )
 from tcs.common.series import Series
@@ -26,6 +28,15 @@ from tcs.marketdata.history import Coverage
 
 def _t(s: Series, i: int | None) -> int | None:
     return None if i is None else int(s.open_time[i])
+
+
+def _at(s: Series, i: int) -> int:
+    """Open time of candle ``i``, extrapolated by the candle step past the last one."""
+    n = len(s)
+    if i < n:
+        return int(s.open_time[i])
+    step = int(s.open_time[-1] - s.open_time[-2]) if n > 1 else 0
+    return int(s.open_time[-1]) + (i - n + 1) * step
 
 
 def _point(s: Series, p: Point) -> PointOut:
@@ -57,6 +68,15 @@ def occurrence(s: Series, o: Occurrence) -> OccurrenceOut:
             delta_ratio=o.flow.delta_ratio,
             flow=o.flow.flow,
             cvd_divergence=o.flow.divergence,
+        ),
+        trail=TrailOut(
+            result=o.trail.result,
+            exit_time=_t(s, o.trail.exit_index),
+            exit_price=o.trail.exit_price,
+            r=o.trail.r,
+            bars=o.trail.bars,
+            activated_time=_t(s, o.trail.activated),
+            stops=[StopOut(time=_at(s, i), price=p) for i, p in o.trail.stops],
         ),
     )
 

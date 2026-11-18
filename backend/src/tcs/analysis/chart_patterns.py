@@ -95,9 +95,9 @@ def double_bottoms(s: Series, a: FloatArray, lows: list[Swing]) -> list[PatternH
                                 start=i1,
                                 extreme=bottom,
                                 points=(
-                                    Point(i1, first.price, "Low 1"),
+                                    Point(i1, first.price, "Bottom 1"),
                                     Point(neck_idx, neckline, "Peak"),
-                                    Point(i2, second.price, "Low 2"),
+                                    Point(i2, second.price, "Bottom 2"),
                                 ),
                                 lines=(
                                     Line(Point(neck_idx, neckline), Point(c, neckline), "Neckline"),

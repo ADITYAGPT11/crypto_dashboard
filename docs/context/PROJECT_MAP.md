@@ -16,6 +16,7 @@ One rule set; both the chart and the background statistics call `analysis/engine
 - `analysis/`: `catalog.py` (pattern ids, labels, sources, `RULESET_VERSION`), `indicators.py`
   (TA-Lib ATR/EMA/SMA), `swings.py` (pivots + `known_at`), `candlesticks.py` (TA-Lib shapes +
   context), `chart_patterns.py` (double bottom, inverse H&S, bull flag; twins by mirroring),
+  `mirroring.py` (bearish twins back to real prices, labels flipped: Bottom ↔ Top, Upper ↔ Lower),
   `trendlines.py` (triangles, wedges), `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
   `location.py`, `outcomes.py`, `flow.py` (order-flow context: delta, CVD divergence), `stats.py`
   (Wilson, verdict), `engine.py`, `types.py`.
@@ -129,7 +130,8 @@ renders/s), `useLiveCandle` (forming candle: Binance, OKX when Binance is silent
 
 **Analysis in the browser**: none that feeds statistics (the service owns every rule). Display
 helpers: `volumeProfile` (visible-range histogram, key volume levels), `timeframeMapping` (times
-→ view positions for patterns, zones, blocks, gaps), `setupKeys` (`pattern|direction|location`,
+→ view positions for patterns, zones, blocks, gaps), `patternGeometry` (how a selected pattern is
+drawn: shaded formation, necklines/trendlines, key-point tags, measured move, position box), `setupKeys` (`pattern|direction|location`,
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
 sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`, Delta
 `l2_orderbook`), `liquidityHeatmap`
@@ -165,7 +167,7 @@ names), `connection.ts`, `alertRules.ts`
 `Regime`, `Movers`, `DataHealth`), `StatsPage/`, `RiskPage/`, `AlertsPage/`,
 `AlertToast/`, `ChartPage/` (`PriceChart` with panes/legend/drawings, `ChartToolbar`,
 `DrawingToolbar`, `IndicatorsDialog`, `IndicatorSettings`, `Modal`, `icons`, `DetectionSettings`,
-`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawHeatmap`, `drawBigTrades`, `drawFootprint`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
+`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawPattern`, `drawHeatmap`, `drawBigTrades`, `drawFootprint`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
 overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
 `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,

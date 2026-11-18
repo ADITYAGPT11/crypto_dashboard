@@ -388,3 +388,28 @@ Delta's public socket (`public-socket.…`) refuses order-book channels, so its 
 `socket.india.delta.exchange`. Delta is USD-quoted; USD vs USDT differs far less than one bucket,
 so its levels are added at face value. The panel shows each exchange's share so a missing
 exchange is visible, not silent.
+
+### 2026-11-18 · Patterns drawn after the industry convention; labels flipped for bearish twins
+
+Why: owner review: the selected pattern was a thin blue path among zones, blocks and full-width
+price lines, not the clear figure charting tools show. Now the formation is shaded in the
+direction's colour with labelled key points, a breakout ring, the measured move and a
+TradingView-style position box over the outcome window (the window, not the exit, so the box is
+readable when a trade resolves in 1–3 candles; the exit gets its own dot). Other overlays fade
+while a pattern is selected. Bearish patterns are found on the mirrored series, so they used to
+keep the bullish names ("Low 1" on a double top's highs, "Upper" on the lower line);
+`mirroring.py` now flips them. Labels feed no statistic and are not in the golden snapshot, so
+this is not a new rule-set version. The box also shows reward / risk at entry, which makes setups
+whose target was already passed at entry visible ("Target behind entry"); whether to drop them is
+a rule decision left to the owner (ROADMAP parking lot).
+
+### 2026-11-18 · A trailing take-profit is measured next to the fixed target (r3)
+
+Why: owner asked to maximise profit with a trailing TP. Eleven standard exits (fixed 30 / 120
+candles, ATR chandelier 2-4, breakeven + trail, trailing TP 0.5-2 ATR, half at target + trail,
+swing trail) were compared on the same setups with costs, a random-entry control with the same
+exit, and a year-1 pick checked on year 2. "Trailing TP 0.5 ATR" won on daily chart patterns in
+both years; it was the best on year 1 and stayed ahead on year 2. It is added as a second outcome
+rather than replacing the fixed target, so the existing record stays comparable and the card shows
+both. A new exit is a statistics change, so the rule set is r3 and everything is re-measured. The
+trail parameter was chosen on year 1 only; the reported year-2 numbers are the honest ones.
