@@ -117,9 +117,10 @@ def test_trailing_uses_no_candle_after_its_exit_and_only_tightens() -> None:
 
 
 def test_trailing_summary_counts_every_closed_trade() -> None:
-    t = summarize_trailing([(2.8, 4), (-1.0, 2), (0.4, 120)] * 12)
-    assert (t.n, t.wins) == (36, 24)
+    t = summarize_trailing([(2.8, 4, 0.1), (-1.0, 2, 0.1), (0.4, 120, 0.5)] * 12)
+    assert (t.n, t.wins) == (36, 12)  # the +0.4 R trades lose after their 0.5 R of costs
     assert t.expectancy_r == pytest.approx((2.8 - 1.0 + 0.4) / 3)
-    assert t.exp_low is not None and t.exp_low < t.expectancy_r < (t.exp_high or 0)
-    assert t.verdict == "edge"
-    assert summarize_trailing([(1.0, 3)]).verdict == "tooFew"
+    assert t.expectancy_net_r == pytest.approx((2.7 - 1.1 - 0.1) / 3)
+    assert t.exp_low is not None and t.exp_low < t.expectancy_net_r < (t.exp_high or 0)
+    assert t.avg_cost_r == pytest.approx(0.7 / 3)
+    assert summarize_trailing([(1.0, 3, 0.0)]).verdict == "tooFew"

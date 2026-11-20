@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r3`)
+# Pattern, zone and order-block rules (rule set `2026.11-r4`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -20,16 +20,27 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
 
 - **Entry** = confirmation close. **Win** = target touched before stop within **30 candles**; a
   candle touching both counts as a **loss**; neither = expired; data ran out = open (not counted).
-- **Win rate** with a **Wilson 95%** range; **break-even** = 1 / (1 + average win in R).
-- **Verdict**: fewer than 30 resolved cases → too few; Wilson low above break-even → edge
-  candidate; else no edge. Gross, before fees and slippage.
+- **Costs** (since r4; `analysis/costs.py`), per case in R (percent of notional ÷ risk in
+  percent, so tight stops pay more): taker **fee 0.05% a side** (Binance USDⓈ-M regular tier) +
+  **slippage 0.025% a side** (`TCS_FEE_PCT`, `TCS_SLIPPAGE_PCT`), and the **funding actually
+  paid** between entry (confirmation close) and exit (exit candle's close) from Binance's funding
+  history (archive months + REST tail; longs pay a positive rate, shorts receive it). After the
+  last known event the last rate is carried forward (estimated). Median cost: about 0.14 R a
+  trade on 1h, 0.06 R on 4h, 0.03 R on 1d.
+- **Win rate** with a **Wilson 95%** range; **break-even** after costs = L / (W + L), W = mean
+  win in R minus its costs, L = 1 + mean cost of a loss (1.0 when wins lose after costs); the
+  gross break-even 1 / (1 + average win in R) is kept alongside.
+- **Expectancy** = mean R per resolved case after costs (gross alongside).
+- **Verdict**: fewer than 30 resolved cases → too few; Wilson low above the break-even after
+  costs → edge candidate; else no edge. In-sample.
 - **Trailing take-profit** (second exit, since r3; `outcomes.py::evaluate_trailing`): the same
   entry and stop; when a candle touches the target the trade stays open and, from that candle's
   close, the stop follows the best price since entry by **0.5 ATR(14)**, only ever tightening.
   Exit where a candle trades through the stop (stop first, as above); after **120 candles**
   closed at the market. Profit = exit above entry (below for shorts). Statistics: every closed
   case counts; expectancy with a 95% range of the mean; verdict "edge" only when that range
-  clears 0 R. Gross, like the fixed exit. Chosen in a walk-forward study (below).
+  clears 0 R. After costs (wins = closed in profit after them). Chosen in a walk-forward study
+  (below).
 - **Setup** = pattern × direction × location × pattern timeframe × level timeframe. Pooled across
   the research coins; each coin also on its own; "any location" is the pattern's baseline.
   Pooled records are also split by order-flow context (below).

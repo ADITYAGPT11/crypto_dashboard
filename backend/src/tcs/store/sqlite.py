@@ -1,4 +1,4 @@
-"""SQLite storage: candles and setup statistics.
+"""SQLite storage: candles, funding rates and setup statistics.
 
 Interim store until the QuestDB collector lands (DECISIONS 2026-11-11): zero setup,
 one file, WAL mode so the API reads while the statistics job writes.
@@ -27,6 +27,18 @@ CREATE TABLE IF NOT EXISTS candles (
   open REAL NOT NULL, high REAL NOT NULL, low REAL NOT NULL, close REAL NOT NULL,
   volume REAL NOT NULL, taker_buy REAL,
   PRIMARY KEY (symbol, tf, open_time)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS funding (
+  symbol TEXT NOT NULL, time INTEGER NOT NULL, rate REAL NOT NULL,  -- rate in percent
+  PRIMARY KEY (symbol, time)
+) WITHOUT ROWID;
+
+-- Archive months already fetched (also those with no file: not listed yet), so they are not
+-- asked for again.
+CREATE TABLE IF NOT EXISTS funding_months (
+  symbol TEXT NOT NULL, month TEXT NOT NULL,
+  PRIMARY KEY (symbol, month)
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS stats_runs (
@@ -166,6 +178,39 @@ class Store:
             arr[:, 5].copy(),
             arr[:, 6].copy(),
         )
+
+    # Funding rates -------------------------------------------------------------
+
+    def put_funding(
+        self, symbol: str, rows: Iterable[tuple[int, float]], month: str | None = None
+    ) -> None:
+        """Store funding events (time ms, rate %); ``month`` (YYYY-MM) marks an archive month done."""
+        with self.tx() as db:
+            db.executemany(
+                "INSERT OR REPLACE INTO funding VALUES (?,?,?)",
+                [(symbol, int(t), float(r)) for t, r in rows],
+            )
+            if month is not None:
+                db.execute("INSERT OR IGNORE INTO funding_months VALUES (?,?)", (symbol, month))
+
+    def funding_months(self, symbol: str) -> set[str]:
+        with self.tx() as db:
+            return {
+                r[0]
+                for r in db.execute("SELECT month FROM funding_months WHERE symbol=?", (symbol,))
+            }
+
+    def funding(self, symbol: str, since: int, until: int) -> list[tuple[int, float]]:
+        """Funding events (time ms, rate %) with time in [since, until], oldest first."""
+        with self.tx() as db:
+            return [
+                (int(t), float(r))
+                for t, r in db.execute(
+                    "SELECT time, rate FROM funding WHERE symbol=? AND time BETWEEN ? AND ?"
+                    " ORDER BY time",
+                    (symbol, since, until),
+                )
+            ]
 
     # Statistics --------------------------------------------------------------
 

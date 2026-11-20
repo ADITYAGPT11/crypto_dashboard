@@ -51,6 +51,14 @@ class FakeSource:
     def archive_day(self, *_: object) -> list[Candle] | None:
         raise SourceUnavailable("offline")
 
+    def archive_funding_month(self, *_: object) -> list[tuple[int, float]] | None:
+        raise SourceUnavailable("offline")
+
+    def rest_funding(self, symbol: str, start: int, end: int) -> list[tuple[int, float]]:
+        h8 = 8 * 3_600_000
+        first = (start // h8 + 1) * h8
+        return [(t, 0.01) for t in range(first, end + 1, h8)]
+
 
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:

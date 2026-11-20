@@ -48,12 +48,18 @@ export interface SetupStats {
   winRate: number;
   /** Wilson 95% interval on the win rate. */
   ci: [number, number];
-  /** Win rate needed to break even given the average win size. */
+  /** Win rate needed to break even given the average win size, after costs. */
   breakEven: number;
+  /** The same before costs. */
+  breakEvenGross: number;
   avgWinPct: number;
   avgLossPct: number;
-  /** Mean result per resolved case in R, before fees. */
+  /** Mean result per resolved case in R after fees, slippage and funding. */
   expectancyR: number;
+  /** The same before costs. */
+  expectancyGrossR: number;
+  /** Mean cost per case in R (fees + slippage + funding). */
+  avgCostR: number;
   medianBars: number;
   verdict: Verdict;
   /** The same cases exited with the trailing take-profit (null in older runs). */

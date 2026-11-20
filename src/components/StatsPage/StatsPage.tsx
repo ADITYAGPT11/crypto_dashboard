@@ -174,7 +174,8 @@ const StatsPage: React.FC = () => {
             Every pattern × direction × location, measured in the background on closed {interval}{" "}
             candles across {coins || "the research"} coins
             {years ? ` over ${years} years` : ""}, with {zoneTf} zones and order blocks. Win =
-            target hit before stop within {maxHold} candles. Gross: before fees.
+            target hit before stop within {maxHold} candles. After costs: fees, slippage and
+            funding.
             {flow !== "*" ? ` Showing only cases with ${contextLabel(flow).toLowerCase()}.` : ""}
             {run?.finishedAt ? ` Updated ${shortDate(run.finishedAt)}.` : ""}
           </p>
@@ -448,8 +449,9 @@ const StatsPage: React.FC = () => {
         </div>
         <p className={styles.note}>
           Expectancy is the mean result per resolved case in R (1R = the distance to the stop),
-          before fees. An edge candidate still has to pass a costed, out-of-sample backtest before
-          it can confirm anything.
+          after fees, slippage and funding; break-even and the verdict are after costs too. An edge
+          candidate still has to pass an out-of-sample backtest and a forward test before it can
+          confirm anything.
         </p>
       </section>
 
@@ -529,8 +531,8 @@ const StatsPage: React.FC = () => {
               range can clear break-even by chance about 1 time in 20. Out-of-sample data decides.
             </li>
             <li>
-              <b>Gross for now.</b> Fees and slippage arrive in Phase 2 and will lower every number
-              here.
+              <b>Costs are estimates.</b> Taker fees, a slippage allowance and the funding actually
+              paid are deducted; real fills can be worse, especially on thin coins and fast stops.
             </li>
           </ul>
         </section>

@@ -127,7 +127,7 @@ criteria met.
 
 - Research harness in the repo (`backend/src/tcs/research/`): the filter and exit studies of
   2026-11-18 (momentum / volume / trend filters, 11 exits, random-entry control, year split) as
-  a CLI, so any rule change can be re-measured the same way. Costs into the statistics job.
+  a CLI, so any rule change can be re-measured the same way.
 - Owner decision (rule change, new `RULESET_VERSION`): skip or re-target setups whose measured
   target is at or behind the entry, or whose reward / risk is under 0.5 (2026-11-18 sample: 12
   "wins" at negative R, 89 of 453 double bottoms/tops under 0.5 R).

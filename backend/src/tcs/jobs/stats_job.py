@@ -20,15 +20,16 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from tcs.analysis.catalog import RULESET_VERSION
+from tcs.analysis.costs import Cost, CostModel, Funding, trade_cost
 from tcs.analysis.engine import Occurrence, analyze, detect_levels, detect_patterns
 from tcs.analysis.flow import contexts
 from tcs.analysis.stats import Resolved, summarize, summarize_trailing
 from tcs.common.series import Series
-from tcs.common.timeframes import TIMEFRAMES, Timeframe, is_at_least
+from tcs.common.timeframes import TF_MS, TIMEFRAMES, Timeframe, is_at_least
 from tcs.config import Settings
 from tcs.marketdata.history import History
 from tcs.store.sqlite import Store
@@ -47,6 +48,27 @@ def zone_tfs_for(tf: Timeframe) -> list[Timeframe]:
 Key = tuple[str, str, str, str, str]  # zone_tf, symbol, pattern, direction, location
 
 
+@dataclass(frozen=True, slots=True)
+class Costed:
+    """An occurrence with the cost of each exit (None where the trade did not close)."""
+
+    o: Occurrence
+    fixed: Cost | None
+    trail: Cost | None
+
+
+def _costed(s: Series, o: Occurrence, model: CostModel, funding: Funding, tf: Timeframe) -> Costed:
+    ms = TF_MS[tf]
+    entry = int(s.open_time[o.hit.index]) + ms  # the confirmation candle's close
+
+    def cost(exit_index: int | None) -> Cost | None:
+        if exit_index is None:
+            return None
+        return trade_cost(model, funding, o.hit, entry, int(s.open_time[exit_index]) + ms)
+
+    return Costed(o, cost(o.outcome.exit_index), cost(o.trail.exit_index))
+
+
 def _now() -> int:
     return int(time.time() * 1000)
 
@@ -57,7 +79,14 @@ def run_stats(settings: Settings, tf: Timeframe, now: int | None = None) -> dict
     store = Store(settings.db_path)
     history = History(store)
     since = now - settings.stats_days * DAY_MS
+    model = CostModel(settings.fee_pct, settings.slippage_pct)
     meta: dict[str, Any] = {
+        "costs": {
+            "feePct": model.fee_pct,
+            "slippagePct": model.slippage_pct,
+            "roundTripPct": model.round_trip_pct,
+            "fundingUntil": {},
+        },
         "coins": list(settings.universe),
         "done": 0,
         "failed": [],
@@ -67,7 +96,7 @@ def run_stats(settings: Settings, tf: Timeframe, now: int | None = None) -> dict
         "days": settings.stats_days,
     }
     store.start_run(RULESET_VERSION, tf, now, meta)
-    groups: dict[Key, list[Occurrence]] = defaultdict(list)
+    groups: dict[Key, list[Costed]] = defaultdict(list)
     cases: list[tuple[str, str, str, str, str, int, str, dict[str, Any]]] = []
     try:
         for symbol in settings.universe:
@@ -76,6 +105,9 @@ def run_stats(settings: Settings, tf: Timeframe, now: int | None = None) -> dict
                 if len(series) < 100:
                     raise ValueError(f"only {len(series)} candles")
                 hits = detect_patterns(series)
+                rows = history.ensure_funding(symbol, since, now)
+                funding = Funding(rows)
+                meta["costs"]["fundingUntil"][symbol] = rows[-1][0] if rows else None
                 for zone_tf in zone_tfs_for(tf):
                     level_series = (
                         series if zone_tf == tf else _load(history, symbol, zone_tf, since, now)
@@ -83,7 +115,8 @@ def run_stats(settings: Settings, tf: Timeframe, now: int | None = None) -> dict
                     a = analyze(series, level_series, detect_levels(level_series), hits=hits)
                     for o in a.occurrences:
                         h = o.hit
-                        groups[(zone_tf, symbol, h.pattern, h.direction, o.location)].append(o)
+                        c = _costed(series, o, model, funding, tf)
+                        groups[(zone_tf, symbol, h.pattern, h.direction, o.location)].append(c)
                         cases.append(
                             (
                                 zone_tf,
@@ -93,7 +126,7 @@ def run_stats(settings: Settings, tf: Timeframe, now: int | None = None) -> dict
                                 o.location,
                                 int(series.open_time[h.index]),
                                 o.outcome.result,
-                                _case(series, o),
+                                _case(series, c),
                             )
                         )
                 meta["candles"] += len(series)
@@ -118,7 +151,8 @@ def _load(history: History, symbol: str, tf: Timeframe, since: int, now: int) ->
     return history.load(symbol, tf, since, now)
 
 
-def _case(s: Series, o: Occurrence) -> dict[str, Any]:
+def _case(s: Series, c: Costed) -> dict[str, Any]:
+    o = c.o
     h, out = o.hit, o.outcome
     return {
         "entry": h.entry,
@@ -137,41 +171,56 @@ def _case(s: Series, o: Occurrence) -> dict[str, Any]:
         "trailExitTime": None
         if o.trail.exit_index is None
         else int(s.open_time[o.trail.exit_index]),
+        "costR": None if c.fixed is None else round(c.fixed.total_r, 4),
+        "netR": None if c.fixed is None else round(out.r - c.fixed.total_r, 4),
+        "trailNetR": None if c.trail is None else round(o.trail.r - c.trail.total_r, 4),
     }
 
 
-def _resolved(occ: list[Occurrence]) -> tuple[list[Resolved], int]:
+def _resolved(occ: list[Costed]) -> tuple[list[Resolved], int]:
     done = [
-        Resolved(o.outcome.result == "win", o.outcome.move_pct, o.outcome.r, o.outcome.bars)
-        for o in occ
-        if o.outcome.result in ("win", "loss")
+        Resolved(
+            c.o.outcome.result == "win",
+            c.o.outcome.move_pct,
+            c.o.outcome.r,
+            c.o.outcome.bars,
+            c.fixed.total_r if c.fixed else 0.0,
+        )
+        for c in occ
+        if c.o.outcome.result in ("win", "loss")
     ]
-    return done, sum(1 for o in occ if o.outcome.result == "expired")
+    return done, sum(1 for c in occ if c.o.outcome.result == "expired")
 
 
 StatKey = tuple[str, str, str, str, str, str]  # Key + order-flow context
 
 
 def _aggregate(
-    groups: dict[Key, list[Occurrence]],
+    groups: dict[Key, list[Costed]],
 ) -> list[tuple[str, str, str, str, str, str, dict[str, Any]]]:
     """Per coin and pooled ('*'), per location and any location ('*'); pooled rows also per
     order-flow context (context '*' = every case)."""
-    rolled: dict[StatKey, list[Occurrence]] = defaultdict(list)
+    rolled: dict[StatKey, list[Costed]] = defaultdict(list)
     for (zone_tf, symbol, pattern, direction, location), occ in groups.items():
         for loc in (location, "*"):
             rolled[(zone_tf, symbol, pattern, direction, loc, "*")].extend(occ)
             rolled[(zone_tf, "*", pattern, direction, loc, "*")].extend(occ)
-            for o in occ:
-                for ctx in contexts(o.flow):
-                    rolled[(zone_tf, "*", pattern, direction, loc, ctx)].append(o)
+            for c in occ:
+                for ctx in contexts(c.o.flow):
+                    rolled[(zone_tf, "*", pattern, direction, loc, ctx)].append(c)
     out: list[tuple[str, str, str, str, str, str, dict[str, Any]]] = []
     for key, occ in rolled.items():
         done, expired = _resolved(occ)
         summary = asdict(summarize(done, expired))
-        summary["open"] = sum(1 for o in occ if o.outcome.result == "open")
+        summary["open"] = sum(1 for c in occ if c.o.outcome.result == "open")
         summary["trail"] = asdict(
-            summarize_trailing([(o.trail.r, o.trail.bars) for o in occ if o.trail.result != "open"])
+            summarize_trailing(
+                [
+                    (c.o.trail.r, c.o.trail.bars, c.trail.total_r if c.trail else 0.0)
+                    for c in occ
+                    if c.o.trail.result != "open"
+                ]
+            )
         )
         out.append((*key, summary))
     return out
