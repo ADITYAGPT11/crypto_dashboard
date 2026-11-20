@@ -423,3 +423,13 @@ month, because funding over a multi-day hold is not negligible (about 42 events 
 are in R per case, so a tight stop pays more, as it does in practice. The verdict, break-even and
 expectancy shown everywhere are after costs; gross stays in the API and on the setup card so the
 effect is visible. Older runs (gross only) still render: the UI falls back to their gross fields.
+
+### 2026-11-20 · Lead with what price did after a pattern, next to random candles (r5)
+
+Why: owner asked for simple figures (does price move the pattern's way, by how much) measured
+with a trailing method instead of a fixed window or a fixed 2%, and noted that a pattern alone
+is not a strategy. A study of six trailing rides showed that tuning the ride to maximise past
+moves does not survive out of sample, so the standard Supertrend (10, 3) is used untuned. The
+control (same ride from evenly spaced candles, same coins and direction, weighted to the setup's
+coin mix) is what makes the figures honest: without it, a "moved +X%" figure says nothing about
+the pattern. The stop / target statistics stay, collapsed, for strategy work.

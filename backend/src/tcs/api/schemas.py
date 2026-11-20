@@ -53,6 +53,21 @@ class TrailOut(Out):
     stops: list[StopOut]
 
 
+class RideOut(Out):
+    """What price did after the setup: a Supertrend (10, 3) ride from entry until it flipped."""
+
+    result: Literal["closed", "open"]
+    exit_time: int | None
+    exit_price: float | None
+    #: Percent in the setup's direction at the exit (at the last close while open).
+    move_pct: float
+    best_pct: float
+    worst_pct: float
+    bars: int
+    #: The Supertrend band each time it moved, starting at entry.
+    band: list[StopOut]
+
+
 class FlowOut(Out):
     """Order flow when the setup confirmed (``analysis/flow.py``); nulls where unmeasurable."""
 
@@ -78,6 +93,7 @@ class OccurrenceOut(Out):
     outcome: OutcomeOut
     flow: FlowOut
     trail: TrailOut
+    ride: RideOut
 
 
 class ZoneOut(Out):
@@ -166,6 +182,32 @@ class TrailSummaryOut(Out):
     verdict: Literal["edge", "noEdge", "tooFew"]
 
 
+class RideSummaryOut(Out):
+    """What price did after the setup, next to the same ride from random candles."""
+
+    n: int
+    favourable: int
+    #: Share of rides that ended on the setup's side of the entry (Wilson 95% range).
+    favourable_rate: float
+    ci_low: float
+    ci_high: float
+    #: Average move in percent, with the 95% range of the average.
+    avg_move_pct: float
+    move_low: float | None
+    move_high: float | None
+    median_move_pct: float
+    avg_net_move_pct: float
+    avg_best_pct: float
+    avg_worst_pct: float
+    median_bars: float
+    #: The same ride from evenly spaced candles of the same coins, same direction.
+    base_n: int
+    base_favourable_rate: float
+    base_avg_move_pct: float
+    base_avg_best_pct: float
+    vs_random: Literal["better", "notBetter", "tooFew"]
+
+
 class SummaryOut(Out):
     n: int
     wins: int
@@ -190,6 +232,8 @@ class SummaryOut(Out):
     avg_cost_r: float = 0.0
     #: The same cases exited with the trailing take-profit (missing in older runs).
     trail: TrailSummaryOut | None = None
+    #: What price did after the setup (missing in runs before r5).
+    ride: RideSummaryOut | None = None
 
 
 class SetupStatOut(Out):
@@ -259,6 +303,9 @@ class CaseOut(Out):
     cost_r: float | None = None
     net_r: float | None = None
     trail_net_r: float | None = None
+    ride_move_pct: float | None = None
+    ride_best_pct: float | None = None
+    ride_bars: int | None = None
 
 
 class CoinSummaryOut(Out):

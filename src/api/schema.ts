@@ -46,6 +46,9 @@ export interface CaseOut {
   costR?: number | null;
   netR?: number | null;
   trailNetR?: number | null;
+  rideMovePct?: number | null;
+  rideBestPct?: number | null;
+  rideBars?: number | null;
 }
 
 export interface CatalogOut {
@@ -151,6 +154,7 @@ export interface OccurrenceOut {
   outcome: OutcomeOut;
   flow: FlowOut;
   trail: TrailOut;
+  ride: RideOut;
 }
 
 export interface OrderBlockOut {
@@ -185,6 +189,38 @@ export interface PointOut {
   time: number;
   price: number;
   label: string;
+}
+
+export interface RideOut {
+  result: "closed" | "open";
+  exitTime: number | null;
+  exitPrice: number | null;
+  movePct: number;
+  bestPct: number;
+  worstPct: number;
+  bars: number;
+  band: StopOut[];
+}
+
+export interface RideSummaryOut {
+  n: number;
+  favourable: number;
+  favourableRate: number;
+  ciLow: number;
+  ciHigh: number;
+  avgMovePct: number;
+  moveLow: number | null;
+  moveHigh: number | null;
+  medianMovePct: number;
+  avgNetMovePct: number;
+  avgBestPct: number;
+  avgWorstPct: number;
+  medianBars: number;
+  baseN: number;
+  baseFavourableRate: number;
+  baseAvgMovePct: number;
+  baseAvgBestPct: number;
+  vsRandom: "better" | "notBetter" | "tooFew";
 }
 
 export interface RunOut {
@@ -279,6 +315,7 @@ export interface SummaryOut {
   breakEvenNet?: number;
   avgCostR?: number;
   trail?: TrailSummaryOut | null;
+  ride?: RideSummaryOut | null;
 }
 
 export interface TrailOut {

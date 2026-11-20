@@ -16,7 +16,15 @@ from tcs.analysis.chart_patterns import detect_chart_patterns
 from tcs.analysis.flow import FlowContext, flow_at
 from tcs.analysis.indicators import atr
 from tcs.analysis.location import locate
-from tcs.analysis.outcomes import Outcome, Trail, evaluate, evaluate_trailing
+from tcs.analysis.outcomes import (
+    RIDE_ATR,
+    Outcome,
+    Ride,
+    Trail,
+    evaluate,
+    evaluate_ride,
+    evaluate_trailing,
+)
 from tcs.analysis.smc import detect_fvgs, detect_structure
 from tcs.analysis.trendlines import detect_trendline_patterns
 from tcs.analysis.types import Levels, Location, PatternHit
@@ -33,6 +41,8 @@ class Occurrence:
     flow: FlowContext
     #: The same setup exited with the trailing take-profit (outcomes.py).
     trail: Trail
+    #: What price did after the setup, ridden with a Supertrend until it flipped (outcomes.py).
+    ride: Ride
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +87,7 @@ def analyze(
     lv_series = level_series if level_series is not None else s
     lv = levels if levels is not None else detect_levels(lv_series)
     a = atr(s)
+    a_ride = atr(s, RIDE_ATR)
     found = hits if hits is not None else detect_patterns(s)
     mirrored = mirror(s) if any(h.direction == "short" for h in found) else None
     occurrences = [
@@ -86,6 +97,7 @@ def analyze(
             evaluate(s, hit),
             flow_at(s, hit, mirrored),
             evaluate_trailing(s, hit, a),
+            evaluate_ride(s, hit.index, hit.direction, a_ride),
         )
         for hit in found
     ]

@@ -11,6 +11,7 @@ import type { ViewPattern } from "../../utils/timeframeMapping";
 const UP = "86,211,100";
 const DOWN = "244,112,103";
 const AMBER = "240,163,94";
+const VIOLET = "176,148,255";
 const INK = "#0B0F14";
 
 type XFn = (logical: number) => number | null;
@@ -216,6 +217,50 @@ export function drawPattern(
         INK,
         "left",
       );
+    }
+  }
+
+  // 1c. After the pattern: the Supertrend (10, 3) ride from entry until it flipped, as a step
+  // line, and what price had done by then.
+  const ride = vp.ride;
+  if (ride.band.length > 0) {
+    const endX = ride.exitX ?? candles.length - 0.5;
+    g.strokeStyle = `rgba(${VIOLET},0.9)`;
+    g.lineWidth = 1.5;
+    g.setLineDash([]);
+    g.beginPath();
+    let started = false;
+    ride.band.forEach((b, k) => {
+      if (b.x > endX) return;
+      const xa = x(b.x);
+      const xb = x(Math.min(ride.band[k + 1]?.x ?? endX, endX));
+      const py = y(b.price);
+      if (xa === null || xb === null || py === null) return;
+      if (started) g.lineTo(xa, py);
+      else g.moveTo(xa, py);
+      g.lineTo(xb, py);
+      started = true;
+    });
+    g.stroke();
+    const px = ride.exitX === null ? x(candles.length - 0.5) : x(ride.exitX);
+    const py = ride.exitPrice === null ? null : y(ride.exitPrice);
+    if (px !== null) {
+      g.font = "bold 10px JetBrains Mono, monospace";
+      const sign = ride.movePct >= 0 ? "+" : "−";
+      const text =
+        ride.result === "closed"
+          ? `After: ${sign}${Math.abs(ride.movePct).toFixed(1)}% in ${ride.bars} candles`
+          : `After: ${sign}${Math.abs(ride.movePct).toFixed(1)}% so far`;
+      const ly = py ?? y(ride.band[ride.band.length - 1].price);
+      if (ly !== null) {
+        if (py !== null) {
+          g.fillStyle = `rgb(${VIOLET})`;
+          g.beginPath();
+          g.arc(px, py, 4, 0, Math.PI * 2);
+          g.fill();
+        }
+        pill(g, px + 8, ly + (long ? 16 : -16), text, `rgb(${VIOLET})`, INK, "left");
+      }
     }
   }
 

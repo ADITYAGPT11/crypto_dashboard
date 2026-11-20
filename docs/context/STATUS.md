@@ -93,6 +93,14 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-20: **"After the pattern" is the main view (rule set r5)**: every setup is also
+  followed with a Supertrend (10, 3) from entry until it flips (no target, not tuned), and
+  compared with the same ride from random candles of the same coins. The setup card leads with
+  "moved the favourable way", average / typical move, best point and length, each next to
+  random; the stop / target record is collapsed under "Trade plan"; Pattern stats opens on the
+  "After the pattern" view (filters: beats random / no better / too few); the chart draws the
+  ride (violet step line). Finding: most patterns move no better than random candles; on 1h the
+  bull flag and inverse H&S beat random before costs (`patterns.md → Ride study`).
 - 2026-11-18: **Costs in every statistic (rule set r4)**: fees (0.05% a side), slippage (0.025%
   a side) and the funding actually paid (Binance funding history, new `funding` table) are
   charged to each case in R; expectancy, break-even and the verdict are after costs, gross kept

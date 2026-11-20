@@ -110,6 +110,7 @@ export function toStats(
     medianBars: s.medianBars,
     verdict: s.verdict,
     trail: s.trail ?? null,
+    ride: s.ride ?? null,
   };
 }
 

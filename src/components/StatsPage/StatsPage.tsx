@@ -10,6 +10,7 @@ import {
   statsByKey,
   type LibraryFilter,
   type LibrarySort,
+  type LibraryView,
 } from "../../utils/setupLibrary";
 import {
   loadDetection,
@@ -20,7 +21,7 @@ import {
 import { pct, shortDate, signedPct, signedR } from "../../utils/format";
 import type { CandleInterval } from "../../types/marketData";
 import type { LocationFilter } from "../../types/analysis";
-import { CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
+import { Chip, CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
 import { contextLabel, FLOW_CONTEXTS, isFlowContext } from "../../utils/flowContext";
 import styles from "./StatsPage.module.scss";
 
@@ -37,6 +38,30 @@ const SORTS: { id: LibrarySort; label: string }[] = [
   { id: "n", label: "Most cases" },
   { id: "winRate", label: "Win rate" },
   { id: "expectancy", label: "Expectancy" },
+];
+
+const RIDE_FILTERS: { id: LibraryFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "better", label: "Beat random" },
+  { id: "notBetter", label: "No better than random" },
+  { id: "tooFew", label: "Too few cases" },
+];
+
+const RIDE_SORTS: { id: LibrarySort; label: string }[] = [
+  { id: "n", label: "Most cases" },
+  { id: "favourable", label: "Moved favourably" },
+  { id: "avgMove", label: "Average move" },
+];
+
+const VS_RANDOM = {
+  better: { tone: "up", label: "Beats random" },
+  notBetter: { tone: "down", label: "No better than random" },
+  tooFew: { tone: "warn", label: "Too few cases" },
+} as const;
+
+const VIEWS: { id: LibraryView; label: string }[] = [
+  { id: "after", label: "After the pattern" },
+  { id: "plan", label: "Trade plan (stop / target)" },
 ];
 
 function asInterval(value: string | null): CandleInterval {
@@ -125,8 +150,15 @@ function CoinBreakdown({
 const StatsPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const interval = asInterval(params.get("tf"));
+  const [view, setView] = useState<LibraryView>("after");
   const [filter, setFilter] = useState<LibraryFilter>("all");
   const [sort, setSort] = useState<LibrarySort>("n");
+  const after = view === "after";
+  const pickView = (v: LibraryView) => {
+    setView(v);
+    setFilter("all");
+    setSort("n");
+  };
   const [open, setOpen] = useState<string | null>(null);
 
   const [zones, setZones] = useState<ZoneSourceOption>(() => loadDetection().zones);
@@ -148,7 +180,7 @@ const StatsPage: React.FC = () => {
       ),
     [res.data, where],
   );
-  const rows = useMemo(() => filterAndSort(all, filter, sort), [all, filter, sort]);
+  const rows = useMemo(() => filterAndSort(all, filter, sort, view), [all, filter, sort, view]);
   const totals = libraryTotals(all);
   const coins = run ? run.coins.length - run.failed.length : 0;
   const failed = run?.failed ?? [];
@@ -281,16 +313,22 @@ const StatsPage: React.FC = () => {
           <span className={styles.mute}>pattern × direction × location</span>
         </div>
         <div className={styles.card}>
-          <span className={styles.lbl}>Resolved cases</span>
+          <span className={styles.lbl}>{after ? "Patterns followed" : "Resolved cases"}</span>
           <span className={styles.big}>
-            {res.data ? totals.resolved.toLocaleString("en-US") : "…"}
+            {res.data ? (after ? totals.rides : totals.resolved).toLocaleString("en-US") : "…"}
           </span>
-          <span className={styles.mute}>target or stop hit</span>
+          <span className={styles.mute}>
+            {after ? "until the Supertrend flipped" : "target or stop hit"}
+          </span>
         </div>
         <div className={styles.card}>
-          <span className={styles.lbl}>Edge candidates</span>
-          <span className={`${styles.big} ${styles.up}`}>{res.data ? totals.edge : "…"}</span>
-          <span className={styles.mute}>whole range above break-even</span>
+          <span className={styles.lbl}>{after ? "Beat random candles" : "Edge candidates"}</span>
+          <span className={`${styles.big} ${styles.up}`}>
+            {res.data ? (after ? totals.beatRandom : totals.edge) : "…"}
+          </span>
+          <span className={styles.mute}>
+            {after ? "average move clearly above random" : "whole range above break-even"}
+          </span>
         </div>
         <div className={styles.card}>
           <span className={styles.lbl}>Too few cases</span>
@@ -303,14 +341,41 @@ const StatsPage: React.FC = () => {
         <div className={styles.cardHead}>
           <h2 id="lib-title">Setup library</h2>
           <Explain title="Reading this table">
-            Each row pools every past case of one setup across all coins. The bar is the 95% range
-            of the true win rate; the tick is the break-even win rate given the average win size.
-            Edge candidate: at least {minSample} cases and the whole range right of the tick. Open a
-            row to see each coin on its own.
+            {after ? (
+              <>
+                Each row pools every past case of one setup across all coins. After the pattern,
+                price is followed with a Supertrend (10, 3) until it flips: how often it ended on
+                the pattern's side, the average and typical (median) move, and the best point
+                reached. "Random" is the same ride from evenly spaced candles of the same coins.
+                Beats random: at least {minSample} cases and the whole 95% range of the average move
+                above random's. A pattern alone is not a strategy; this shows whether it adds
+                anything.
+              </>
+            ) : (
+              <>
+                Each row pools every past case of one setup across all coins. The bar is the 95%
+                range of the true win rate; the tick is the break-even win rate given the average
+                win size. Edge candidate: at least {minSample} cases and the whole range right of
+                the tick. Open a row to see each coin on its own.
+              </>
+            )}
           </Explain>
           <div className={styles.controls}>
+            <div className={styles.pills} role="group" aria-label="What to show">
+              {VIEWS.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  className={styles.pill}
+                  aria-pressed={v.id === view}
+                  onClick={() => pickView(v.id)}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
             <div className={styles.pills} role="group" aria-label="Verdict">
-              {FILTERS.map((f) => (
+              {(after ? RIDE_FILTERS : FILTERS).map((f) => (
                 <button
                   key={f.id}
                   type="button"
@@ -325,7 +390,7 @@ const StatsPage: React.FC = () => {
             <label className={styles.sort}>
               Sort by
               <select value={sort} onChange={(e) => setSort(e.target.value as LibrarySort)}>
-                {SORTS.map((s) => (
+                {(after ? RIDE_SORTS : SORTS).map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.label}
                   </option>
@@ -339,14 +404,28 @@ const StatsPage: React.FC = () => {
             <thead>
               <tr>
                 <th>Setup</th>
-                <th className={styles.r}>n</th>
-                <th className={styles.r}>Win rate</th>
-                <th className={styles.ciCol}>95% range vs break-even</th>
-                <th className={styles.r}>Avg win</th>
-                <th className={styles.r}>Avg loss</th>
-                <th className={styles.r}>Break-even</th>
-                <th className={styles.r}>Expectancy</th>
-                <th>Verdict</th>
+                {after ? (
+                  <>
+                    <th className={styles.r}>n</th>
+                    <th className={styles.r}>Moved favourably</th>
+                    <th className={styles.r}>Average move</th>
+                    <th className={styles.r}>Typical move</th>
+                    <th className={styles.r}>Best point</th>
+                    <th className={styles.r}>Candles</th>
+                    <th>Vs random candles</th>
+                  </>
+                ) : (
+                  <>
+                    <th className={styles.r}>n</th>
+                    <th className={styles.r}>Win rate</th>
+                    <th className={styles.ciCol}>95% range vs break-even</th>
+                    <th className={styles.r}>Avg win</th>
+                    <th className={styles.r}>Avg loss</th>
+                    <th className={styles.r}>Break-even</th>
+                    <th className={styles.r}>Expectancy</th>
+                    <th>Verdict</th>
+                  </>
+                )}
                 <th>
                   <span className="sr-only">Actions</span>
                 </th>
@@ -381,34 +460,79 @@ const StatsPage: React.FC = () => {
                           </span>
                         </button>
                       </td>
-                      <td className={`${styles.r} ${styles.num}`}>{s.n}</td>
-                      <td className={`${styles.r} ${styles.num}`}>
-                        {pct(s.winRate)}
-                        <span className={styles.sub}>
-                          {s.wins} of {s.n}
-                        </span>
-                      </td>
-                      <td>
-                        <CiBar stats={s} />
-                        <span className={styles.sub}>
-                          {pct(s.ci[0])}–{pct(s.ci[1])}
-                        </span>
-                      </td>
-                      <td className={`${styles.r} ${styles.num} ${styles.up}`}>
-                        {s.wins ? signedPct(s.avgWinPct) : "—"}
-                      </td>
-                      <td className={`${styles.r} ${styles.num} ${styles.down}`}>
-                        {s.losses ? signedPct(s.avgLossPct) : "—"}
-                      </td>
-                      <td className={`${styles.r} ${styles.num}`}>{pct(s.breakEven)}</td>
-                      <td
-                        className={`${styles.r} ${styles.num} ${s.expectancyR >= 0 ? styles.up : styles.down}`}
-                      >
-                        {signedR(s.expectancyR)}
-                      </td>
-                      <td>
-                        <VerdictChip verdict={s.verdict} />
-                      </td>
+                      {after ? (
+                        s.ride && s.ride.n > 0 ? (
+                          <>
+                            <td className={`${styles.r} ${styles.num}`}>{s.ride.n}</td>
+                            <td className={`${styles.r} ${styles.num}`}>
+                              {pct(s.ride.favourableRate)}
+                              <span className={styles.sub}>
+                                random {pct(s.ride.baseFavourableRate)}
+                              </span>
+                            </td>
+                            <td
+                              className={`${styles.r} ${styles.num} ${s.ride.avgMovePct >= 0 ? styles.up : styles.down}`}
+                            >
+                              {signedPct(s.ride.avgMovePct)}
+                              <span className={styles.sub}>
+                                random {signedPct(s.ride.baseAvgMovePct)}
+                              </span>
+                            </td>
+                            <td
+                              className={`${styles.r} ${styles.num} ${s.ride.medianMovePct >= 0 ? styles.up : styles.down}`}
+                            >
+                              {signedPct(s.ride.medianMovePct)}
+                            </td>
+                            <td className={`${styles.r} ${styles.num}`}>
+                              {signedPct(s.ride.avgBestPct)}
+                              <span className={styles.sub}>
+                                random {signedPct(s.ride.baseAvgBestPct)}
+                              </span>
+                            </td>
+                            <td className={`${styles.r} ${styles.num}`}>{s.ride.medianBars}</td>
+                            <td>
+                              <Chip tone={VS_RANDOM[s.ride.vsRandom].tone}>
+                                {VS_RANDOM[s.ride.vsRandom].label}
+                              </Chip>
+                            </td>
+                          </>
+                        ) : (
+                          <td colSpan={7} className={styles.mute}>
+                            Not measured yet
+                          </td>
+                        )
+                      ) : (
+                        <>
+                          <td className={`${styles.r} ${styles.num}`}>{s.n}</td>
+                          <td className={`${styles.r} ${styles.num}`}>
+                            {pct(s.winRate)}
+                            <span className={styles.sub}>
+                              {s.wins} of {s.n}
+                            </span>
+                          </td>
+                          <td>
+                            <CiBar stats={s} />
+                            <span className={styles.sub}>
+                              {pct(s.ci[0])}–{pct(s.ci[1])}
+                            </span>
+                          </td>
+                          <td className={`${styles.r} ${styles.num} ${styles.up}`}>
+                            {s.wins ? signedPct(s.avgWinPct) : "—"}
+                          </td>
+                          <td className={`${styles.r} ${styles.num} ${styles.down}`}>
+                            {s.losses ? signedPct(s.avgLossPct) : "—"}
+                          </td>
+                          <td className={`${styles.r} ${styles.num}`}>{pct(s.breakEven)}</td>
+                          <td
+                            className={`${styles.r} ${styles.num} ${s.expectancyR >= 0 ? styles.up : styles.down}`}
+                          >
+                            {signedR(s.expectancyR)}
+                          </td>
+                          <td>
+                            <VerdictChip verdict={s.verdict} />
+                          </td>
+                        </>
+                      )}
                       <td>
                         <Link
                           className={styles.btnSm}

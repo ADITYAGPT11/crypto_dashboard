@@ -20,6 +20,7 @@ function view(partial: Partial<ViewPattern>): ViewPattern {
     exitX: null,
     windowEndX: 60.5,
     trail: { result: "open", r: 0, exitX: null, exitPrice: null, activatedX: null, stops: [] },
+    ride: { result: "open", movePct: 0, bars: 0, exitX: null, exitPrice: null, band: [] },
     ...partial,
   };
 }

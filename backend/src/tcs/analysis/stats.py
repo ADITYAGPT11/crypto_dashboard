@@ -168,3 +168,96 @@ def summarize_trailing(cases: Sequence[tuple[float, int, float]]) -> TrailSummar
         median_bars=statistics.median([b for _, b, _ in cases]) if cases else 0.0,
         verdict=verdict,
     )
+
+
+VsRandom = Literal["better", "notBetter", "tooFew"]
+
+
+@dataclass(frozen=True, slots=True)
+class RideBase:
+    """The same ride from evenly spaced candles of one coin, one direction (the control)."""
+
+    n: int
+    favourable_rate: float
+    avg_move_pct: float
+    avg_best_pct: float
+
+
+def ride_base(moves: Sequence[tuple[float, float]]) -> RideBase:
+    """``moves`` = (move %, best %) of each baseline ride."""
+    n = len(moves)
+    return RideBase(
+        n=n,
+        favourable_rate=sum(1 for m, _ in moves if m > 0) / n if n else 0.0,
+        avg_move_pct=_mean([m for m, _ in moves]),
+        avg_best_pct=_mean([b for _, b in moves]),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class RideSummary:
+    """What price did after a setup (``outcomes.evaluate_ride``), next to random candles.
+
+    Moves are percent in the setup's direction. ``vs_random`` is "better" only when the whole 95%
+    range of the average move sits above the random candles' average move (same coins, same
+    direction, same ride), with at least ``MIN_SAMPLE`` closed rides.
+    """
+
+    n: int
+    favourable: int
+    favourable_rate: float
+    ci_low: float
+    ci_high: float
+    avg_move_pct: float
+    move_low: float | None
+    move_high: float | None
+    median_move_pct: float
+    #: Average move after fees, slippage and funding.
+    avg_net_move_pct: float
+    avg_best_pct: float
+    avg_worst_pct: float
+    median_bars: float
+    base_n: int
+    base_favourable_rate: float
+    base_avg_move_pct: float
+    base_avg_best_pct: float
+    vs_random: VsRandom
+
+
+def summarize_ride(
+    cases: Sequence[tuple[float, float, float, int, float]], base: RideBase
+) -> RideSummary:
+    """``cases`` = (move %, best %, worst %, candles, cost %) of each closed ride."""
+    moves = [c[0] for c in cases]
+    n = len(moves)
+    k = sum(1 for m in moves if m > 0)
+    lo, hi = wilson(k, n)
+    mean = _mean(moves)
+    half = 1.96 * statistics.stdev(moves) / math.sqrt(n) if n > 1 else None
+    vs: VsRandom = (
+        "tooFew"
+        if n < MIN_SAMPLE or half is None or base.n == 0
+        else "better"
+        if mean - half > base.avg_move_pct
+        else "notBetter"
+    )
+    return RideSummary(
+        n=n,
+        favourable=k,
+        favourable_rate=k / n if n else 0.0,
+        ci_low=lo,
+        ci_high=hi,
+        avg_move_pct=mean,
+        move_low=None if half is None else mean - half,
+        move_high=None if half is None else mean + half,
+        median_move_pct=statistics.median(moves) if moves else 0.0,
+        avg_net_move_pct=_mean([c[0] - c[4] for c in cases]),
+        avg_best_pct=_mean([c[1] for c in cases]),
+        avg_worst_pct=_mean([c[2] for c in cases]),
+        median_bars=statistics.median([c[3] for c in cases]) if cases else 0.0,
+        base_n=base.n,
+        base_favourable_rate=base.favourable_rate,
+        base_avg_move_pct=base.avg_move_pct,
+        base_avg_best_pct=base.avg_best_pct,
+        vs_random=vs,
+    )

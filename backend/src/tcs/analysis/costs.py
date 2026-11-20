@@ -85,6 +85,13 @@ class Funding:
 NO_FUNDING = Funding([])
 
 
+def cost_pct(
+    model: CostModel, funding: Funding, direction: str, entry_time: int, exit_time: int
+) -> float:
+    """Fees, slippage and funding of a position, in percent of its notional."""
+    return model.round_trip_pct + funding.paid_pct(direction, entry_time, exit_time)[0]
+
+
 def trade_cost(
     model: CostModel,
     funding: Funding,

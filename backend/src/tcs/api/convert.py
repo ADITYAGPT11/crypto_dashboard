@@ -16,6 +16,7 @@ from tcs.api.schemas import (
     OrderBlockOut,
     OutcomeOut,
     PointOut,
+    RideOut,
     RunOut,
     StopOut,
     StructureOut,
@@ -78,6 +79,16 @@ def occurrence(s: Series, o: Occurrence) -> OccurrenceOut:
             bars=o.trail.bars,
             activated_time=_t(s, o.trail.activated),
             stops=[StopOut(time=_at(s, i), price=p) for i, p in o.trail.stops],
+        ),
+        ride=RideOut(
+            result=o.ride.result,
+            exit_time=_t(s, o.ride.exit_index),
+            exit_price=o.ride.exit_price,
+            move_pct=o.ride.move_pct,
+            best_pct=o.ride.best_pct,
+            worst_pct=o.ride.worst_pct,
+            bars=o.ride.bars,
+            band=[StopOut(time=_at(s, i), price=p) for i, p in o.ride.band],
         ),
     )
 

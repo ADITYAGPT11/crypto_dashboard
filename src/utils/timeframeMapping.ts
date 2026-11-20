@@ -89,6 +89,15 @@ export interface ViewPattern {
     /** The stop in force from `x` on (left edge of the candle it applies to). */
     stops: { x: number; price: number }[];
   };
+  /** What price did after it: the Supertrend ride from entry until it flipped. */
+  ride: {
+    result: "closed" | "open";
+    movePct: number;
+    bars: number;
+    exitX: number | null;
+    exitPrice: number | null;
+    band: { x: number; price: number }[];
+  };
 }
 
 /** Candles a setup has to reach its target (`backend/src/tcs/analysis/outcomes.py` MAX_HOLD_BARS). */
@@ -140,6 +149,14 @@ export function toViewPattern(
       exitPrice: occ.trail.exitPrice,
       activatedX: occ.trail.activatedTime === null ? null : span(occ.trail.activatedTime).to,
       stops: occ.trail.stops.map((st) => ({ x: span(st.time).from, price: st.price })),
+    },
+    ride: {
+      result: occ.ride.result,
+      movePct: occ.ride.movePct,
+      bars: occ.ride.bars,
+      exitX: occ.ride.exitTime === null ? null : span(occ.ride.exitTime).to,
+      exitPrice: occ.ride.exitPrice,
+      band: occ.ride.band.map((b) => ({ x: span(b.time).from, price: b.price })),
     },
   };
 }

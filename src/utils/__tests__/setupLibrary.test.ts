@@ -30,7 +30,14 @@ describe("filterAndSort", () => {
 
 describe("libraryTotals", () => {
   it("counts setups, resolved cases and verdicts", () => {
-    expect(libraryTotals(LIB)).toEqual({ setups: 4, resolved: 342, edge: 1, tooFew: 1 });
+    expect(libraryTotals(LIB)).toEqual({
+      setups: 4,
+      resolved: 342,
+      edge: 1,
+      tooFew: 1,
+      beatRandom: 0, // no ride records in these rows
+      rides: 0,
+    });
   });
 });
 
@@ -89,5 +96,33 @@ describe("setup keys", () => {
     expect(locationLabel("zone", "long")).toBe("in demand zone");
     expect(locationLabel("zone", "short")).toBe("in supply zone");
     expect(locationLabel("orderBlock", "short")).toBe("at bearish order block");
+  });
+});
+
+describe("after-the-pattern view", () => {
+  const ride = (n: number, favourableRate: number, avgMovePct: number, vsRandom: string) =>
+    ({ n, favourableRate, avgMovePct, vsRandom }) as SetupStats["ride"];
+  const RIDES = [
+    { ...stats("a", 200, 0.6, 0.5, "edge"), ride: ride(180, 0.34, -0.4, "notBetter") },
+    { ...stats("b", 40, 0.45, -0.1, "noEdge"), ride: ride(38, 0.42, 1.2, "better") },
+    { ...stats("c", 12, 0.7, 0.9, "tooFew"), ride: null },
+  ] as SetupStats[];
+
+  it("filters by the comparison with random candles and sorts by ride measures", () => {
+    expect(filterAndSort(RIDES, "better", "n", "after").map((s) => s.key)).toEqual(["b"]);
+    expect(filterAndSort(RIDES, "tooFew", "n", "after").map((s) => s.key)).toEqual(["c"]);
+    expect(filterAndSort(RIDES, "all", "n", "after").map((s) => s.key)).toEqual(["a", "b", "c"]);
+    expect(filterAndSort(RIDES, "all", "avgMove", "after").map((s) => s.key)).toEqual([
+      "b",
+      "a",
+      "c",
+    ]);
+    expect(filterAndSort(RIDES, "all", "favourable", "after")[0].key).toBe("b");
+  });
+
+  it("counts setups that beat random candles and the rides followed", () => {
+    const t = libraryTotals(RIDES);
+    expect(t.beatRandom).toBe(1);
+    expect(t.rides).toBe(218);
   });
 });

@@ -114,3 +114,81 @@ def evaluate_trailing(
         return Trail("open", None, None, 0.0, last - i, activated, tuple(stops))
     close = float(s.close[last])
     return Trail("expired", last, close, r_at(close), last - i, activated, tuple(stops))
+
+
+# After-the-pattern ride: what price did next, without a target (docs/product/patterns.md → Ride).
+RIDE_ATR = 10  # Supertrend (10, 3): TradingView's default, not tuned (tuning did not hold up)
+RIDE_MULT = 3.0
+RIDE_MAX_BARS = 200
+
+
+@dataclass(frozen=True, slots=True)
+class Ride:
+    """The move after a setup, ridden with a Supertrend (10, 3) that starts at the entry.
+
+    The band starts at the entry candle's hl2 - 3 x ATR(10) (+ for shorts) and only moves in the
+    trade's favour; the ride ends on the first close beyond the previous candle's band (the
+    Supertrend flip), at that close, or at the market after ``RIDE_MAX_BARS`` candles.
+    ``open`` = the data ran out first (not counted). Moves are percent in the trade's favour.
+    """
+
+    result: Literal["closed", "open"]
+    exit_index: int | None
+    exit_price: float | None
+    move_pct: float
+    #: Best and worst price during the ride, percent from entry in the trade's favour.
+    best_pct: float
+    worst_pct: float
+    bars: int
+    #: (first candle the band applies to, band price), each time it moves.
+    band: tuple[tuple[int, float], ...]
+
+
+def evaluate_ride(
+    s: Series,
+    index: int,
+    direction: str,
+    atrs: FloatArray,
+    m: float = RIDE_MULT,
+    max_bars: int = RIDE_MAX_BARS,
+) -> Ride:
+    d = 1.0 if direction == "long" else -1.0
+    e = float(s.close[index])
+    a0 = float(atrs[index])
+    if not (np.isfinite(a0) and e > 0):
+        return Ride("open", None, None, 0.0, 0.0, 0.0, 0, ())
+    band = (float(s.high[index]) + float(s.low[index])) / 2 - d * m * a0
+    bands: list[tuple[int, float]] = [(index + 1, band)]
+    best = worst = 0.0
+    last = min(index + max_bars, len(s) - 1)
+
+    def pct(price: float) -> float:
+        return (price - e) * d / e * 100
+
+    for j in range(index + 1, last + 1):
+        hi, lo, close = float(s.high[j]), float(s.low[j]), float(s.close[j])
+        best = max(best, pct(hi if d > 0 else lo))
+        worst = min(worst, pct(lo if d > 0 else hi))
+        if (close < band) if d > 0 else (close > band):
+            return Ride("closed", j, close, pct(close), best, worst, j - index, tuple(bands))
+        a = float(atrs[j])
+        if np.isfinite(a):
+            new = (hi + lo) / 2 - d * m * a
+            if (new - band) * d > 0:
+                band = new
+                bands.append((j + 1, band))
+    close = float(s.close[last])
+    if index + max_bars > len(s) - 1:
+        return Ride("open", None, None, pct(close), best, worst, last - index, tuple(bands))
+    return Ride("closed", last, close, pct(close), best, worst, last - index, tuple(bands))
+
+
+def ride_baseline(s: Series, direction: str, atrs: FloatArray, samples: int = 2000) -> list[Ride]:
+    """The same ride from evenly spaced candles (about ``samples``), as a random-entry control."""
+    start = 4 * RIDE_ATR
+    step = max(1, (len(s) - start) // samples)
+    return [
+        r
+        for i in range(start, len(s), step)
+        if (r := evaluate_ride(s, i, direction, atrs)).result == "closed"
+    ]

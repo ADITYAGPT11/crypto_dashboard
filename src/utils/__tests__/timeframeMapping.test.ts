@@ -52,6 +52,16 @@ function occurrence(partial: Partial<OccurrenceOut>): OccurrenceOut {
       activatedTime: null,
       stops: [],
     },
+    ride: {
+      result: "open",
+      exitTime: null,
+      exitPrice: null,
+      movePct: 0,
+      bestPct: 0,
+      worstPct: 0,
+      bars: 0,
+      band: [],
+    },
     ...partial,
   };
 }

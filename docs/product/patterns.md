@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r4`)
+# Pattern, zone and order-block rules (rule set `2026.11-r5`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -41,6 +41,14 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
   case counts; expectancy with a 95% range of the mean; verdict "edge" only when that range
   clears 0 R. After costs (wins = closed in profit after them). Chosen in a walk-forward study
   (below).
+- **After the pattern** (the main view since r5; `outcomes.py::evaluate_ride`): from the
+  confirmation close, price is followed with a **Supertrend (10, 3)** that starts at entry (band =
+  hl2 ∓ 3 × ATR(10), moving only in the setup's favour) until the first close beyond the previous
+  band, or 200 candles. No target, no tuning. Reported: share of rides that ended on the setup's
+  side (Wilson range), average move % (95% range), median move, average best and worst point,
+  candles, average move after costs. **Control**: the same ride from about 2 000 evenly spaced
+  candles per coin and direction, weighted to the setup's coin mix. "Beats random" = at least 30
+  rides and the whole 95% range of the average move above the control's average.
 - **Setup** = pattern × direction × location × pattern timeframe × level timeframe. Pooled across
   the research coins; each coin also on its own; "any location" is the pattern's baseline.
   Pooled records are also split by order-flow context (below).
@@ -62,6 +70,17 @@ The trailing exit roughly doubles the daily chart patterns' result and wins out 
 random entries gain from it too: it improves the exit, not the pattern's edge over chance. It does
 not make 1h, 4h or candlestick setups profitable after costs. The study scripts are not in the
 repository yet (`ROADMAP.md → Parking lot`).
+
+### Ride study (2026-11-20, 10 coins × 2 years, 44 907 setups)
+
+Six trailing rides (Supertrend 10×2, 10×3, 20×3; close below EMA 20 / EMA 50; chandelier 22×3)
+were run from every setup and from random candles. After chart patterns price ended on the
+pattern's side 31–36% of the time against 35–38% for random candles, with average moves no
+better than random; the ride that maximised year 1 fell apart on year 2 in every group (1d
+Supertrend 20×3: +5.0% better than random in year 1, −4.1% in year 2). So the ride is not tuned:
+the standard Supertrend (10, 3) is used and every figure is shown next to random candles. With
+r5 on 1h, the bull flag (+0.38% vs −0.10%) and inverse H&S (+0.35% vs −0.11%) clear the bar
+before costs; with about 90 setups per timeframe tested, treat them as leads to forward-test.
 
 ## Location
 

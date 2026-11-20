@@ -30,6 +30,16 @@ function occurrence(time: number, result: SetupOccurrence["outcome"]["result"]):
       activatedTime: null,
       stops: [],
     },
+    ride: {
+      result: "open",
+      exitTime: null,
+      exitPrice: null,
+      movePct: 0,
+      bestPct: 0,
+      worstPct: 0,
+      bars: 0,
+      band: [],
+    },
   };
 }
 

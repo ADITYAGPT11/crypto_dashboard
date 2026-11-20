@@ -9,6 +9,7 @@ import type {
   FvgOut,
   OccurrenceOut,
   OrderBlockOut,
+  RideSummaryOut,
   StructureOut,
   SummaryOut,
   TrailSummaryOut,
@@ -64,6 +65,8 @@ export interface SetupStats {
   verdict: Verdict;
   /** The same cases exited with the trailing take-profit (null in older runs). */
   trail: TrailSummaryOut | null;
+  /** What price did after the setup, next to random candles (null before rule set r5). */
+  ride: RideSummaryOut | null;
 }
 
 export interface VolumeProfile {
