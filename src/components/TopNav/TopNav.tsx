@@ -11,6 +11,7 @@ const LINKS = [
   { to: "/risk", label: "Risk", end: false },
   { to: "/alerts", label: "Alerts", end: false },
   { to: "/markets", label: "Markets", end: false },
+  { to: "/tech-overview", label: "Tech overview", end: false },
   { to: "/about", label: "About", end: false },
 ];
 
