@@ -1,7 +1,9 @@
 # Project map
 
 What exists in code **today** (after the 2026-11-01 merge of master). The target system is in
-`ARCHITECTURE.md`; the health of each part is in `STATUS.md`.
+`ARCHITECTURE.md`; the health of each part is in `STATUS.md`. A clickable version of this map is
+the app's **Tech overview** (`/tech-overview`, data in `src/components/TechOverviewPage/maps.ts`);
+update it when modules or flows move (its tests fail when a listed file disappears).
 
 Stack: React 19 · TypeScript (strict) · Vite+ (`vp`: Vite, Vitest, oxlint, oxfmt) · SCSS ·
 react-router 7 · eventemitter3 · lightweight-charts 5. **Analysis service: Python 3.12 + uv,
@@ -85,7 +87,8 @@ price table, spread (arbitrage), order book, alerts.
   one failing never stops the others (except the web app), Ctrl+C stops the process trees
 
 - `index.html` → `src/main.tsx` → `src/App.tsx`: `TopNav` + routes `/` (Dashboard),
-  `/chart/:symbol` (Chart, lazy-loaded), `/markets` (older dashboard), `/about`
+  `/chart/:symbol` (Chart, lazy-loaded), `/markets` (older dashboard), `/tech-overview` and
+  `/tech-overview/:mapId` (architecture maps, lazy-loaded), `/about`
 - `src/styles/tokens.css` (`--t-*` design tokens, dark), `src/styles/_page.scss` (page mixins)
 - `src/components/MainContainer/`: dashboard; watchlist + panel layout state (persisted),
   starts streaming, renders panels in "Edit layout" order
@@ -164,6 +167,11 @@ names), `connection.ts`, `alertRules.ts`
 
 **Brand**: `src/brand.ts` (GreenMTM name, wordmark parts, logo path) + `public/greenmtm.svg`
 (logo and favicon); colour `--t-brand` in `tokens.css`.
+
+**Tech overview** (`TechOverviewPage/`): `maps.ts` (the overview + 8 detail maps: nodes, edges,
+files, flows; each box with `detail` opens that map), `ArchDiagram` (SVG edges + positioned boxes,
+scaled to fit), the page (breadcrumb, `?flow=` highlight, side panel with files and links).
+Layout, edge routing, highlight sets and `validateMaps` are pure in `src/utils/archMap.ts`.
 
 **UI components**: `TopNav/`, `DashboardPage/` (+ `MarketOverview/`: strip, `CoinSearch`,
 `Connections`, `BubbleMap`, `Sentiment`, `MarketMonitor`, `Correlation`, `Liquidations`,

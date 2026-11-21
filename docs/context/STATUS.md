@@ -27,14 +27,14 @@ confirmations yet (by design).
 
 ## Health
 
-Verified 2026-11-11 (test counts 2026-11-17):
+Verified 2026-11-11 (test counts 2026-11-21):
 
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 348 tests, 35 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 378 tests, 38 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 121 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 136 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -65,6 +65,10 @@ Verified 2026-11-11 (test counts 2026-11-17):
   scanner results (same-timeframe levels); old stored rule keys are upgraded.
 - **History** (`HistoryService`): Binance REST from the browser, falling back to the service's
   stored candles.
+- **Tech overview** (`/tech-overview`): clickable architecture map of the whole system; every
+  module and flow opens a detailed map (`/tech-overview/<map>`: connectivity, market data,
+  heatmap, analysis engine, statistics, alerts, screens, confirmation roadmap) with files, links
+  and built vs planned counts. Data in `TechOverviewPage/maps.ts`; tests check every listed file.
 - **Markets** (`/markets`) and the **Node prototype** (`src/backend/`, Telegram) are unchanged.
 
 ## Known issues
@@ -93,6 +97,9 @@ Verified 2026-11-11 (test counts 2026-11-17):
 
 ## History
 
+- 2026-11-21: **Tech overview** (`/tech-overview`, nav link): the architecture as clickable maps,
+  drill-down from each module or flow into its detailed map. Replaces the standalone
+  `docs/architecture-flow.html`.
 - 2026-11-18: **Costs in every statistic (rule set r4)**: fees (0.05% a side), slippage (0.025%
   a side) and the funding actually paid (Binance funding history, new `funding` table) are
   charged to each case in R; expectancy, break-even and the verdict are after costs, gross kept
