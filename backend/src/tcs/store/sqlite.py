@@ -354,7 +354,7 @@ class Store:
     ) -> list[dict[str, Any]]:
         sql = (
             "SELECT symbol, location, time, result, detail FROM setup_cases WHERE ruleset=? AND tf=? "
-            "AND zone_tf=? AND pattern=? AND direction=? AND result IN ('win','loss')"
+            "AND zone_tf=? AND pattern=? AND direction=? AND result IN ('win','loss','expired')"
         )
         args: list[Any] = [ruleset, tf, zone_tf, pattern, direction]
         if location != "*":

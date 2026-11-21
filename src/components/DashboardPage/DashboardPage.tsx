@@ -7,9 +7,9 @@ import { useCatalog, useScanner, useStats } from "../../custom-hooks/useAnalysis
 import { useLivePrice } from "../../custom-hooks/useLivePrice";
 import { loadWatchlist } from "../../utils/watchlistStorage";
 import { patternLabel } from "../../utils/patternLabels";
-import { locationLabel, toStats } from "../../utils/setupKeys";
+import { setupKey } from "../../utils/setupKeys";
 import { statsByKey } from "../../utils/setupLibrary";
-import { loadDetection, zoneTfFor } from "../../utils/detectionConfig";
+import { shownIds, shownPatterns } from "../../utils/detectionConfig";
 import { pct, price, signedPct, signedR } from "../../utils/format";
 import type { Candle } from "../../types/marketData";
 import type { SetupOccurrence, SetupStats } from "../../types/analysis";
@@ -20,8 +20,8 @@ import styles from "./DashboardPage.module.scss";
 const INTERVAL = "4h" as const;
 const SPARK = 42; // 7 days of 4h candles
 
-function setupLabel(s: Pick<SetupStats, "pattern" | "direction" | "location">) {
-  return `${s.direction === "long" ? "▲" : "▼"} ${patternLabel(s.pattern)} · ${locationLabel(s.location, s.direction)}`;
+function setupLabel(s: Pick<SetupStats, "pattern" | "direction">) {
+  return `${s.direction === "long" ? "▲" : "▼"} ${patternLabel(s.pattern)}`;
 }
 
 /** Header band with a three-layer parallax, disabled under reduced motion. */
@@ -128,7 +128,8 @@ const DashboardPage: React.FC = () => {
   const universe = useMemo(() => [...new Set([...watchlist, ...RESEARCH_UNIVERSE])], [watchlist]);
   const [attempt, setAttempt] = useState(0);
   const { candles, failed } = useUniverseCandles(universe, INTERVAL, attempt);
-  const zoneTf = useMemo(() => zoneTfFor(INTERVAL, loadDetection().zones), []);
+  // Levels from the pattern's own timeframe; records are read at any location.
+  const zoneTf = INTERVAL;
   const catalog = useCatalog().data;
   const scanner = useScanner(INTERVAL, zoneTf, watchlist);
   const statsRes = useStats(INTERVAL, zoneTf);
@@ -140,24 +141,28 @@ const DashboardPage: React.FC = () => {
     MarketDataService.getInstance().startMarketData(watchlist);
   }, [watchlist]);
 
+  const statsMap = useMemo(() => statsByKey(statsRes.data), [statsRes.data]);
+  const shown = useMemo(() => shownIds(catalog), [catalog]);
   const current = useMemo(
     () =>
-      (scanner.data?.items ?? []).map((i) => {
-        const o: SetupOccurrence = { ...i.occurrence, symbol: i.symbol };
-        return {
-          occurrence: o,
-          pooled: i.pooled ? toStats(o.pattern, o.direction, o.location, i.pooled) : null,
-        };
-      }),
-    [scanner.data],
+      (scanner.data?.items ?? [])
+        .filter((i) => shown.has(i.occurrence.pattern))
+        .map((i) => {
+          const o: SetupOccurrence = { ...i.occurrence, symbol: i.symbol };
+          return {
+            occurrence: o,
+            pooled: statsMap.get(setupKey(o.pattern, o.direction, "*")) ?? null,
+          };
+        }),
+    [scanner.data, statsMap, shown],
   );
   const edgeNow = current.filter((c) => c.pooled?.verdict === "edge").length;
   const library = useMemo(
     () =>
-      [...statsByKey(statsRes.data).values()]
-        .filter((s) => s.location !== "*" && s.n > 0)
+      [...statsMap.values()]
+        .filter((s) => s.location === "*" && s.n > 0 && shown.has(s.pattern))
         .sort((a, b) => b.n - a.n),
-    [statsRes.data],
+    [statsMap, shown],
   );
   const tracked = library.reduce((s, x) => s + x.n + x.expired, 0);
   const coins = run ? run.coins.length - run.failed.length : 0;
@@ -166,7 +171,7 @@ const DashboardPage: React.FC = () => {
     current.find((c) => c.pooled?.verdict === "edge") ??
     current.find((c) => c.pooled) ??
     current[0];
-  const patternCount = catalog?.patterns.length ?? 0;
+  const patternCount = shownPatterns(catalog).length;
 
   return (
     <main className={styles.page}>
@@ -181,8 +186,7 @@ const DashboardPage: React.FC = () => {
 
       <Band>
         <span className={styles.lbl}>
-          Scanner · {patternCount || "…"} patterns × 4 locations × {universe.length} coins ·{" "}
-          {INTERVAL} · {zoneTf} levels
+          Scanner · {patternCount || "…"} chart patterns × {universe.length} coins · {INTERVAL}
         </span>
         <h2 id="band-title">
           {!ready
@@ -197,7 +201,7 @@ const DashboardPage: React.FC = () => {
           {!ready
             ? (serviceError ?? "Detecting patterns on the latest closed candles of every coin…")
             : top?.pooled
-              ? `${top.occurrence.symbol} printed a ${top.occurrence.direction === "long" ? "bullish" : "bearish"} ${patternLabel(top.occurrence.pattern).toLowerCase()} ${locationLabel(top.occurrence.location, top.occurrence.direction)}. Across ${top.pooled.n} past cases on ${coins} coins it reached its target ${pct(top.pooled.winRate)} of the time (range ${pct(top.pooled.ci[0])}–${pct(top.pooled.ci[1])}).`
+              ? `${top.occurrence.symbol} printed a ${top.occurrence.direction === "long" ? "bullish" : "bearish"} ${patternLabel(top.occurrence.pattern).toLowerCase()}. Across ${top.pooled.n} past cases on ${coins} coins it reached its target ${pct(top.pooled.winRate)} of the time (range ${pct(top.pooled.ci[0])}–${pct(top.pooled.ci[1])}).`
               : "The scanner re-checks at every candle close. Below is how each setup has performed so far."}
         </p>
         <div className={styles.kpis}>
@@ -240,15 +244,14 @@ const DashboardPage: React.FC = () => {
           <div className={styles.cardHead}>
             <h2 id="now-title">Setups detected now</h2>
             <Explain title="What counts as a setup">
-              A pattern (double bottom, engulfing, triangle…) in a direction plus its location (at a{" "}
-              {zoneTf} demand/supply zone, an order block, both, or open space), confirmed on one of
+              A chart pattern (double bottom, flag, triangle…) in a direction, confirmed on one of
               the last 3 closed {INTERVAL} candles. The win rate is the same setup across every
               coin's history: target hit before stop within {catalog?.maxHoldBars ?? 30} candles (or
               the pattern&apos;s length).
             </Explain>
             <p>
-              Pattern + location on a recent closed candle. Statistics pool every past case across
-              all coins.
+              Chart patterns on a recent closed candle. Statistics pool every past case across all
+              coins.
             </p>
           </div>
           <div className={styles.xs}>
@@ -276,8 +279,7 @@ const DashboardPage: React.FC = () => {
                       <span className={o.direction === "long" ? styles.up : styles.down}>
                         {o.direction === "long" ? "▲" : "▼"}
                       </span>{" "}
-                      {patternLabel(o.pattern)}{" "}
-                      <span className={styles.mute}>{locationLabel(o.location, o.direction)}</span>
+                      {patternLabel(o.pattern)}
                     </td>
                     <td className={`${styles.r} ${styles.num}`}>{p ? p.n : "—"}</td>
                     <td>
@@ -376,16 +378,14 @@ const DashboardPage: React.FC = () => {
         <div className={styles.cardHead}>
           <h2 id="lib-title">How each setup has performed</h2>
           <Explain title="Reading this table">
-            Every past case of each setup on every coin, measured in the background. Break-even is
-            the win rate needed to profit given the average win size (candlestick patterns target
-            1.5× risk, so they need 40%). Edge candidate: at least {catalog?.minSample ?? 30} cases
-            and the whole 95% range above the break-even after costs (fees, slippage, funding).
-            Phase 2 re-tests candidates out of sample.
+            Every past case of each chart pattern on every coin, measured in the background.
+            Break-even is the win rate needed to profit given the average win and loss. Edge
+            candidate: at least {catalog?.minSample ?? 30} cases and the whole 95% range above the
+            break-even after costs (fees, slippage, funding). Phase 2 re-tests candidates out of
+            sample.
           </Explain>
           <p>
-            {coins} coins · {days} days · {INTERVAL} · {zoneTf} levels · after costs. Location
-            changes results, so each pattern is measured at zones, order blocks, both, and in open
-            space.
+            {coins} coins · {days} days · {INTERVAL} · after costs.
           </p>
         </div>
         <div className={styles.xs}>

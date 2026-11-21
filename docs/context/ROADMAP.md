@@ -46,7 +46,7 @@ flowchart LR
 - [x] Dashboard v2 market overview (bubbles, sentiment, monitor, correlation, liquidations,
       volatility regime, sessions, movers, data health)
 - [x] Product name + logo: GreenMTM (`src/brand.ts`, `public/greenmtm.svg`)
-- [x] Chart detection settings: pattern timeframes + zone source per user, multi-timeframe overlay,
+- [x] Chart detection settings (simplified 2026-11-21 to one timeframe choice for chart patterns), multi-timeframe overlay,
       background stats per context
 - [x] Level source applied to Dashboard and Pattern stats (Alerts use same-timeframe levels)
 - [ ] Versioned rule presets (v2 editing, labelled exploratory until tested out-of-sample)

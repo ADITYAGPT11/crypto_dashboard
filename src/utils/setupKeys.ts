@@ -66,6 +66,7 @@ export function normalizeSetupKey(key: string): string | null {
   return p ? setupKey(p.pattern, p.direction, p.location) : null;
 }
 
+/** Location words for a setup; empty for "*" (any location), the only kind the app shows now. */
 export function locationLabel(location: LocationFilter, direction: Direction): string {
   const long = direction === "long";
   switch (location) {
@@ -78,7 +79,7 @@ export function locationLabel(location: LocationFilter, direction: Direction): s
     case "openSpace":
       return "in open space";
     case "*":
-      return "anywhere";
+      return "";
   }
 }
 

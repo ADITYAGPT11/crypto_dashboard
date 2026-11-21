@@ -117,7 +117,9 @@ def test_setup_detail_has_per_coin_rows_and_recent_cases(client: TestClient) -> 
     ).json()
     assert body["pooled"]["n"] == top["summary"]["n"]
     assert sum(c["summary"]["n"] for c in body["perCoin"]) == top["summary"]["n"]
-    assert all(c["result"] in ("win", "loss") for c in body["recent"])
+    assert all(
+        c["result"] in ("win", "loss", "expired") for c in body["recent"]
+    )  # r5: expiries count
 
 
 def test_chart_analysis_uses_the_same_rules_as_the_job(client: TestClient) -> None:
