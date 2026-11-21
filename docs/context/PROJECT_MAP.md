@@ -1,7 +1,9 @@
 # Project map
 
 What exists in code **today** (after the 2026-11-01 merge of master). The target system is in
-`ARCHITECTURE.md`; the health of each part is in `STATUS.md`.
+`ARCHITECTURE.md`; the health of each part is in `STATUS.md`. An interactive version of this map
+(click a box for its files, trace a data flow) is `docs/architecture-flow.html`; update it when
+modules or flows move.
 
 Stack: React 19 · TypeScript (strict) · Vite+ (`vp`: Vite, Vitest, oxlint, oxfmt) · SCSS ·
 react-router 7 · eventemitter3 · lightweight-charts 5. **Analysis service: Python 3.12 + uv,
