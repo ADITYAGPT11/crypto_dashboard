@@ -9,7 +9,7 @@ import { loadWatchlist } from "../../utils/watchlistStorage";
 import { patternLabel } from "../../utils/patternLabels";
 import { setupKey } from "../../utils/setupKeys";
 import { statsByKey } from "../../utils/setupLibrary";
-import { shownIds, shownPatterns } from "../../utils/detectionConfig";
+import { loadDetection, pickedKeys, pickKey } from "../../utils/detectionConfig";
 import { pct, price, signedPct, signedR } from "../../utils/format";
 import type { Candle } from "../../types/marketData";
 import type { SetupOccurrence, SetupStats } from "../../types/analysis";
@@ -142,11 +142,12 @@ const DashboardPage: React.FC = () => {
   }, [watchlist]);
 
   const statsMap = useMemo(() => statsByKey(statsRes.data), [statsRes.data]);
-  const shown = useMemo(() => shownIds(catalog), [catalog]);
+  // The patterns picked in the chart's Patterns panel (chart patterns by default).
+  const picked = useMemo(() => pickedKeys(loadDetection(), catalog), [catalog]);
   const current = useMemo(
     () =>
       (scanner.data?.items ?? [])
-        .filter((i) => shown.has(i.occurrence.pattern))
+        .filter((i) => picked.has(pickKey(i.occurrence.pattern, i.occurrence.direction)))
         .map((i) => {
           const o: SetupOccurrence = { ...i.occurrence, symbol: i.symbol };
           return {
@@ -154,15 +155,15 @@ const DashboardPage: React.FC = () => {
             pooled: statsMap.get(setupKey(o.pattern, o.direction, "*")) ?? null,
           };
         }),
-    [scanner.data, statsMap, shown],
+    [scanner.data, statsMap, picked],
   );
   const edgeNow = current.filter((c) => c.pooled?.verdict === "edge").length;
   const library = useMemo(
     () =>
       [...statsMap.values()]
-        .filter((s) => s.location === "*" && s.n > 0 && shown.has(s.pattern))
+        .filter((s) => s.location === "*" && s.n > 0 && picked.has(pickKey(s.pattern, s.direction)))
         .sort((a, b) => b.n - a.n),
-    [statsMap, shown],
+    [statsMap, picked],
   );
   const tracked = library.reduce((s, x) => s + x.n + x.expired, 0);
   const coins = run ? run.coins.length - run.failed.length : 0;
@@ -171,7 +172,7 @@ const DashboardPage: React.FC = () => {
     current.find((c) => c.pooled?.verdict === "edge") ??
     current.find((c) => c.pooled) ??
     current[0];
-  const patternCount = shownPatterns(catalog).length;
+  const patternCount = picked.size;
 
   return (
     <main className={styles.page}>
@@ -186,7 +187,7 @@ const DashboardPage: React.FC = () => {
 
       <Band>
         <span className={styles.lbl}>
-          Scanner · {patternCount || "…"} chart patterns × {universe.length} coins · {INTERVAL}
+          Scanner · {patternCount || "…"} patterns × {universe.length} coins · {INTERVAL}
         </span>
         <h2 id="band-title">
           {!ready
@@ -244,13 +245,13 @@ const DashboardPage: React.FC = () => {
           <div className={styles.cardHead}>
             <h2 id="now-title">Setups detected now</h2>
             <Explain title="What counts as a setup">
-              A chart pattern (double bottom, flag, triangle…) in a direction, confirmed on one of
-              the last 3 closed {INTERVAL} candles. The win rate is the same setup across every
-              coin's history: target hit before stop within {catalog?.maxHoldBars ?? 30} candles (or
-              the pattern&apos;s length).
+              A pattern you picked on the chart (double bottom, flag, triangle…) in a direction,
+              confirmed on one of the last 3 closed {INTERVAL} candles. The win rate is the same
+              setup across every coin's history: target hit before stop within{" "}
+              {catalog?.maxHoldBars ?? 30} candles (or the pattern&apos;s length).
             </Explain>
             <p>
-              Chart patterns on a recent closed candle. Statistics pool every past case across all
+              Picked patterns on a recent closed candle. Statistics pool every past case across all
               coins.
             </p>
           </div>
@@ -378,7 +379,7 @@ const DashboardPage: React.FC = () => {
         <div className={styles.cardHead}>
           <h2 id="lib-title">How each setup has performed</h2>
           <Explain title="Reading this table">
-            Every past case of each chart pattern on every coin, measured in the background.
+            Every past case of each picked pattern on every coin, measured in the background.
             Break-even is the win rate needed to profit given the average win and loss. Edge
             candidate: at least {catalog?.minSample ?? 30} cases and the whole 95% range above the
             break-even after costs (fees, slippage, funding). Phase 2 re-tests candidates out of

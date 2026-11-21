@@ -55,12 +55,14 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
   **liquidity heatmap** layer with a pools table. Only **key levels** are drawn (Overlays →
   Display settings, saved per browser): intact, nearest 2 of each kind, zones ≥ 2 ATR departure,
   overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options.
-  **Patterns** panel: one choice, the timeframes (1h / 4h / 1d) chart patterns are looked for on;
-  zones and order blocks come from the pattern's own timeframe. Setup card: win rate of every
+  **Patterns** panel: two multi-select dropdowns, the timeframes (1h / 4h / 1d) and the patterns
+  per direction (chart and candlestick sections, bullish / bearish, trend icons); chart patterns
+  on and candlesticks off by default; saved per browser and applied on every page. Zones and order
+  blocks come from the pattern's own timeframe. Setup card: win rate of every
   past case of that pattern and direction (any location) with its range and break-even, average
   result after costs, plan, last cases.
-- **The app shows chart patterns only.** The backend still detects and measures candlestick
-  patterns and the location / order-flow splits; no screen shows them.
+- **Pattern choice is display only.** The backend detects and measures every pattern and the
+  location / order-flow splits whatever is picked; no screen shows the splits.
 - **Pattern stats** (`/stats`): every chart pattern × direction on 1h/4h/1d, per-coin
   breakdown, run progress.
 - **Dashboard** (`/`): market overview (unchanged), scanner from the service (last 3 closed
@@ -101,6 +103,14 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
 
 ## History
 
+- 2026-11-21: **Patterns panel as two dropdowns; lighter pattern drawing** (owner, designed on a
+  canvas first). Timeframes and patterns are multi-select dropdowns; the pattern menu lists every
+  supported pattern per direction under Chart / Candlestick and Bullish / Bearish, with custom
+  checkboxes, select all / clear per section and a slim scrollbar that fades while more is below.
+  Candlestick patterns are back as an option (off by default); the choice applies on Chart,
+  Pattern stats, Dashboard and Alerts. Drawing: the name and key-point tags are 10 px see-through
+  pills, the entry / stop / target zones 6% (were 14%), no text inside the box, and the price axis
+  shows only the three prices (no Entry / Stop / Target words). The win-rates status line is gone.
 - 2026-11-21: **Simpler pattern UI** (owner). The app shows chart patterns only; one setting picks
   the timeframes they are looked for on (was a dropdown per pattern, a level-source selector and
   a statistics table); setups are no longer split by location (zone / order block / confluence)

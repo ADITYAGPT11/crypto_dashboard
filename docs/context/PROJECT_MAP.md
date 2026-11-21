@@ -158,7 +158,7 @@ service's `/api/v1/candles`) + `RESEARCH_UNIVERSE`.
 payload), `marketStats` (volatility, ATR, trend, correlation, vol regime, sessions, movers,
 bubble layout), `marketOverview` (source parsers, liquidation sums), `marketRows` (per-coin
 rows), `timeframeMapping` (time → fractional view position, view patterns/levels), `detectionConfig`
-(the timeframes chart patterns are looked for on; which patterns are shown: chart only), `indicatorRegistry` (chart indicators on `indicatorts`,
+(timeframes and patterns per direction picked in the Patterns panel; chart on, candlesticks off by default), `indicatorRegistry` (chart indicators on `indicatorts`,
 instances, parsing), `chartDisplay` (Heikin-Ashi, timeframe labels, chart prefs), `tickerStats`, `priceUtils`, `watchlistStorage`,
 `layoutStorage`, `alertRulesStorage`. Adapter parsing and unsubscribe tests:
 `src/adapters/__tests__/`.

@@ -782,9 +782,10 @@ const PriceChart: React.FC<Props> = ({
             axisLabelVisible: true,
           }),
         );
-      add(plan.target, C.up, "Target", LineStyle.Dashed);
-      add(plan.entry, C.signal, "Entry", LineStyle.Solid);
-      add(plan.stop, C.down, "Stop", LineStyle.Dashed);
+      // Prices only: the colour says which is which (green target, blue entry, red stop).
+      add(plan.target, C.up, "", LineStyle.Dashed);
+      add(plan.entry, C.signal, "", LineStyle.Solid);
+      add(plan.stop, C.down, "", LineStyle.Dashed);
       // Scroll to the pattern only when the user picked it, never on a data refresh
       // (otherwise every candle close would pull the view away from the latest candle).
       if (focusKey !== null && focusKey !== focusedRef.current) {

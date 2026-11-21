@@ -35,6 +35,29 @@ function pill(
   g.fillText(text, left + 5, py);
 }
 
+/** A quiet tag: see-through tint, coloured text, thin outline (pattern names, key points). */
+function softPill(
+  g: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  text: string,
+  rgb: string,
+  align: "center" | "left" | "right" = "center",
+) {
+  g.font = "10px JetBrains Mono, monospace";
+  const tw = g.measureText(text).width + 10;
+  const left = align === "center" ? px - tw / 2 : align === "right" ? px - tw : px;
+  g.beginPath();
+  g.roundRect(left + 0.5, py - 7.5, tw, 16, 4);
+  g.fillStyle = `rgba(${rgb},0.14)`;
+  g.fill();
+  g.strokeStyle = `rgba(${rgb},0.35)`;
+  g.lineWidth = 1;
+  g.stroke();
+  g.fillStyle = `rgba(${rgb},0.9)`;
+  g.fillText(text, left + 5, py + 0.5);
+}
+
 function arrowHead(g: CanvasRenderingContext2D, px: number, py: number, up: boolean) {
   const d = up ? 1 : -1;
   g.beginPath();
@@ -44,8 +67,6 @@ function arrowHead(g: CanvasRenderingContext2D, px: number, py: number, up: bool
   g.closePath();
   g.fill();
 }
-
-const pct = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}%`;
 
 export function drawPattern(
   g: CanvasRenderingContext2D,
@@ -82,6 +103,7 @@ export function drawPattern(
   g.lineCap = "round";
 
   // 1. Position box (behind the formation): reward green, risk red, over the outcome window.
+  // Kept faint and unlabelled: the entry, stop and target prices sit on the price axis.
   const box = positionBox(vp);
   const bx1 = x(box.x1);
   const bx2 = x(box.x2);
@@ -90,9 +112,9 @@ export function drawPattern(
   const yS = y(box.stop);
   if (bx1 !== null && bx2 !== null && yE !== null && yT !== null && yS !== null) {
     const w = Math.max(bx2 - bx1, barW * 3);
-    g.fillStyle = `rgba(${UP},0.14)`;
+    g.fillStyle = `rgba(${UP},0.06)`;
     g.fillRect(bx1, Math.min(yE, yT), w, Math.abs(yT - yE));
-    g.fillStyle = `rgba(${DOWN},0.14)`;
+    g.fillStyle = `rgba(${DOWN},0.06)`;
     g.fillRect(bx1, Math.min(yE, yS), w, Math.abs(yS - yE));
     g.strokeStyle = "rgba(230,237,243,0.55)";
     g.lineWidth = 1;
@@ -100,33 +122,6 @@ export function drawPattern(
     g.moveTo(bx1, yE);
     g.lineTo(bx1 + w, yE);
     g.stroke();
-    g.font = "10px JetBrains Mono, monospace";
-    const inside = (yA: number, text: string, color: string) =>
-      pill(g, bx1 + w - 4, yA, text, color, INK, "right");
-    const towardT = yT < yE ? -1 : 1;
-    inside(
-      yT - towardT * 10,
-      `Target ${formatPrice(box.target)} ${pct(box.targetPct)}`,
-      `rgba(${UP},0.9)`,
-    );
-    inside(
-      yS + towardT * 10,
-      `Stop ${formatPrice(box.stop)} ${pct(box.stopPct)}`,
-      `rgba(${DOWN},0.9)`,
-    );
-    const res = vp.outcome.result;
-    const verdict =
-      res === "win" || res === "loss"
-        ? `${res.toUpperCase()} ${vp.outcome.r >= 0 ? "+" : "−"}${Math.abs(vp.outcome.r).toFixed(2)}R`
-        : res === "expired"
-          ? "Expired"
-          : "Open";
-    const rrText = box.rr > 0 ? `R:R ${box.rr.toFixed(2)}` : "Target behind entry";
-    inside(
-      yE + (towardT > 0 ? -11 : 11),
-      `${rrText} · fixed TP ${verdict}`,
-      "rgba(230,237,243,0.9)",
-    );
     // Where it resolved: a dotted path from the entry to the exit, and a dot there.
     const ex = box.exit ? x(box.exit.x) : null;
     const ey = box.exit ? y(box.exit.price) : null;
@@ -275,7 +270,8 @@ export function drawPattern(
         g.setLineDash([]);
         g.fillStyle = solid;
         arrowHead(g, px, b[1], b[1] < a[1]);
-        g.font = "10px JetBrains Mono, monospace";
+        g.font = "9px JetBrains Mono, monospace";
+        g.fillStyle = `rgba(${rgb},0.6)`;
         g.fillText(fig.projection.text, px + 6, (a[1] + b[1]) / 2);
         g.font = "11px JetBrains Mono, monospace";
       }
@@ -283,14 +279,13 @@ export function drawPattern(
     // 5. Key-point tags.
     for (const l of fig.labels) {
       const m = map(l.at);
-      if (m) pill(g, m[0], m[1] + (l.side === "below" ? 14 : -14), l.text, solid);
+      if (m) softPill(g, m[0], m[1] + (l.side === "below" ? 14 : -14), l.text, rgb);
     }
     // 6. Name tag beyond the formation.
     const sx = x(fig.span.x);
     const sy = y(long ? fig.span.high : fig.span.low);
     if (sx !== null && sy !== null) {
-      g.font = "bold 11px JetBrains Mono, monospace";
-      pill(g, sx, sy + (long ? -16 : 16), `${long ? "▲" : "▼"} ${name}`, solid, INK, "left");
+      softPill(g, sx, sy + (long ? -14 : 14), `${long ? "▲" : "▼"} ${name}`, rgb, "left");
     }
     // 7. Breakout marker on the confirmation close.
     const bm = map(fig.breakout);
@@ -322,9 +317,8 @@ export function drawPattern(
       g.strokeStyle = solid;
       g.lineWidth = 1.5;
       g.strokeRect(x1 - pad, yHigh - 6, x2 - x1 + pad * 2, yLow - yHigh + 12);
-      g.font = "bold 11px JetBrains Mono, monospace";
       const cx = (x1 + x2) / 2;
-      pill(g, cx, long ? yLow + 22 : yHigh - 22, `${long ? "▲" : "▼"} ${name}`, solid);
+      softPill(g, cx, long ? yLow + 20 : yHigh - 20, `${long ? "▲" : "▼"} ${name}`, rgb);
     }
   }
   g.restore();

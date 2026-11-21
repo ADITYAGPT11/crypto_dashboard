@@ -847,76 +847,199 @@
   background: var(--t-inner);
 }
 
-/* Patterns panel: one timeframe choice for every chart pattern. */
-.tfPick {
-  margin: 0;
-  padding: 0;
-  border: 0;
+/* Patterns panel: two multi-select dropdowns (timeframes, patterns per direction). */
+.picks {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+.pick {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pickLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+.pickBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  legend {
-    padding: 0;
-    margin-bottom: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--t-line-2);
+  background: var(--t-well);
+  color: var(--t-fg);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  &[aria-expanded="true"] {
+    border-color: var(--t-signal);
   }
-  > div {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+}
+.pickSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pickMenu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--t-line-2);
+  border-radius: 10px;
+  background: var(--t-raised);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+}
+.pickScroll {
+  max-height: 380px;
+  overflow-y: auto;
+  margin: -6px;
+  padding: 0 6px 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--t-line-2) transparent;
+  &::-webkit-scrollbar {
+    width: 6px;
   }
+  &::-webkit-scrollbar-thumb {
+    background: var(--t-line-2);
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+.pickFade {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent);
+}
+.pickSection {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 8px 4px;
+  background: var(--t-raised);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--t-muted);
   button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    min-height: 56px;
-    border-radius: 10px;
-    border: 1px solid var(--t-line-2);
-    background: var(--t-well);
-    color: var(--t-muted);
+    min-height: 28px;
+    border: 0;
+    background: transparent;
+    color: var(--t-signal);
     font: inherit;
     font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
     cursor: pointer;
-    b {
-      font: 500 14px var(--t-font-data);
-    }
-    &[aria-pressed="true"] {
-      border-color: var(--t-signal);
-      background: var(--t-signal-soft);
-      color: var(--t-fg);
-    }
   }
-  p {
-    margin: 0;
-    font-size: 12.5px;
+  section + section & {
+    border-top: 1px solid var(--t-line);
   }
 }
-.patNames {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 14px;
-  font-size: 13px;
-  li::before {
-    content: "";
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    margin-right: 8px;
-    border-radius: 3px;
-    background: var(--t-up);
-    vertical-align: middle;
-  }
-}
-.patStatus {
-  margin: 0;
+.pickSide {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 2px;
+  > span {
+    padding: 6px 8px 2px;
+    font-size: 11.5px;
+  }
+}
+.opt {
+  position: relative;
+  display: flex;
+  align-items: center;
   gap: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--t-inner);
+  min-height: 36px;
+  padding: 0 8px;
+  border-radius: 8px;
   font-size: 12.5px;
+  color: var(--t-muted);
+  cursor: pointer;
+  &:hover {
+    background: var(--t-inner);
+  }
+  input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+  }
+  input:focus-visible + .optBox {
+    outline: 2px solid var(--t-signal);
+    outline-offset: 2px;
+  }
+}
+.optOn {
+  color: var(--t-fg);
+  background: rgba(76, 154, 255, 0.08);
+}
+.optBox {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border-radius: 5px;
+  border: 1.5px solid #4a5568;
+  svg {
+    display: none;
+    fill: none;
+    stroke: var(--t-signal-ink);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .optOn & {
+    border-color: var(--t-signal);
+    background: var(--t-signal);
+    svg {
+      display: block;
+    }
+  }
+}
+.trend {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  svg {
+    fill: none;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  &.up {
+    background: rgba(86, 211, 100, 0.1);
+    svg {
+      stroke: var(--t-up);
+    }
+  }
+  &.down {
+    background: rgba(244, 112, 103, 0.1);
+    svg {
+      stroke: var(--t-down);
+    }
+  }
 }

@@ -450,3 +450,6 @@ timeframes chart patterns are looked for on) and one record per pattern and dire
 location. The backend is unchanged on purpose: it still detects candlesticks and measures every
 split, so bringing any of it back is a UI change, not a re-measurement. Removing candlesticks from
 the rule set itself would be a new rule-set version; not done until the owner asks.
+Same day, second pass: candlesticks came back as an opt-in choice in a pattern dropdown (per
+pattern and direction, off by default), so the owner picks what to watch without a per-pattern
+timeframe matrix.
