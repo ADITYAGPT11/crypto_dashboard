@@ -240,7 +240,8 @@ class CaseOut(Out):
     symbol: str
     location: str
     time: int
-    result: Literal["win", "loss"]
+    #: Expired = closed at the market after the holding limit (since rule set r5).
+    result: Literal["win", "loss", "expired"]
     entry: float
     stop: float
     target: float

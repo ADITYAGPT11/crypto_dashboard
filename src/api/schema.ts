@@ -28,7 +28,7 @@ export interface CaseOut {
   symbol: string;
   location: string;
   time: number;
-  result: "win" | "loss";
+  result: "win" | "loss" | "expired";
   entry: number;
   stop: number;
   target: number;

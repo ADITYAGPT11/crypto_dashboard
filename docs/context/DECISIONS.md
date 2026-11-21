@@ -441,3 +441,12 @@ per trade taken, not per trade that happened to finish. Effect: far fewer candle
 (1h bullish engulfing 1,062 → 240 a year on 3 coins), so more buckets show "too few". Trend
 thresholds (EMA(20), 0.5 ATR in 5 candles; 2 ATR in 20 for chart reversals) are common
 guidelines, not fitted to outcomes.
+
+### 2026-11-21 · The app shows chart patterns only, without location or order-flow splits
+
+Why: the owner found the module too complicated to read (a dropdown per pattern, a level source,
+candlesticks, location and order-flow buckets on every screen). The UI now has one setting (the
+timeframes chart patterns are looked for on) and one record per pattern and direction at any
+location. The backend is unchanged on purpose: it still detects candlesticks and measures every
+split, so bringing any of it back is a UI change, not a re-measurement. Removing candlesticks from
+the rule set itself would be a new rule-set version; not done until the owner asks.

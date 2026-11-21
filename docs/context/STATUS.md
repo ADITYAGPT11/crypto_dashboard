@@ -54,15 +54,19 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
   measured move, position box over the outcome window; other overlays fade), demand/supply zones, order blocks, fair value gaps, volume profile and a
   **liquidity heatmap** layer with a pools table. Only **key levels** are drawn (Overlays →
   Display settings, saved per browser): intact, nearest 2 of each kind, zones ≥ 2 ATR departure,
-  overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options. Detection settings per pattern (from the
-  catalogue) and level source. Setup card: pooled record, the pattern's any-location baseline,
-  this coin only, last cases across coins, plan, context checks.
-- **Pattern stats** (`/stats`): every pattern × direction × location on 1h/4h/1d with a level
-  source and location filter, per-coin breakdown, run progress.
+  overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options.
+  **Patterns** panel: one choice, the timeframes (1h / 4h / 1d) chart patterns are looked for on;
+  zones and order blocks come from the pattern's own timeframe. Setup card: win rate of every
+  past case of that pattern and direction (any location) with its range and break-even, average
+  result after costs, plan, last cases.
+- **The app shows chart patterns only.** The backend still detects and measures candlestick
+  patterns and the location / order-flow splits; no screen shows them.
+- **Pattern stats** (`/stats`): every chart pattern × direction on 1h/4h/1d, per-coin
+  breakdown, run progress.
 - **Dashboard** (`/`): market overview (unchanged), scanner from the service (last 3 closed
-  candles), top setups by cases, watchlist.
-- **Risk** (`/risk`) and **Alerts** (`/alerts`): records from the service; alert rules match
-  scanner results (same-timeframe levels); old stored rule keys are upgraded.
+  candles, chart patterns), top setups by cases, watchlist.
+- **Risk** (`/risk`) and **Alerts** (`/alerts`): records from the service; new alert rules fire on
+  a chart pattern at any location; old stored rule keys (with a location) still work.
 - **History** (`HistoryService`): Binance REST from the browser, falling back to the service's
   stored candles.
 - **Tech overview** (`/tech-overview`): clickable architecture map of the whole system; every
@@ -97,6 +101,14 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
 
 ## History
 
+- 2026-11-21: **Simpler pattern UI** (owner). The app shows chart patterns only; one setting picks
+  the timeframes they are looked for on (was a dropdown per pattern, a level-source selector and
+  a statistics table); setups are no longer split by location (zone / order block / confluence)
+  or order flow on any screen: the setup card, Pattern stats, Dashboard and Alerts read the
+  any-location record. Setup card loses the any-location baseline, this-coin-only record,
+  trailing-TP block, context checks and order-flow table. Recent cases now include trades closed
+  at the holding limit (r5 counts them; the API returned only wins and losses). Backend rules,
+  statistics and API unchanged otherwise.
 - 2026-11-21: Chart no longer shades a higher-timeframe pattern's source candles in blue (owner:
   the tag, e.g. "Bear flag · 1d", already names the timeframe). Display only.
 - 2026-11-21: **Rule review against the industry standard (rule set r5)**. Audited every rule

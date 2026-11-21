@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { DrawingKind } from "lightweight-charts-drawing";
 import { useNavigate, useParams } from "react-router-dom";
-import { CANDLE_INTERVALS, type Candle, type CandleInterval } from "../../types/marketData";
+import type { CandleInterval } from "../../types/marketData";
 import type { AnalysisOut } from "../../api/schema";
 import type { SetupOccurrence } from "../../types/analysis";
 import { useHistories } from "../../custom-hooks/useHistories";
@@ -12,19 +12,15 @@ import {
   useSetupDetail,
   useStats,
 } from "../../custom-hooks/useAnalysisApi";
-import { locationLabel, setupKey, toStats } from "../../utils/setupKeys";
+import { setupKey } from "../../utils/setupKeys";
 import { statsByKey } from "../../utils/setupLibrary";
 import { patternLabel } from "../../utils/patternLabels";
 import { computeVolumeProfile } from "../../utils/volumeProfile";
-import { ema, sma } from "../../utils/indicators";
 import { pct, price, shortDate } from "../../utils/format";
 import {
-  activeTfs,
-  DETECTION_TFS,
   loadDetection,
   saveDetection,
-  tfsFor,
-  zoneTfFor,
+  shownIds,
   type DetectionConfig,
 } from "../../utils/detectionConfig";
 import {
@@ -75,12 +71,12 @@ import {
   type IndicatorId,
   type IndicatorInstance,
 } from "../../utils/indicatorRegistry";
-import SetupCard, { type Check } from "./SetupCard";
+import SetupCard from "./SetupCard";
 import DetectionSettings from "./DetectionSettings";
 import { TfBadge } from "./TfBadge";
 import styles from "./ChartPage.module.scss";
 
-/** An occurrence plus the timeframe it was detected on and its zone source. */
+/** An occurrence plus the timeframe it was detected on and its level timeframe (the same). */
 interface Found {
   occ: SetupOccurrence;
   tf: CandleInterval;
@@ -89,9 +85,9 @@ interface Found {
   closeTime: number;
 }
 const foundId = (f: Found) => `${f.tf}-${f.occ.pattern}-${f.occ.direction}-${f.occ.time}`;
-const keyOf = (o: Pick<SetupOccurrence, "pattern" | "direction" | "location">) =>
-  setupKey(o.pattern, o.direction, o.location);
-const NO_CANDLES: Candle[] = [];
+/** Records are read at any location: the app no longer splits setups by zone / order block. */
+const keyOf = (o: Pick<SetupOccurrence, "pattern" | "direction">) =>
+  setupKey(o.pattern, o.direction, "*");
 const LEVEL_LABEL: Record<string, string> = {
   demand: "Demand",
   supply: "Supply",
@@ -115,11 +111,6 @@ const ChartPage: React.FC = () => {
     setConfigState(cfg);
     saveDetection(cfg);
   };
-  const [showTf, setShowTf] = useState<Record<string, boolean>>({
-    "1h": true,
-    "4h": true,
-    "1d": true,
-  });
   const [attempt, setAttempt] = useState(0);
   const [overlays, setOverlaysState] = useState<OverlaySettings>(() =>
     loadJson(OVERLAYS_STORAGE_KEY, parseOverlays),
@@ -173,11 +164,11 @@ const ChartPage: React.FC = () => {
 
   // The rule set lives in the backend: patterns, zones and order blocks per detection timeframe.
   const catalog = useCatalog().data;
-  const patternTfs = useMemo(() => activeTfs(config, catalog), [config, catalog]);
-  const zoneFor = (tf: CandleInterval) => zoneTfFor(tf, config.zones);
-  const a1h = useAnalysis(patternTfs.includes("1h") ? symbol : null, "1h", zoneFor("1h"));
-  const a4h = useAnalysis(patternTfs.includes("4h") ? symbol : null, "4h", zoneFor("4h"));
-  const a1d = useAnalysis(patternTfs.includes("1d") ? symbol : null, "1d", zoneFor("1d"));
+  const patternTfs = config.tfs;
+  // Zones and order blocks come from the pattern's own timeframe.
+  const a1h = useAnalysis(patternTfs.includes("1h") ? symbol : null, "1h", "1h");
+  const a4h = useAnalysis(patternTfs.includes("4h") ? symbol : null, "4h", "4h");
+  const a1d = useAnalysis(patternTfs.includes("1d") ? symbol : null, "1d", "1d");
   const analyses = useMemo(() => {
     const out = new Map<CandleInterval, AnalysisOut>();
     if (a1h.data) out.set("1h", a1h.data);
@@ -190,11 +181,10 @@ const ChartPage: React.FC = () => {
 
   const found: Found[] = useMemo(() => {
     const out: Found[] = [];
-    const byId = new Map((catalog?.patterns ?? []).map((p) => [p.id, p]));
+    const visible = shownIds(catalog); // chart patterns only
     for (const [tf, a] of analyses) {
       for (const occ of a.occurrences) {
-        const spec = byId.get(occ.pattern);
-        if (spec && !tfsFor(config, spec).includes(tf)) continue;
+        if (!visible.has(occ.pattern)) continue;
         out.push({
           occ: { ...occ, symbol },
           tf,
@@ -204,33 +194,26 @@ const ChartPage: React.FC = () => {
       }
     }
     return out.sort((x, y) => y.closeTime - x.closeTime);
-  }, [analyses, config, catalog, symbol]);
+  }, [analyses, catalog, symbol]);
 
-  const recent = useMemo(() => found.filter((f) => showTf[f.tf]).slice(0, 12), [found, showTf]);
+  const recent = useMemo(() => found.slice(0, 12), [found]);
   const selected = recent.find((f) => foundId(f) === selId) ?? recent[0] ?? null;
   const selTf = selected?.tf ?? patternTfs[0] ?? "4h";
-  const selZoneTf = selected?.zoneTf ?? zoneFor(selTf);
+  const selZoneTf = selected?.zoneTf ?? selTf;
   const selAnalysis = analyses.get(selTf) ?? analyses.values().next().value ?? null;
 
-  const needed = useMemo(
-    () => CANDLE_INTERVALS.filter((tf) => tf === viewTf || tf === selTf),
-    [viewTf, selTf],
-  );
+  const needed = useMemo(() => [viewTf], [viewTf]);
   const hist = useHistories(symbol, needed, attempt);
   const view = hist.get(viewTf)!;
   const liveFeed = useLiveCandle(symbol, viewTf);
   const live = liveFeed.candle;
   const candles = view.candles;
-  const selCandles = hist.get(selTf)?.candles ?? NO_CANDLES;
 
   // Pooled statistics from the background job (all coins, one to two years).
   const ctxStats = useStats(selTf, selZoneTf);
   const statsMap = useMemo(() => statsByKey(ctxStats.data), [ctxStats.data]);
   const key = selected ? keyOf(selected.occ) : null;
   const pooled = key ? (statsMap.get(key) ?? null) : null;
-  const baseline = selected
-    ? (statsMap.get(setupKey(selected.occ.pattern, selected.occ.direction, "*")) ?? null)
-    : null;
   const detail = useSetupDetail(
     selTf,
     selZoneTf,
@@ -238,15 +221,10 @@ const ChartPage: React.FC = () => {
       ? {
           pattern: selected.occ.pattern,
           direction: selected.occ.direction,
-          location: selected.occ.location,
+          location: "*",
         }
       : null,
   ).data;
-  const ownRow = detail?.perCoin.find((c) => c.symbol === symbol);
-  const own =
-    selected && ownRow
-      ? toStats(selected.occ.pattern, selected.occ.direction, selected.occ.location, ownRow.summary)
-      : null;
 
   // Past cases of the selected setup on this chart, as markers.
   const history = useMemo(
@@ -304,58 +282,6 @@ const ChartPage: React.FC = () => {
   );
 
   const profile = useMemo(() => computeVolumeProfile(candles.slice(-200), 48), [candles]);
-  // EMA 50 and 20-candle volume on the pattern's timeframe, for the context checks.
-  const context = useMemo(() => {
-    const closes = selCandles.map((c) => c.close);
-    return {
-      ema50: ema(closes, 50),
-      vol20: sma(
-        selCandles.map((c) => c.volume),
-        20,
-      ),
-    };
-  }, [selCandles]);
-
-  const checks: Check[] = useMemo(() => {
-    if (!selected) return [];
-    const o = selected.occ;
-    const long = o.direction === "long";
-    const out: Check[] = [];
-    out.push(
-      o.location === "openSpace"
-        ? { ok: false, text: `Not at a ${selected.zoneTf} zone or order block (open space)` }
-        : { ok: true, text: `${locationLabel(o.location, o.direction)} (${selected.zoneTf})` },
-    );
-    const i = selCandles.findIndex((c) => c.openTime === o.time);
-    if (i > 0) {
-      const avgVol = context.vol20[i - 1];
-      if (Number.isFinite(avgVol) && avgVol > 0) {
-        const ratio = selCandles[i].volume / avgVol;
-        out.push({
-          ok: ratio >= 1.2,
-          text: `Confirmation candle on ${ratio.toFixed(1)}× the 20-candle average volume`,
-        });
-      }
-      const e = context.ema50[i];
-      if (Number.isFinite(e)) {
-        const withTrend = long ? selCandles[i].close > e : selCandles[i].close < e;
-        out.push({
-          ok: withTrend,
-          text: `${selCandles[i].close > e ? "Above" : "Below"} EMA 50 (${selected.tf}): ${withTrend ? "with" : "against"} the trend`,
-        });
-      }
-      const prior = computeVolumeProfile(selCandles.slice(Math.max(0, i - 200), i + 1), 48);
-      if (prior) {
-        const clear = long ? o.entry > prior.pocPrice : o.entry < prior.pocPrice;
-        out.push({
-          ok: clear,
-          text: `Entry ${o.entry > prior.pocPrice ? "above" : "below"} the point of control (${price(prior.pocPrice)})${clear ? "" : ": volume in the way"}`,
-        });
-      }
-    }
-    return out;
-  }, [selected, selCandles, context]);
-
   // The key levels on the chart, nearest to price first (broken ones last).
   const levelsShown = useMemo(() => {
     if (!shown || lastClose === null) return [];
@@ -722,21 +648,6 @@ const ChartPage: React.FC = () => {
             <div className={styles.cardHead}>
               <h2 id="pat-title">Patterns on this chart</h2>
               <p>Most recent first. Pick one to see its record.</p>
-              <span className={styles.toolGroup} role="group" aria-label="Show patterns found on">
-                Found on
-                {DETECTION_TFS.map((tf) => (
-                  <button
-                    key={tf}
-                    type="button"
-                    className={styles.tog}
-                    aria-pressed={showTf[tf]}
-                    aria-label={`Show patterns found on ${tf}`}
-                    onClick={() => setShowTf((m) => ({ ...m, [tf]: !m[tf] }))}
-                  >
-                    <TfBadge tf={tf} />
-                  </button>
-                ))}
-              </span>
             </div>
             <ul className={styles.patList}>
               {recent.map((f) => {
@@ -757,10 +668,7 @@ const ChartPage: React.FC = () => {
                         <span className={f.occ.direction === "long" ? styles.up : styles.down}>
                           {f.occ.direction === "long" ? "▲" : "▼"}
                         </span>{" "}
-                        {patternLabel(f.occ.pattern)}{" "}
-                        <span className={styles.mute}>
-                          {locationLabel(f.occ.location, f.occ.direction)}
-                        </span>
+                        {patternLabel(f.occ.pattern)}
                       </b>
                       <span className={styles.num}>{st ? pct(st.winRate) : ""}</span>
                       <small>
@@ -780,9 +688,7 @@ const ChartPage: React.FC = () => {
                 <li className={styles.mute}>Detecting patterns…</li>
               )}
               {catalog && patternTfs.length === 0 && (
-                <li className={styles.mute}>
-                  Every pattern is switched off in Detection settings.
-                </li>
+                <li className={styles.mute}>No timeframe picked under Patterns.</li>
               )}
             </ul>
           </section>
@@ -793,16 +699,12 @@ const ChartPage: React.FC = () => {
               zoneTf={selected.zoneTf}
               isCurrent={isNow(selected)}
               pooled={pooled}
-              baseline={baseline}
-              own={own}
-              contexts={detail?.contexts ?? []}
               recent={detail?.recent ?? []}
               run={ctxStats.data?.run ?? null}
               statsError={ctxStats.error}
               ruleset={catalog?.ruleset ?? null}
               maxHoldBars={catalog?.maxHoldBars ?? 30}
               minSample={catalog?.minSample ?? 30}
-              checks={checks}
             />
           )}
         </aside>

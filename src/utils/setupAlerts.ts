@@ -142,11 +142,11 @@ export function resolveOutcome(
   return occ?.outcome.result ?? firing.outcome;
 }
 
-/** "Long double bottom in demand zone" for a valid key, the raw key otherwise. */
+/** "Long double bottom" (plus its location on rules saved before r5's UI) or the raw key. */
 export function setupName(key: string): string {
   const s = parseSetupKey(key);
   return s
-    ? `${s.direction === "long" ? "Long" : "Short"} ${patternLabel(s.pattern).toLowerCase()} ${locationLabel(s.location, s.direction)}`
+    ? `${s.direction === "long" ? "Long" : "Short"} ${patternLabel(s.pattern).toLowerCase()} ${locationLabel(s.location, s.direction)}`.trimEnd()
     : key;
 }
 

@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useCatalog, useStats } from "../../custom-hooks/useAnalysisApi";
 import { useSetupAlerts } from "../../custom-hooks/useSetupAlerts";
 import { SetupAlertService, type TelegramStatus } from "../../services/SetupAlertService";
-import { LOCATIONS, locationLabel, parseSetupKey, setupKey as keyOf } from "../../utils/setupKeys";
+import { parseSetupKey, setupKey as keyOf } from "../../utils/setupKeys";
+import { shownPatterns } from "../../utils/detectionConfig";
 import { patternLabel } from "../../utils/patternLabels";
 import { statsByKey } from "../../utils/setupLibrary";
 import {
@@ -15,13 +16,11 @@ import {
 } from "../../utils/setupAlerts";
 import { loadWatchlist } from "../../utils/watchlistStorage";
 import { pct, price } from "../../utils/format";
-import type { Direction, LocationFilter } from "../../types/analysis";
+import type { Direction } from "../../types/analysis";
 import type { CandleInterval } from "../../types/marketData";
 import { Chip, CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
 import { BRAND } from "../../brand";
 import styles from "./AlertsPage.module.scss";
-
-const LOCATION_CHOICES: readonly LocationFilter[] = ["*", ...LOCATIONS];
 
 const TELEGRAM_TEXT: Record<TelegramStatus, string> = {
   unknown: "Checking the backend…",
@@ -64,20 +63,20 @@ const AlertsPage: React.FC = () => {
 
   const initialSetup = parseSetupKey(params.get("setup"));
   const [symbol, setSymbol] = useState(params.get("symbol") ?? watchlist[0] ?? "BTC-USDT");
+  // New alerts fire on a chart pattern at any location.
   const [setup, setSetup] = useState(
     initialSetup
-      ? keyOf(initialSetup.pattern, initialSetup.direction, initialSetup.location)
+      ? keyOf(initialSetup.pattern, initialSetup.direction, "*")
       : keyOf("doubleBottom", "long", "*"),
   );
   const setupInfo = parseSetupKey(setup) ?? {
     pattern: "doubleBottom",
     direction: "long" as Direction,
-    location: "*" as LocationFilter,
   };
   const catalog = useCatalog().data;
   const patternChoices = useMemo(
     () =>
-      (catalog?.patterns ?? []).flatMap((p) =>
+      shownPatterns(catalog).flatMap((p) =>
         (p.bias === "either" ? (["long", "short"] as const) : [p.bias]).map((d) => ({
           value: `${p.id}|${d}`,
           label: `${d === "long" ? "▲" : "▼"} ${p.label}${p.bias === "either" ? (d === "long" ? " (up)" : " (down)") : ""}`,
@@ -178,7 +177,7 @@ const AlertsPage: React.FC = () => {
                   value={`${setupInfo.pattern}|${setupInfo.direction}`}
                   onChange={(e) => {
                     const [pattern, d] = e.target.value.split("|");
-                    setSetup(keyOf(pattern, d === "short" ? "short" : "long", setupInfo.location));
+                    setSetup(keyOf(pattern, d === "short" ? "short" : "long", "*"));
                   }}
                 >
                   {patternChoices.length === 0 && (
@@ -189,27 +188,6 @@ const AlertsPage: React.FC = () => {
                   {patternChoices.map((c) => (
                     <option key={c.value} value={c.value}>
                       {c.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span className="sr-only">Location</span>
-                <select
-                  value={setupInfo.location}
-                  onChange={(e) =>
-                    setSetup(
-                      keyOf(
-                        setupInfo.pattern,
-                        setupInfo.direction,
-                        LOCATION_CHOICES.find((l) => l === e.target.value) ?? "*",
-                      ),
-                    )
-                  }
-                >
-                  {LOCATION_CHOICES.map((l) => (
-                    <option key={l} value={l}>
-                      {locationLabel(l, setupInfo.direction)}
                     </option>
                   ))}
                 </select>

@@ -144,7 +144,7 @@ sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX 
 `l2_orderbook`), `liquidityHeatmap`
 (buckets, samples, pools, recorded columns → samples, history + live merge), `heatmapRender`
 (thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
-position), `flowContext` (order-flow buckets: labels, current buckets, bucket vs setup), `footprint`
+position), `footprint`
 (rows, `FootprintBook`, diagonal imbalance), `overlaySettings` (layers + which levels are key; display
 only, saved per browser). Types: `src/types/analysis.ts` wraps the generated
 `src/api/schema.ts`; client `src/api/client.ts`.
@@ -158,7 +158,7 @@ service's `/api/v1/candles`) + `RESEARCH_UNIVERSE`.
 payload), `marketStats` (volatility, ATR, trend, correlation, vol regime, sessions, movers,
 bubble layout), `marketOverview` (source parsers, liquidation sums), `marketRows` (per-coin
 rows), `timeframeMapping` (time → fractional view position, view patterns/levels), `detectionConfig`
-(pattern TFs from the catalogue, level source), `indicatorRegistry` (chart indicators on `indicatorts`,
+(the timeframes chart patterns are looked for on; which patterns are shown: chart only), `indicatorRegistry` (chart indicators on `indicatorts`,
 instances, parsing), `chartDisplay` (Heikin-Ashi, timeframe labels, chart prefs), `tickerStats`, `priceUtils`, `watchlistStorage`,
 `layoutStorage`, `alertRulesStorage`. Adapter parsing and unsubscribe tests:
 `src/adapters/__tests__/`.

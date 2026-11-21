@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCatalog, useSetupDetail, useStats } from "../../custom-hooks/useAnalysisApi";
 import { patternLabel } from "../../utils/patternLabels";
-import { locationLabel, parseSetupKey, toStats } from "../../utils/setupKeys";
+import { parseSetupKey, toStats } from "../../utils/setupKeys";
 import { analysisApi, statsKey } from "../../services/AnalysisApi";
 import {
   filterAndSort,
@@ -11,17 +11,10 @@ import {
   type LibraryFilter,
   type LibrarySort,
 } from "../../utils/setupLibrary";
-import {
-  loadDetection,
-  zoneTfFor,
-  ZONE_OPTIONS,
-  type ZoneSourceOption,
-} from "../../utils/detectionConfig";
+import { shownIds } from "../../utils/detectionConfig";
 import { pct, shortDate, signedPct, signedR } from "../../utils/format";
 import type { CandleInterval } from "../../types/marketData";
-import type { LocationFilter } from "../../types/analysis";
 import { CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
-import { contextLabel, FLOW_CONTEXTS, isFlowContext } from "../../utils/flowContext";
 import styles from "./StatsPage.module.scss";
 
 export const STATS_INTERVALS: readonly CandleInterval[] = ["1h", "4h", "1d"];
@@ -42,15 +35,6 @@ const SORTS: { id: LibrarySort; label: string }[] = [
 function asInterval(value: string | null): CandleInterval {
   return STATS_INTERVALS.find((i) => i === value) ?? "4h";
 }
-
-const LOCATION_PICKS: { id: LocationFilter | "all"; label: string }[] = [
-  { id: "all", label: "Every location" },
-  { id: "*", label: "Pattern only (any location)" },
-  { id: "confluence", label: "At zone + order block" },
-  { id: "zone", label: "At a demand / supply zone" },
-  { id: "orderBlock", label: "At an order block" },
-  { id: "openSpace", label: "In open space" },
-];
 
 /** One coin at a time for an opened row, from the backend's per-coin statistics. */
 function CoinBreakdown({
@@ -129,40 +113,30 @@ const StatsPage: React.FC = () => {
   const [sort, setSort] = useState<LibrarySort>("n");
   const [open, setOpen] = useState<string | null>(null);
 
-  const [zones, setZones] = useState<ZoneSourceOption>(() => loadDetection().zones);
-  const [where, setWhere] = useState<LocationFilter | "all">("all");
-  const flowParam = params.get("flow");
-  const flow = isFlowContext(flowParam) ? flowParam : "*";
-  const zoneTf = zoneTfFor(interval, zones);
+  // One record per chart pattern and direction, at any location (levels from the same timeframe).
+  const zoneTf = interval;
   const catalog = useCatalog().data;
-  const res = useStats(interval, zoneTf, flow);
+  const res = useStats(interval, zoneTf);
   const run = res.data?.run ?? null;
   const loading = !res.data && !res.error;
   const maxHold = catalog?.maxHoldBars ?? 30;
   const minSample = catalog?.minSample ?? 30;
 
-  const all = useMemo(
-    () =>
-      [...statsByKey(res.data).values()].filter(
-        (s) => s.n > 0 && (where === "all" ? s.location !== "*" : s.location === where),
-      ),
-    [res.data, where],
-  );
+  const all = useMemo(() => {
+    const shown = shownIds(catalog);
+    return [...statsByKey(res.data).values()].filter(
+      (s) => s.n > 0 && s.location === "*" && shown.has(s.pattern),
+    );
+  }, [res.data, catalog]);
   const rows = useMemo(() => filterAndSort(all, filter, sort), [all, filter, sort]);
   const totals = libraryTotals(all);
   const coins = run ? run.coins.length - run.failed.length : 0;
   const failed = run?.failed ?? [];
   const years = run ? Math.round((run.days / 365) * 10) / 10 : null;
 
-  const setQuery = (tf: CandleInterval, ctx: string) => {
-    const next: Record<string, string> = {};
-    if (tf !== "4h") next.tf = tf;
-    if (ctx !== "*") next.flow = ctx;
-    setParams(next, { replace: true });
-  };
   const pickInterval = (tf: CandleInterval) => {
     setOpen(null);
-    setQuery(tf, flow);
+    setParams(tf === "4h" ? {} : { tf }, { replace: true });
   };
 
   return (
@@ -171,13 +145,11 @@ const StatsPage: React.FC = () => {
         <div>
           <h1>Pattern stats</h1>
           <p>
-            Every pattern × direction × location, measured in the background on closed {interval}{" "}
+            Every chart pattern in both directions, measured in the background on closed {interval}{" "}
             candles across {coins || "the research"} coins
-            {years ? ` over ${years} years` : ""}, with {zoneTf} zones and order blocks. Win =
-            target hit before stop within {maxHold} candles (or the pattern&apos;s length); trades
-            that reach neither close at the market and count. After costs: fees, slippage and
-            funding.
-            {flow !== "*" ? ` Showing only cases with ${contextLabel(flow).toLowerCase()}.` : ""}
+            {years ? ` over ${years} years` : ""}. Win = target hit before stop within {maxHold}{" "}
+            candles (or the pattern&apos;s length); trades that reach neither close at the market
+            and count. After costs: fees, slippage and funding.
             {run?.finishedAt ? ` Updated ${shortDate(run.finishedAt)}.` : ""}
           </p>
         </div>
@@ -196,63 +168,13 @@ const StatsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className={styles.controls}>
-        <label className={styles.sort}>
-          Zones and order blocks from
-          <select value={zones} onChange={(e) => setZones(e.target.value as ZoneSourceOption)}>
-            {ZONE_OPTIONS.map((z) => (
-              <option key={z} value={z}>
-                {z === "same" ? `same (${interval})` : `${zoneTfFor(interval, z)}`}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.sort}>
-          Location
-          <select
-            value={where}
-            onChange={(e) => setWhere(e.target.value as LocationFilter | "all")}
-          >
-            {LOCATION_PICKS.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={styles.sort}>
-          Order flow at confirmation{" "}
-          <Explain title="Order flow filter">
-            Only the cases where order flow (Binance taker volume) looked like this when the pattern
-            confirmed: delta over the last 3 candles at least 2% of volume with or against the
-            trade, or a CVD divergence. Pooled across coins only; the per-coin breakdown of a row
-            still shows every case. Many filters compared at once will make some look good by
-            chance: a lead to test out of sample, not an edge.
-          </Explain>
-          <select
-            value={flow}
-            onChange={(e) => {
-              setOpen(null);
-              setQuery(interval, e.target.value);
-            }}
-          >
-            <option value="*">Any</option>
-            {FLOW_CONTEXTS.map((c) => (
-              <option key={c} value={c}>
-                {contextLabel(c)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
       {res.error && (
         <div className={styles.alert} role="alert">
           <span>{res.error}</span>
           <button
             type="button"
             className={styles.btn}
-            onClick={() => void analysisApi().stats.refresh(statsKey(interval, zoneTf, flow))}
+            onClick={() => void analysisApi().stats.refresh(statsKey(interval, zoneTf, "*"))}
           >
             Try again
           </button>
@@ -279,14 +201,14 @@ const StatsPage: React.FC = () => {
         <div className={styles.card}>
           <span className={styles.lbl}>Setups measured</span>
           <span className={styles.big}>{res.data ? totals.setups : "…"}</span>
-          <span className={styles.mute}>pattern × direction × location</span>
+          <span className={styles.mute}>chart pattern × direction</span>
         </div>
         <div className={styles.card}>
           <span className={styles.lbl}>Resolved cases</span>
           <span className={styles.big}>
             {res.data ? totals.resolved.toLocaleString("en-US") : "…"}
           </span>
-          <span className={styles.mute}>target or stop hit</span>
+          <span className={styles.mute}>target, stop or holding limit</span>
         </div>
         <div className={styles.card}>
           <span className={styles.lbl}>Edge candidates</span>
@@ -304,10 +226,10 @@ const StatsPage: React.FC = () => {
         <div className={styles.cardHead}>
           <h2 id="lib-title">Setup library</h2>
           <Explain title="Reading this table">
-            Each row pools every past case of one setup across all coins. The bar is the 95% range
-            of the true win rate; the tick is the break-even win rate given the average win size.
-            Edge candidate: at least {minSample} cases and the whole range right of the tick. Open a
-            row to see each coin on its own.
+            Each row pools every past case of one chart pattern in one direction across all coins.
+            The bar is the 95% range of the true win rate; the tick is the break-even win rate given
+            the average win size. Edge candidate: at least {minSample} cases and the whole range
+            right of the tick. Open a row to see each coin on its own.
           </Explain>
           <div className={styles.controls}>
             <div className={styles.pills} role="group" aria-label="Verdict">
@@ -375,10 +297,6 @@ const StatsPage: React.FC = () => {
                               {s.direction === "long" ? "▲" : "▼"}
                             </span>{" "}
                             <b>{patternLabel(s.pattern)}</b>
-                            <span className={styles.mute}>
-                              {" "}
-                              {locationLabel(s.location, s.direction)}
-                            </span>
                           </span>
                         </button>
                       </td>
