@@ -15,7 +15,6 @@ import {
 import { setupKey } from "../../utils/setupKeys";
 import { statsByKey } from "../../utils/setupLibrary";
 import { patternLabel } from "../../utils/patternLabels";
-import { computeVolumeProfile } from "../../utils/volumeProfile";
 import { pct, price, shortDate } from "../../utils/format";
 import {
   loadDetection,
@@ -31,7 +30,6 @@ import {
   viewBarTimeForClose,
   type ViewPattern,
 } from "../../utils/timeframeMapping";
-import { Chip, Explain } from "../../common-components/Evidence";
 import PriceChart, {
   type ChartHandle,
   type IndicatorAction,
@@ -89,12 +87,6 @@ const foundId = (f: Found) => `${f.tf}-${f.occ.pattern}-${f.occ.direction}-${f.o
 /** Records are read at any location: the app no longer splits setups by zone / order block. */
 const keyOf = (o: Pick<SetupOccurrence, "pattern" | "direction">) =>
   setupKey(o.pattern, o.direction, "*");
-const LEVEL_LABEL: Record<string, string> = {
-  demand: "Demand",
-  supply: "Supply",
-  bullish: "Bull OB",
-  bearish: "Bear OB",
-};
 
 const ChartPage: React.FC = () => {
   const params = useParams();
@@ -270,7 +262,7 @@ const ChartPage: React.FC = () => {
   }, [history, selected, candles]);
 
   const levelTf = (selAnalysis?.zoneTf ?? selZoneTf) as CandleInterval;
-  // Only the key levels are drawn and listed (Overlays → Display settings); every level still
+  // Only the key levels are drawn (Overlays → Display settings); every level still
   // counts for the setups' locations and statistics.
   const lastClose = candles.length ? candles[candles.length - 1].close : null;
   const shown = useMemo(
@@ -282,78 +274,6 @@ const ChartPage: React.FC = () => {
     [shown, levelTf, candles, viewTf],
   );
 
-  const profile = useMemo(() => computeVolumeProfile(candles.slice(-200), 48), [candles]);
-  // The key levels on the chart, nearest to price first (broken ones last).
-  const levelsShown = useMemo(() => {
-    if (!shown || lastClose === null) return [];
-    const rows = [
-      ...shown.zones.map((z) => ({
-        id: `z${z.formedTime}${z.kind}`,
-        kind: z.kind,
-        low: z.low,
-        high: z.high,
-        state:
-          z.endTime === null
-            ? z.tests === 0
-              ? "fresh"
-              : `tested ${z.tests}×, held ${z.held}`
-            : null,
-        end: z.endTime,
-        strength: `${z.departureAtr.toFixed(1)} ATR`,
-      })),
-      ...shown.orderBlocks.map((b) => ({
-        id: `b${b.formedTime}${b.kind}`,
-        kind: b.kind,
-        low: b.low,
-        high: b.high,
-        state: b.endTime === null ? (b.mitigatedTime === null ? "unmitigated" : "mitigated") : null,
-        end: b.endTime,
-        strength: `BOS ${price(b.broke)}`,
-      })),
-    ];
-    const dist = (r: { low: number; high: number }) => Math.abs((r.low + r.high) / 2 - lastClose);
-    const intact = rows.filter((r) => r.end === null).sort((a, b) => dist(a) - dist(b));
-    const broken = rows.filter((r) => r.end !== null).sort((a, b) => (b.end ?? 0) - (a.end ?? 0));
-    return [...intact, ...broken];
-  }, [shown, lastClose]);
-  const hiddenLevels = selAnalysis
-    ? selAnalysis.zones.length + selAnalysis.orderBlocks.length - levelsShown.length
-    : 0;
-
-  const levels = profile
-    ? [
-        {
-          tag: "POC",
-          price: profile.pocPrice,
-          text: "Point of control: most traded price",
-          tone: "info" as const,
-        },
-        {
-          tag: "VAH",
-          price: profile.vahPrice,
-          text: "Top of the 70% value area",
-          tone: "lock" as const,
-        },
-        {
-          tag: "VAL",
-          price: profile.valPrice,
-          text: "Bottom of the value area",
-          tone: "lock" as const,
-        },
-        ...profile.hvn.map((p) => ({
-          tag: "HVN",
-          price: p,
-          text: "High-volume node: price tends to stall",
-          tone: "up" as const,
-        })),
-        ...profile.lvn.map((p) => ({
-          tag: "LVN",
-          price: p,
-          text: "Low-volume node: price moves through fast",
-          tone: "warn" as const,
-        })),
-      ].sort((a, b) => b.price - a.price)
-    : [];
   const behind = selAnalysis?.coverage.behind ?? 0;
 
   // Order-book liquidity (only while the heatmap layer is on: no sockets otherwise).
@@ -555,92 +475,6 @@ const ChartPage: React.FC = () => {
               since={depthSamples[0]?.time}
             />
           )}
-
-          <div className={styles.grid2}>
-            <section className={styles.card} aria-labelledby="levels-title">
-              <div className={styles.cardHead}>
-                <h2 id="levels-title">Key volume levels</h2>
-                <Explain title="Volume levels">
-                  Volume by price over the last 200 candles. POC is the most traded price; VAH/VAL
-                  bound the 70% value area. High-volume nodes tend to slow price; low-volume nodes
-                  are gaps price crosses quickly.
-                </Explain>
-                <p>Last 200 candles. The chart's histogram follows the visible range.</p>
-              </div>
-              <ul className={styles.levels}>
-                {levels.map((l) => (
-                  <li key={`${l.tag}${l.price}`}>
-                    <Chip tone={l.tone}>{l.tag}</Chip>
-                    <span className={styles.mute}>{l.text}</span>
-                    <span className={styles.num}>{price(l.price)}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-            <section className={styles.card} aria-labelledby="zones-title">
-              <div className={styles.cardHead}>
-                <h2 id="zones-title">
-                  <TfBadge tf={levelTf} /> Zones and order blocks
-                </h2>
-                <Explain title="Zones and order blocks">
-                  A demand/supply zone is a base of small candles right before a strong departure.
-                  An order block is the last opposite candle before a move that broke market
-                  structure. Both are known only once that move closed. Fresh = not traded back into
-                  yet; a close through the far edge ends it.
-                </Explain>
-                <p>
-                  Key levels on the chart, nearest to price first
-                  {hiddenLevels > 0 ? ` · ${hiddenLevels} more hidden` : ""} ·{" "}
-                  <button
-                    type="button"
-                    className={styles.link}
-                    onClick={() => setDialog({ kind: "overlays" })}
-                  >
-                    display settings
-                  </button>
-                </p>
-              </div>
-              <div className={styles.xs}>
-                <table className={styles.tbl}>
-                  <thead>
-                    <tr>
-                      <th>Level</th>
-                      <th className={styles.r}>Range</th>
-                      <th className={styles.r}>Strength</th>
-                      <th>State</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {levelsShown.map((z) => (
-                      <tr key={z.id}>
-                        <td>
-                          <Chip tone={z.kind === "demand" || z.kind === "bullish" ? "up" : "down"}>
-                            {LEVEL_LABEL[z.kind]}
-                          </Chip>
-                        </td>
-                        <td className={`${styles.r} ${styles.num}`}>
-                          {price(z.low)}–{price(z.high)}
-                        </td>
-                        <td className={`${styles.r} ${styles.mute}`}>{z.strength}</td>
-                        <td className={styles.mute}>
-                          {z.end === null ? z.state : `broke ${shortDate(z.end)}`}
-                        </td>
-                      </tr>
-                    ))}
-                    {levelsShown.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className={styles.mute}>
-                          {selAnalysis
-                            ? "No zones or order blocks in this history."
-                            : "Waiting for the analysis service…"}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
         </div>
 
         <aside className={styles.col} aria-label="Setups">

@@ -103,6 +103,11 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
 
 ## History
 
+- 2026-11-21: **Chart page: levels on the chart, not in cards** (owner, designed first). The Key
+  volume levels and Zones and order blocks cards under the chart are gone; with Volume profile on,
+  the chart draws light dashed POC, VAH and VAL lines (visible range) with small labels beside
+  the histogram (was one bright POC line). HVN / LVN are no longer listed. Zones and order blocks
+  stay on the chart via Overlays. The "Found by the analysis service" line under Patterns is gone.
 - 2026-11-21: **Patterns panel as two dropdowns; lighter pattern drawing** (owner, designed on a
   canvas first). Timeframes and patterns are multi-select dropdowns; the pattern menu lists every
   supported pattern per direction under Chart / Candlestick and Bullish / Bearish, with custom
