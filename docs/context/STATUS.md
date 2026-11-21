@@ -97,6 +97,8 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
 
 ## History
 
+- 2026-11-21: Chart no longer shades a higher-timeframe pattern's source candles in blue (owner:
+  the tag, e.g. "Bear flag · 1d", already names the timeframe). Display only.
 - 2026-11-21: **Rule review against the industry standard (rule set r5)**. Audited every rule
   against TA-Lib's C source, StockCharts ChartSchool (Nison) and the textbooks, and on a year of
   real BTC/ETH/SOL 1h/4h/1d candles. Fixed: (1) double bottoms/tops and H&S whose breakout was

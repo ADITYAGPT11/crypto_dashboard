@@ -731,18 +731,7 @@ const PriceChart: React.FC<Props> = ({
     g.globalAlpha = 1;
     if (ly.pattern && sel) {
       const barW = ts.options().barSpacing;
-      // Source candles wider than one view bar (e.g. 4h on 1h) are shaded as blocks.
-      for (const b of sel.blocks) {
-        const x1 = x(b.from);
-        const x2 = x(b.to);
-        if (x1 === null || x2 === null || x2 - x1 < barW * 1.5) continue;
-        g.fillStyle = "rgba(76,154,255,0.10)";
-        g.fillRect(x1, 0, x2 - x1, h);
-        g.setLineDash([3, 3]);
-        g.strokeStyle = "rgba(76,154,255,0.45)";
-        g.strokeRect(x1 + 0.5, 0.5, x2 - x1 - 1, h - 1);
-        g.setLineDash([]);
-      }
+      // The tag ("Bear flag · 1d") names the source timeframe; its candles are not shaded.
       drawPattern(g, sel, `${patternLabel(sel.pattern)} · ${sel.tf}`, cs, x, y, barW);
       g.lineWidth = 1;
     }
