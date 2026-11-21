@@ -243,7 +243,8 @@ const DashboardPage: React.FC = () => {
               A pattern (double bottom, engulfing, triangle…) in a direction plus its location (at a{" "}
               {zoneTf} demand/supply zone, an order block, both, or open space), confirmed on one of
               the last 3 closed {INTERVAL} candles. The win rate is the same setup across every
-              coin's history: target hit before stop within {catalog?.maxHoldBars ?? 30} candles.
+              coin's history: target hit before stop within {catalog?.maxHoldBars ?? 30} candles (or
+              the pattern&apos;s length).
             </Explain>
             <p>
               Pattern + location on a recent closed candle. Statistics pool every past case across

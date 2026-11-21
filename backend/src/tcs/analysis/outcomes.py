@@ -2,8 +2,11 @@
 
 Walk forward from the candle after confirmation. If a candle reaches both the
 stop and the target we cannot know which came first, so we count the STOP
-(conservative). ``expired`` = neither within ``MAX_HOLD_BARS``; ``open`` = the
-data ran out first (still running: never counted in statistics).
+(conservative). The holding limit is ``MAX_HOLD_BARS`` candles, or the formation's
+own length when that is longer (a 60-candle pattern gets 60 candles to play out).
+``expired`` = neither within the limit: the trade is closed at the market (the last
+candle's close) and its result counts like any other; ``open`` = the data ran out
+first (still running: never counted in statistics).
 """
 
 from __future__ import annotations
@@ -27,15 +30,22 @@ class Outcome:
     exit_index: int | None
     #: Percent move from entry to exit in the trade's favour (negative on losses).
     move_pct: float
-    #: Reward in R on wins ((target - entry) / risk), -1 on losses, 0 otherwise.
+    #: Result in R: (target - entry) / risk on wins, -1 on losses, the market close's R when
+    #: expired, 0 while open.
     r: float
     bars: int
 
 
-def evaluate(s: Series, hit: PatternHit, max_bars: int = MAX_HOLD_BARS) -> Outcome:
+def hold_bars(hit: PatternHit) -> int:
+    """Candles a setup has to reach its target: at least ``MAX_HOLD_BARS``, or its formation."""
+    return max(MAX_HOLD_BARS, hit.index - hit.start)
+
+
+def evaluate(s: Series, hit: PatternHit, max_bars: int | None = None) -> Outcome:
     long = hit.direction == "long"
     risk = (hit.entry - hit.stop) if long else (hit.stop - hit.entry)
     reward = (hit.target - hit.entry) if long else (hit.entry - hit.target)
+    max_bars = hold_bars(hit) if max_bars is None else max_bars
     last = min(hit.index + max_bars, len(s) - 1)
     for j in range(hit.index + 1, last + 1):
         stopped = s.low[j] <= hit.stop if long else s.high[j] >= hit.stop
@@ -45,8 +55,11 @@ def evaluate(s: Series, hit: PatternHit, max_bars: int = MAX_HOLD_BARS) -> Outco
         if reached:
             r = reward / risk if risk > 0 else 0.0
             return Outcome("win", j, reward / hit.entry * 100, r, j - hit.index)
-    ran_out = hit.index + max_bars > len(s) - 1
-    return Outcome("open" if ran_out else "expired", None, 0.0, 0.0, last - hit.index)
+    if hit.index + max_bars > len(s) - 1:
+        return Outcome("open", None, 0.0, 0.0, last - hit.index)
+    move = (float(s.close[last]) - hit.entry) * (1.0 if long else -1.0)
+    r = move / risk if risk > 0 else 0.0
+    return Outcome("expired", last, move / hit.entry * 100, r, last - hit.index)
 
 
 # Trailing take-profit (the exit that measured best: docs/product/patterns.md → Exits).

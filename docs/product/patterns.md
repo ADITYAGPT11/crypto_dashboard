@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r4`)
+# Pattern, zone and order-block rules (rule set `2026.11-r5`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -11,15 +11,20 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
 | Closed candles only; a hit confirms on candle _i_ using only candles ≤ _i_       | `tests/test_invariants.py::test_no_look_ahead` (each hit must reappear, identical, on the history cut at _i_) |
 | Thresholds in ATR(14), never in price units                                      | `test_scale_invariant_and_deterministic` (prices × 1000 → same hits)                                          |
 | Swings are used only once confirmed (3 candles each side, known 3 candles later) | `swings.py::Swing.known_at`; prefix test                                                                      |
-| Bearish chart patterns are the bullish rule upside down                          | `common/series.py::mirror`; `test_bearish_patterns_are_mirrored_bullish_ones`                                 |
+| Bearish patterns (chart and candlestick) are the bullish rule upside down        | `common/series.py::mirror`; `test_bearish_patterns_are_mirrored_bullish_ones`, `test_candlesticks.py`         |
+| Every plan has its stop behind and its target ahead of the entry                 | `test_plan_is_ordered_stop_entry_target`                                                                      |
 | Zones, order blocks and gaps exist from the close of the candle that formed them | `test_levels_known_when_formed`                                                                               |
 | Every pattern in the catalogue can fire on real data                             | `test_every_pattern_in_the_catalogue_can_fire`                                                                |
 | Any rule change shows up as a reviewed diff                                      | `tests/test_golden.py` on a year of real ETH 4h candles                                                       |
 
 ## Outcome and statistics (one rule for every setup)
 
-- **Entry** = confirmation close. **Win** = target touched before stop within **30 candles**; a
-  candle touching both counts as a **loss**; neither = expired; data ran out = open (not counted).
+- **Entry** = confirmation close. **Win** = target touched before stop within the **holding
+  limit**: 30 candles, or the formation's own length when longer (since r5; a 60-candle pattern
+  gets 60 candles). A candle touching both counts as a **loss**. Neither = **expired**: closed at
+  the market (the last candle's close) and counted at that result, never as a win (since r5;
+  before, expiries were left out of the win rate and expectancy). Data ran out = open (not
+  counted).
 - **Costs** (since r4; `analysis/costs.py`), per case in R (percent of notional ÷ risk in
   percent, so tight stops pay more): taker **fee 0.05% a side** (Binance USDⓈ-M regular tier) +
   **slippage 0.025% a side** (`TCS_FEE_PCT`, `TCS_SLIPPAGE_PCT`), and the **funding actually
@@ -27,9 +32,11 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
   history (archive months + REST tail; longs pay a positive rate, shorts receive it). After the
   last known event the last rate is carried forward (estimated). Median cost: about 0.14 R a
   trade on 1h, 0.06 R on 4h, 0.03 R on 1d.
-- **Win rate** with a **Wilson 95%** range; **break-even** after costs = L / (W + L), W = mean
-  win in R minus its costs, L = 1 + mean cost of a loss (1.0 when wins lose after costs); the
-  gross break-even 1 / (1 + average win in R) is kept alongside.
+- **Win rate** (target hits ÷ every resolved case, expiries included) with a **Wilson 95%**
+  range; **break-even** after costs = L / (W + L), W = mean win in R minus its costs, L = mean
+  loss in R (costs included) of the cases that did not win, stop-outs and expiries alike (1.0
+  when wins lose after costs, 0 when the non-wins do not lose on average); the gross break-even
+  (same formula without costs) is kept alongside.
 - **Expectancy** = mean R per resolved case after costs (gross alongside).
 - **Verdict**: fewer than 30 resolved cases → too few; Wilson low above the break-even after
   costs → edge candidate; else no edge. In-sample.
@@ -45,7 +52,7 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
   the research coins; each coin also on its own; "any location" is the pattern's baseline.
   Pooled records are also split by order-flow context (below).
 
-### Exit study (2026-11-18, 10 coins × 2 years, costs 0.15% per round trip)
+### Exit study (2026-11-18, 10 coins × 2 years, costs 0.15% per round trip; rule set r3)
 
 Eleven exits on the same 45,425 setups, each also run on random entries with the same direction,
 stop and target distance. Picked on year 1, checked on year 2.
@@ -60,8 +67,9 @@ stop and target distance. Picked on year 1, checked on year 2.
 
 The trailing exit roughly doubles the daily chart patterns' result and wins out of sample, but
 random entries gain from it too: it improves the exit, not the pattern's edge over chance. It does
-not make 1h, 4h or candlestick setups profitable after costs. The study scripts are not in the
-repository yet (`ROADMAP.md → Parking lot`).
+not make 1h, 4h or candlestick setups profitable after costs. The study ran on the r3 rules (before
+the r5 rule review below) and its scripts are not in the repository yet (`ROADMAP.md → Parking
+lot`).
 
 ## Location
 
@@ -97,32 +105,54 @@ across coins only (per-coin buckets would be too small).
 
 ## Chart patterns (in-house)
 
-| Pattern                          | Rule (bullish form; bearish twin by mirroring)                                                                                                                                                                                                                                                                                 | Plan                                                                          | Source                                      |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------- |
-| Double bottom / top              | Two swing lows 6–60 candles apart within 0.6 ATR, no lower low between, peak between ≥ 1.5 ATR above them; first close above that peak within 20 candles of the second low, once the low is confirmed                                                                                                                          | stop = lower low − 0.2 ATR; target = neckline + height                        | Bulkowski, _Encyclopedia of Chart Patterns_ |
-| Inverse H&S / H&S                | Three swing lows 3–40 candles apart; head ≥ 0.5 ATR below both shoulders; shoulders within 1 ATR; neckline through the two peaks (may slope) ≥ 1.5 ATR above the head and 0.5 ATR above each shoulder; first close above the neckline within 25 candles of the right shoulder; a close below the right shoulder first fails it | stop = right shoulder − 0.2 ATR; target = neckline + head depth               | Edwards & Magee ch. 6                       |
-| Bull / bear flag                 | Pole ≥ 3 ATR in 3–15 candles ending at a 15-candle high; pause of ≥ 3 candles giving back ≤ half the pole; first close above the pause's high within 20 candles                                                                                                                                                                | stop = pause low − 0.2 ATR; target = breakout + pole                          | Edwards & Magee ch. 11                      |
-| Ascending / descending triangle  | Lines through the last 2–3 swing highs and lows (least squares, every swing within 0.4 ATR); upper line flat (moves ≤ 0.6 ATR over the formation), lower rising; 10–100 candles; height at start ≥ 2 ATR; end ≥ 25% narrower; closes inside (±0.25 ATR); first close beyond the upper line                                     | stop = last swing low − 0.2 ATR; target = breakout + height at start          | Edwards & Magee ch. 8                       |
-| Symmetrical triangle (up / down) | As above with a falling upper and rising lower line; either breakout                                                                                                                                                                                                                                                           | as triangles                                                                  | Edwards & Magee ch. 8                       |
-| Falling / rising wedge           | Both lines falling, the upper steeper (converging); breakout above the upper line                                                                                                                                                                                                                                              | stop as triangles; target = the wedge's start (highest high of the formation) | Edwards & Magee ch. 10; Bulkowski           |
+| Pattern                          | Rule (bullish form; bearish twin by mirroring)                                                                                                                                                                                                                                                                                                                                                                                        | Plan                                                                          | Source                                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------- |
+| Double bottom / top              | **Prior downtrend**: the first low ≥ 2 ATR below the close 20 candles before it. Two swing lows 6–60 candles apart within 0.6 ATR, no lower low between, peak between ≥ 1.5 ATR above them; first close above that peak within 20 candles of the second low, once the low is confirmed; no signal when that close is already past the target                                                                                          | stop = lower low − 0.2 ATR; target = neckline + height                        | Bulkowski, _Encyclopedia of Chart Patterns_ |
+| Inverse H&S / H&S                | **Prior downtrend** into the left shoulder (as double bottom). Three swing lows 3–40 candles apart; head ≥ 0.5 ATR below both shoulders; shoulders within 1 ATR; neckline through the two peaks (may slope) ≥ 1.5 ATR above the head and 0.5 ATR above each shoulder; first close above the neckline within 25 candles of the right shoulder; a close below the right shoulder first fails it; no signal when already past the target | stop = right shoulder − 0.2 ATR; target = neckline + head depth               | Edwards & Magee ch. 6                       |
+| Bull / bear flag                 | Pole ≥ 3 ATR in 3–15 candles ending at a 15-candle high; pause of ≥ 3 candles giving back ≤ half the pole and drifting **sideways or against the pole** (least-squares slope of its closes ≤ 0); first close above the pause's high within 20 candles                                                                                                                                                                                 | stop = pause low − 0.2 ATR; target = breakout + pole                          | Edwards & Magee ch. 11                      |
+| Ascending / descending triangle  | Lines through the last 2–3 swing highs and lows (least squares, every swing within 0.4 ATR); upper line flat (moves ≤ 0.6 ATR over the formation), lower rising; 10–100 candles; height at start ≥ 2 ATR; end ≥ 25% narrower; closes inside (±0.25 ATR); first close beyond the upper line                                                                                                                                            | stop = last swing low − 0.2 ATR; target = breakout + height at start          | Edwards & Magee ch. 8                       |
+| Symmetrical triangle (up / down) | As above with a falling upper and rising lower line; either breakout                                                                                                                                                                                                                                                                                                                                                                  | as triangles                                                                  | Edwards & Magee ch. 8                       |
+| Falling / rising wedge           | Both lines falling, the upper steeper (converging); breakout above the upper line                                                                                                                                                                                                                                                                                                                                                     | stop as triangles; target = the wedge's start (highest high of the formation) | Edwards & Magee ch. 10; Bulkowski           |
 
 A breakout against a pattern's textbook bias (e.g. an ascending triangle breaking down) is a
-failed pattern, not a signal.
+failed pattern, not a signal. Triangles and wedges need no prior trend (they continue or reverse);
+flags have their pole.
 
-## Candlestick patterns (shape from TA-Lib)
+## Candlestick patterns (in-house since r5)
 
-TA-Lib (`CDLENGULFING`, `CDLHAMMER`, `CDLHANGINGMAN`, `CDLINVERTEDHAMMER`, `CDLSHOOTINGSTAR`,
-`CDLMORNINGSTAR`, `CDLEVENINGSTAR`, `CDLHARAMI`) decides the shape and reports it on the pattern's
-last candle. Our additions, the same for all:
+Written in `analysis/candlesticks.py` to Nison (_Japanese Candlestick Charting Techniques_) and
+StockCharts ChartSchool; the bullish rule once, the bearish twin on the mirrored series (upside
+down a hammer is a shooting star and an inverted hammer a hanging man). TA-Lib's `CDL*` functions
+were used until r4 and dropped (`DECISIONS.md` 2026-11-21): four of them demand a gap between
+candle bodies that a 24/7 market never has (on a year of BTC, ETH and SOL every hit had a "gap" of
+under 0.05 ATR, a one-tick difference), and their hammer family accepts a shadow just longer than
+the body.
 
-- **Trend context** (Nison): the close before the pattern is below (bullish) / above (bearish) the
-  close 5 candles earlier;
-- **Size**: the pattern's range ≥ 0.8 ATR;
-- **Plan**: stop 0.1 ATR beyond the pattern's extreme; target 1.5 R (break-even win rate 40%).
+| Pattern (bullish / bearish twin) | Shape                                                                                                                                                                                         |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bullish / bearish engulfing      | A down candle that is not a doji, then an up candle whose body covers its body (one end may be equal)                                                                                         |
+| Hammer / shooting star           | Lower shadow ≥ 2 × the body; upper shadow ≤ 10% of the range                                                                                                                                  |
+| Inverted hammer / hanging man    | Upper shadow ≥ 2 × the body; lower shadow ≤ 10% of the range; no gap required (StockCharts: "the essence of the reversal should not be lost without the gap")                                 |
+| Morning / evening star           | A long down candle; a short-bodied star whose body lies wholly below the first body (touching allowed: the 24/7 form of the gap); a long up candle closing above the middle of the first body |
+| Bullish / bearish harami         | A long down candle, then a short body inside its body                                                                                                                                         |
 
-**Left out on purpose** (need session gaps; zero hits on a year of BTC 1h): piercing line, dark
-cloud cover, kicking, abandoned baby. Three white soldiers / black crows fire about once a year
-under TA-Lib's definition. Doji are indecision, not a direction.
+"Long" / "short" body = above / at most the mean body of the 10 candles before (TA-Lib's default
+candle settings, the common quantification); doji = body ≤ 10% of the range.
+
+The same for every pattern:
+
+- **Trend** (a reversal needs a trend to reverse): the close before the pattern is below its
+  EMA(20) (StockCharts' first guideline) and at least 0.5 ATR below the close 5 candles earlier.
+- **Size**: the pattern's range ≥ 0.8 ATR ("large relative to the last 10–20 days").
+- **Confirmation** (Nison; Bulkowski's breakout): within 3 candles a close above the pattern's
+  high; a close below its low first cancels it. The morning / evening star confirms itself on
+  its third candle (StockCharts: no further confirmation needed).
+- **Plan**: entry at the confirmation close; stop 0.1 ATR beyond the pattern's extreme; target
+  1.5 R.
+
+**Left out on purpose**: piercing line, dark cloud cover, kicking, abandoned baby (their gaps are
+the pattern), three white soldiers / black crows (about once a year), doji (indecision, not a
+direction).
 
 ## Demand and supply zones (base and departure, after Seiden)
 

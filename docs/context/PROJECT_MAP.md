@@ -14,8 +14,9 @@ One rule set; both the chart and the background statistics call `analysis/engine
 
 - `common/`: `series.py` (column arrays incl. taker buy volume, `head`/`scaled`/`mirror`), `timeframes.py`, `universe.py`
 - `analysis/`: `catalog.py` (pattern ids, labels, sources, `RULESET_VERSION`), `indicators.py`
-  (TA-Lib ATR/EMA/SMA), `swings.py` (pivots + `known_at`), `candlesticks.py` (TA-Lib shapes +
-  context), `chart_patterns.py` (double bottom, inverse H&S, bull flag; twins by mirroring),
+  (TA-Lib ATR/EMA/SMA), `swings.py` (pivots + `known_at`), `candlesticks.py` (in-house shapes,
+  trend, confirmation; twins by mirroring), `chart_patterns.py` (double bottom, inverse H&S, bull
+  flag; prior trend; twins by mirroring),
   `mirroring.py` (bearish twins back to real prices, labels flipped: Bottom ↔ Top, Upper ↔ Lower),
   `trendlines.py` (triangles, wedges), `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
   `location.py`, `outcomes.py` (fixed target + trailing take-profit), `costs.py` (fees, slippage,

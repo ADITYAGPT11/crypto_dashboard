@@ -129,6 +129,17 @@ def test_levels_known_when_formed(series: Series) -> None:
         assert any((e.kind, e.low, e.high) == (g.kind, g.low, g.high) for e in early_gaps)
 
 
+@pytest.mark.parametrize("series", SERIES.values(), ids=SERIES.keys())
+@pytest.mark.parametrize("detector", DETECTORS.values(), ids=DETECTORS.keys())
+def test_plan_is_ordered_stop_entry_target(detector: Detector, series: Series) -> None:
+    """Every setup risks something and still has its target ahead (none already passed)."""
+    for h in detector(series):
+        if h.direction == "long":
+            assert h.stop < h.entry < h.target, (h.pattern, h.index)
+        else:
+            assert h.target < h.entry < h.stop, (h.pattern, h.index)
+
+
 def test_every_pattern_in_the_catalogue_can_fire() -> None:
     """Guards against a rule that silently never triggers on real data."""
     from tcs.analysis.catalog import PATTERN_IDS
@@ -136,6 +147,5 @@ def test_every_pattern_in_the_catalogue_can_fire() -> None:
     seen: set[str] = set()
     for s in [real_eth_4h(), *(random_walk(seed, 3000) for seed in range(5, 12))]:
         seen |= {h.pattern for h in detect_patterns(s)}
-    rare = {"hangingMan", "invertedHammer", "shootingStar", "morningStar", "eveningStar"}
-    missing = set(PATTERN_IDS) - seen - rare
+    missing = set(PATTERN_IDS) - seen
     assert not missing, f"never fired: {sorted(missing)}"

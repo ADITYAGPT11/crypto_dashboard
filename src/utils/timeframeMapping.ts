@@ -77,7 +77,7 @@ export interface ViewPattern {
   outcome: { result: "win" | "loss" | "expired" | "open"; r: number };
   /** Close of the candle that hit the target or stop (null while open). */
   exitX: number | null;
-  /** End of the outcome window: OUTCOME_BARS pattern candles after the entry. */
+  /** End of the outcome window: `holdBars` pattern candles after the entry. */
   windowEndX: number;
   /** The same trade exited with the trailing take-profit. */
   trail: {
@@ -93,6 +93,12 @@ export interface ViewPattern {
 
 /** Candles a setup has to reach its target (`backend/src/tcs/analysis/outcomes.py` MAX_HOLD_BARS). */
 export const OUTCOME_BARS = 30;
+
+/** The holding limit of one setup: OUTCOME_BARS, or its formation's length when longer
+ * (`outcomes.py::hold_bars`). */
+export function holdBars(time: number, startTime: number, ms: number): number {
+  return Math.max(OUTCOME_BARS, Math.round((time - startTime) / ms));
+}
 
 /** Map an occurrence detected on `tf` candles onto the view (everything is by time). */
 export function toViewPattern(
@@ -132,7 +138,7 @@ export function toViewPattern(
     target: occ.target,
     outcome: { result: occ.outcome.result, r: occ.outcome.r },
     exitX: occ.outcome.exitTime === null ? null : span(occ.outcome.exitTime).to,
-    windowEndX: logicalAt(view, vms, occ.time + ms * (1 + OUTCOME_BARS)),
+    windowEndX: logicalAt(view, vms, occ.time + ms * (1 + holdBars(occ.time, occ.startTime, ms))),
     trail: {
       result: occ.trail.result,
       r: occ.trail.r,

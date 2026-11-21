@@ -177,19 +177,20 @@ def _case(s: Series, c: Costed) -> dict[str, Any]:
     }
 
 
-def _resolved(occ: list[Costed]) -> tuple[list[Resolved], int]:
-    done = [
+def _resolved(occ: list[Costed]) -> list[Resolved]:
+    """Every finished case: wins, stop-outs and expiries (closed at the market) alike."""
+    return [
         Resolved(
             c.o.outcome.result == "win",
             c.o.outcome.move_pct,
             c.o.outcome.r,
             c.o.outcome.bars,
             c.fixed.total_r if c.fixed else 0.0,
+            c.o.outcome.result == "expired",
         )
         for c in occ
-        if c.o.outcome.result in ("win", "loss")
+        if c.o.outcome.result in ("win", "loss", "expired")
     ]
-    return done, sum(1 for c in occ if c.o.outcome.result == "expired")
 
 
 StatKey = tuple[str, str, str, str, str, str]  # Key + order-flow context
@@ -210,8 +211,7 @@ def _aggregate(
                     rolled[(zone_tf, "*", pattern, direction, loc, ctx)].append(c)
     out: list[tuple[str, str, str, str, str, str, dict[str, Any]]] = []
     for key, occ in rolled.items():
-        done, expired = _resolved(occ)
-        summary = asdict(summarize(done, expired))
+        summary = asdict(summarize(_resolved(occ)))
         summary["open"] = sum(1 for c in occ if c.o.outcome.result == "open")
         summary["trail"] = asdict(
             summarize_trailing(
