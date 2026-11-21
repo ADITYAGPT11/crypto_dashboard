@@ -3,7 +3,9 @@ import type { Candle } from "../../types/marketData";
 import type { OccurrenceOut } from "../../api/schema";
 import type { Zone } from "../../types/analysis";
 import {
+  holdBars,
   logicalAt,
+  OUTCOME_BARS,
   spanOf,
   TF_MS,
   toViewLevels,
@@ -77,6 +79,14 @@ describe("logicalAt / spanOf", () => {
 
   it("extrapolates past the last bar", () => {
     expect(logicalAt(view, H1, 50 * H1)).toBe(49.5);
+  });
+});
+
+describe("holdBars", () => {
+  const h = TF_MS["1h"];
+  it("is 30 candles, or the formation's length when longer (outcomes.py::hold_bars)", () => {
+    expect(holdBars(50 * h, 40 * h, h)).toBe(OUTCOME_BARS);
+    expect(holdBars(120 * h, 40 * h, h)).toBe(80);
   });
 });
 

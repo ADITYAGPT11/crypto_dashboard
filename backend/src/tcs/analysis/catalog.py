@@ -6,7 +6,7 @@ change (no session gaps), the deviation is written down in ``docs/product/patter
 - Bulkowski, *Encyclopedia of Chart Patterns* (3rd ed., 2021)
 - Edwards & Magee, *Technical Analysis of Stock Trends* (11th ed.)
 - Nison, *Japanese Candlestick Charting Techniques* (2nd ed.)
-- TA-Lib candlestick functions (the de-facto reference implementation)
+- StockCharts ChartSchool, candlestick reversal patterns (trend and confirmation guidelines)
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 #: Bump when ANY rule, threshold or outcome rule changes. Statistics are stored per version.
-RULESET_VERSION = "2026.11-r4"
+RULESET_VERSION = "2026.11-r5"
 
 Kind = Literal["chart", "candlestick"]
 Bias = Literal["long", "short", "either"]
@@ -121,13 +121,13 @@ CATALOG: tuple[PatternSpec, ...] = (
         "Edwards & Magee ch. 10; Bulkowski 'Wedges, Rising'",
         "Two rising, converging lines; confirmed on a close below the lower line.",
     ),
-    # Candlestick patterns (shape from TA-Lib; trend context, size filter and plan are ours)
+    # Candlestick patterns (in-house, candlesticks.py: shape, trend, confirmation, plan)
     PatternSpec(
         "bullishEngulfing",
         "Bullish engulfing",
         "candlestick",
         "long",
-        "Nison ch. 4; TA-Lib CDLENGULFING",
+        "Nison ch. 4; StockCharts",
         "An up candle whose body engulfs a down candle's.",
     ),
     PatternSpec(
@@ -135,7 +135,7 @@ CATALOG: tuple[PatternSpec, ...] = (
         "Bearish engulfing",
         "candlestick",
         "short",
-        "Nison ch. 4; TA-Lib CDLENGULFING",
+        "Nison ch. 4; StockCharts",
         "A down candle whose body engulfs an up candle's.",
     ),
     PatternSpec(
@@ -143,55 +143,55 @@ CATALOG: tuple[PatternSpec, ...] = (
         "Hammer",
         "candlestick",
         "long",
-        "Nison ch. 4; TA-Lib CDLHAMMER",
-        "Small body at the top, long lower shadow, after a decline.",
+        "Nison ch. 4; StockCharts",
+        "Lower shadow at least twice the body, almost no upper shadow, after a decline.",
     ),
     PatternSpec(
         "hangingMan",
         "Hanging man",
         "candlestick",
         "short",
-        "Nison ch. 4; TA-Lib CDLHANGINGMAN",
-        "Hammer shape after a rise.",
+        "Nison ch. 4; StockCharts",
+        "Lower shadow at least twice the body after a rise.",
     ),
     PatternSpec(
         "invertedHammer",
         "Inverted hammer",
         "candlestick",
         "long",
-        "Nison ch. 5; TA-Lib CDLINVERTEDHAMMER",
-        "Small body at the bottom, long upper shadow, after a decline.",
+        "Nison ch. 5; StockCharts",
+        "Upper shadow at least twice the body, almost no lower shadow, after a decline.",
     ),
     PatternSpec(
         "shootingStar",
         "Shooting star",
         "candlestick",
         "short",
-        "Nison ch. 5; TA-Lib CDLSHOOTINGSTAR",
-        "Inverted-hammer shape after a rise.",
+        "Nison ch. 5; StockCharts",
+        "Upper shadow at least twice the body after a rise.",
     ),
     PatternSpec(
         "morningStar",
         "Morning star",
         "candlestick",
         "long",
-        "Nison ch. 5; TA-Lib CDLMORNINGSTAR",
-        "Long down candle, small star, long up candle closing into the first body.",
+        "Nison ch. 5; StockCharts",
+        "Long down candle, small star below its body, long up candle closing past its middle.",
     ),
     PatternSpec(
         "eveningStar",
         "Evening star",
         "candlestick",
         "short",
-        "Nison ch. 5; TA-Lib CDLEVENINGSTAR",
-        "Long up candle, small star, long down candle closing into the first body.",
+        "Nison ch. 5; StockCharts",
+        "Long up candle, small star above its body, long down candle closing past its middle.",
     ),
     PatternSpec(
         "bullishHarami",
         "Bullish harami",
         "candlestick",
         "long",
-        "Nison ch. 6; TA-Lib CDLHARAMI",
+        "Nison ch. 6; StockCharts",
         "A small body inside the prior long down body, after a decline.",
     ),
     PatternSpec(
@@ -199,7 +199,7 @@ CATALOG: tuple[PatternSpec, ...] = (
         "Bearish harami",
         "candlestick",
         "short",
-        "Nison ch. 6; TA-Lib CDLHARAMI",
+        "Nison ch. 6; StockCharts",
         "A small body inside the prior long up body, after a rise.",
     ),
 )

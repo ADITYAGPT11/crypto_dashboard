@@ -40,20 +40,27 @@ class Resolved:
     bars: int
     #: Fees, slippage and funding of this case in R (``costs.trade_cost``).
     cost_r: float = 0.0
+    #: Neither target nor stop within the holding limit: closed at the market (not a win).
+    expired: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class Summary:
+    #: Resolved cases: wins + losses + expired.
     n: int
+    #: Target hit before the stop.
     wins: int
+    #: Stopped out.
     losses: int
+    #: Closed at the market after the holding limit (counted at their own R, not as wins).
     expired: int
     win_rate: float
     ci_low: float
     ci_high: float
-    #: Win rate needed to break even given the average win size in R (losses are -1R), gross.
+    #: Win rate needed to break even given the average win and the average non-win in R, gross.
     break_even: float
     avg_win_pct: float
+    #: Mean move of the cases that did not win (stop-outs and expiries).
     avg_loss_pct: float
     #: Mean result per resolved case in R, before costs.
     expectancy_r: float
@@ -78,31 +85,40 @@ def verdict_for(n: int, ci_low: float, break_even: float) -> Verdict:
     return "edge" if ci_low > break_even else "noEdge"
 
 
-def summarize(cases: Sequence[Resolved], expired: int = 0) -> Summary:
+def _break_even(win_r: float, other_r: float) -> float:
+    """Win rate where p * W = (1 - p) * L; W = mean win, L = mean loss of the other cases."""
+    loss = -other_r
+    if win_r <= 0:
+        return 1.0
+    if loss <= 0:
+        return 0.0  # the other cases do not lose on average: any win rate breaks even
+    return loss / (win_r + loss)
+
+
+def summarize(cases: Sequence[Resolved]) -> Summary:
+    """Every resolved case counts: target hits are wins; stop-outs and trades closed at the
+    market after the holding limit (expired) are the rest, each at its own R."""
     wins = [c for c in cases if c.win]
-    losses = [c for c in cases if not c.win]
+    others = [c for c in cases if not c.win]
     n, k = len(cases), len(wins)
     lo, hi = wilson(k, n)
-    avg_win_r = _mean([c.r for c in wins])
-    break_even = 1 / (1 + avg_win_r) if avg_win_r > 0 else 0.5
-    # After costs a win pays r - cost and a loss costs 1 + cost: break even where
-    # p * W = (1 - p) * L.
-    net_win = _mean([c.r - c.cost_r for c in wins])
-    net_loss = _mean([1 + c.cost_r for c in losses]) if losses else 1.0
-    break_even_net = net_loss / (net_win + net_loss) if net_win > 0 else 1.0
-    if not cases:
-        break_even_net = break_even
+    other_r = _mean([c.r for c in others]) if others else -1.0
+    break_even = _break_even(_mean([c.r for c in wins]), other_r) if wins else 0.5
+    net_other = _mean([c.r - c.cost_r for c in others]) if others else -1.0
+    break_even_net = _break_even(_mean([c.r - c.cost_r for c in wins]), net_other)
+    if not wins:
+        break_even_net = break_even if not cases else 1.0
     return Summary(
         n=n,
         wins=k,
-        losses=len(losses),
-        expired=expired,
+        losses=sum(1 for c in others if not c.expired),
+        expired=sum(1 for c in others if c.expired),
         win_rate=k / n if n else 0.0,
         ci_low=lo,
         ci_high=hi,
         break_even=break_even,
         avg_win_pct=_mean([c.move_pct for c in wins]),
-        avg_loss_pct=_mean([c.move_pct for c in losses]),
+        avg_loss_pct=_mean([c.move_pct for c in others]),
         expectancy_r=_mean([c.r for c in cases]),
         median_bars=statistics.median([c.bars for c in cases]) if cases else 0.0,
         verdict=verdict_for(n, lo, break_even_net),

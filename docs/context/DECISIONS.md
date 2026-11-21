@@ -423,3 +423,21 @@ month, because funding over a multi-day hold is not negligible (about 42 events 
 are in R per case, so a tight stop pays more, as it does in practice. The verdict, break-even and
 expectancy shown everywhere are after costs; gross stays in the API and on the setup card so the
 effect is visible. Older runs (gross only) still render: the UI falls back to their gross fields.
+
+### 2026-11-21 · Rule review: candlesticks in-house, reversals need a trend, expiries count (r5)
+
+Why: the owner asked for every rule to match the industry standard and for any package below it to
+be replaced. A review against TA-Lib's C source, StockCharts ChartSchool (Nison) and the textbooks,
+plus a year of real BTC/ETH/SOL candles, found ten gaps. TA-Lib's candlestick functions fail on
+24/7 markets (gap requirements met only by one-tick open/close differences; hammer shadow 1× not
+2× the body), so the five bullish shapes are written in-house and mirrored for the bearish twins;
+TA-Lib stays for ATR/EMA/SMA, which are correct. Every single- and two-candle pattern now waits
+for a confirmation close beyond its range (Nison, Bulkowski), which also ended the 0.15 ATR stops
+of hanging man / inverted hammer that costs ate. Double bottoms/tops and head-and-shoulders need
+a prior trend (they reverse one) and are skipped when the breakout is already past the target
+(those counted as wins at negative R). Flags must drift sideways or against the pole. The holding
+limit grows with the formation, and expiries close at the market and count, so the expectancy is
+per trade taken, not per trade that happened to finish. Effect: far fewer candlestick setups
+(1h bullish engulfing 1,062 → 240 a year on 3 coins), so more buckets show "too few". Trend
+thresholds (EMA(20), 0.5 ATR in 5 candles; 2 ATR in 20 for chart reversals) are common
+guidelines, not fitted to outcomes.

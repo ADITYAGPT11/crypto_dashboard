@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-18 · branch `claude/eager-bohr-2rpt9a`_
+_Last verified: 2026-11-21 · branch `claude/amazing-bell-x2yip9`_
 
 ## Phase
 
@@ -17,7 +17,7 @@ confirmations yet (by design).
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
    r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
    the estimated liquidation map (`COMPETITORS.md` §4).
-1. Owner: run `npm start` on a machine that reaches Binance, let the first
+1. Owner: run `npm start` on a machine that reaches Binance, let the first r5
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
 2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
@@ -27,14 +27,14 @@ confirmations yet (by design).
 
 ## Health
 
-Verified 2026-11-11 (test counts 2026-11-21):
+Verified 2026-11-11 (checks and test counts 2026-11-21):
 
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 378 tests, 38 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 379 tests, 38 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 136 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 173 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -97,6 +97,23 @@ Verified 2026-11-11 (test counts 2026-11-21):
 
 ## History
 
+- 2026-11-21: **Rule review against the industry standard (rule set r5)**. Audited every rule
+  against TA-Lib's C source, StockCharts ChartSchool (Nison) and the textbooks, and on a year of
+  real BTC/ETH/SOL 1h/4h/1d candles. Fixed: (1) double bottoms/tops and H&S whose breakout was
+  already past the target counted as wins at negative R (19 a year on 3 coins) → skipped;
+  (2) expired trades were left out of the win rate and expectancy (up to 53% of a pattern's
+  cases) → closed at the market and counted; (3) TA-Lib's shooting star, inverted hammer and
+  morning/evening star need body gaps crypto never has (hits were one-tick flukes) and (4) its
+  hammer family accepts a shadow 1× the body (Nison: 2×) → **candlestick rules in-house**, bearish
+  twins by mirroring, TA-Lib kept for ATR/EMA/SMA; (5) a 1-tick "downtrend" counted → close below
+  EMA(20) and ≥ 0.5 ATR down in 5 candles; (6) hanging man / inverted hammer stops of 0.15 ATR →
+  every pattern waits for a confirmation close beyond its range (stars confirm themselves);
+  (7) engulfing of a doji excluded; (8) reversal chart patterns need a prior trend (32–42% had
+  none); (9) holding limit = 30 candles or the formation's length; (10) flags must drift sideways
+  or down. Re-audit: 0 targets passed, 0 reversals without a trend, candlestick stops ≥ 1 ATR.
+  Far fewer candlestick setups (1h bullish engulfing 1,062 → 240 a year on 3 coins). Every
+  clause has a test that fails when the clause is removed (checked by mutation). Statistics must
+  be re-run for r5.
 - 2026-11-21: **Tech overview** (`/tech-overview`, nav link): the architecture as clickable maps,
   drill-down from each module or flow into its detailed map. Replaces the standalone
   `docs/architecture-flow.html`.

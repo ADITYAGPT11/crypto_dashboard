@@ -174,7 +174,8 @@ const StatsPage: React.FC = () => {
             Every pattern × direction × location, measured in the background on closed {interval}{" "}
             candles across {coins || "the research"} coins
             {years ? ` over ${years} years` : ""}, with {zoneTf} zones and order blocks. Win =
-            target hit before stop within {maxHold} candles. After costs: fees, slippage and
+            target hit before stop within {maxHold} candles (or the pattern&apos;s length); trades
+            that reach neither close at the market and count. After costs: fees, slippage and
             funding.
             {flow !== "*" ? ` Showing only cases with ${contextLabel(flow).toLowerCase()}.` : ""}
             {run?.finishedAt ? ` Updated ${shortDate(run.finishedAt)}.` : ""}

@@ -99,7 +99,7 @@ def test_stats_job_pools_every_coin_and_location(client: TestClient) -> None:
     assert "*" in locations
     for s in setups:
         m = s["summary"]
-        assert m["wins"] + m["losses"] == m["n"]
+        assert m["wins"] + m["losses"] + m["expired"] == m["n"]
         assert 0 <= m["ciLow"] <= m["winRate"] <= m["ciHigh"] <= 1
     # Pooled "any location" equals the sum over locations.
     by = {(s["pattern"], s["direction"], s["location"]): s["summary"]["n"] for s in setups}

@@ -7,7 +7,7 @@ import pytest
 
 from tcs.analysis.engine import detect_patterns
 from tcs.analysis.indicators import atr
-from tcs.analysis.outcomes import evaluate, evaluate_trailing
+from tcs.analysis.outcomes import MAX_HOLD_BARS, evaluate, evaluate_trailing, hold_bars
 from tcs.analysis.stats import MIN_SAMPLE, Resolved, summarize, summarize_trailing, wilson
 from tcs.analysis.types import PatternHit
 
@@ -35,10 +35,22 @@ def test_short_is_mirrored() -> None:
     assert o.move_pct == pytest.approx(10.0)
 
 
-def test_open_and_expired() -> None:
-    flat = candles([(100, 101, 99, 100)] * 5)
+def test_open_and_expired_closes_at_the_market() -> None:
+    flat = candles([(100.0, 101.0, 99.0, 100.0)] * 4 + [(100.0, 104.0, 99.0, 103.0)])
     assert evaluate(flat, hit("long", 100, 90, 120)).result == "open"
-    assert evaluate(flat, hit("long", 100, 90, 120), max_bars=3).result == "expired"
+    o = evaluate(flat, hit("long", 100, 90, 120), max_bars=4)
+    assert (o.result, o.exit_index, o.bars) == ("expired", 4, 4)
+    assert o.r == pytest.approx(0.3)  # closed at 103: +3 on a risk of 10
+    assert o.move_pct == pytest.approx(3.0)
+    short = evaluate(flat, hit("short", 100, 110, 80), max_bars=4)
+    assert short.r == pytest.approx(-0.3)
+
+
+def test_holding_limit_grows_with_the_formation() -> None:
+    small = PatternHit("test", "long", 50, 100, 90, 120, 40, 90)
+    big = PatternHit("test", "long", 120, 100, 90, 120, 40, 90)
+    assert hold_bars(small) == MAX_HOLD_BARS
+    assert hold_bars(big) == 80
 
 
 def test_wilson_matches_reference_values() -> None:
@@ -58,6 +70,18 @@ def test_break_even_and_verdict() -> None:
     assert s.verdict == "edge"  # Wilson low 0.47 > break-even 0.33
     few = summarize([*wins[: MIN_SAMPLE // 2], *losses[:5]])
     assert few.verdict == "tooFew"
+
+
+def test_expired_cases_count_at_their_own_result() -> None:
+    wins = [Resolved(True, 4.0, 2.0, 5)] * 10
+    losses = [Resolved(False, -2.0, -1.0, 3)] * 5
+    expired = [Resolved(False, 1.0, 0.5, 30, expired=True)] * 5
+    s = summarize([*wins, *losses, *expired])
+    assert (s.n, s.wins, s.losses, s.expired) == (20, 10, 5, 5)
+    assert s.win_rate == pytest.approx(0.5)  # an expiry is not a win
+    assert s.expectancy_r == pytest.approx((10 * 2 - 5 + 5 * 0.5) / 20)
+    # break-even: p * 2 = (1 - p) * L, L = mean loss of the non-wins = (5 - 2.5) / 10 = 0.25
+    assert s.break_even == pytest.approx(0.25 / 2.25)
 
 
 # Trailing take-profit -----------------------------------------------------------------------
@@ -104,7 +128,7 @@ def test_trailing_uses_no_candle_after_its_exit_and_only_tightens() -> None:
     s = real_eth_4h()
     a = atr(s)
     checked = 0
-    for h in detect_patterns(s)[::7]:
+    for h in detect_patterns(s)[::2]:
         t = evaluate_trailing(s, h, a)
         if t.exit_index is None:
             continue

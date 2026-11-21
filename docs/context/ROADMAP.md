@@ -51,7 +51,7 @@ flowchart LR
 - [x] Level source applied to Dashboard and Pattern stats (Alerts use same-timeframe levels)
 - [ ] Versioned rule presets (v2 editing, labelled exploratory until tested out-of-sample)
 - [x] TradingView-style chart: timeframes, chart types, indicators + panes, drawing tools
-- [x] Candlestick patterns: TA-Lib shapes in the analysis service (10, both directions)
+- [x] Candlestick patterns in the analysis service (10, both directions; in-house since r5)
 - [x] Bull flag and inverse head and shoulders (in-house)
 - [x] Triangles (ascending, descending, symmetrical) and wedges; bearish twins of every pattern
 - [ ] Cup and handle, rectangles (if the owner wants them)
@@ -128,9 +128,9 @@ criteria met.
 - Research harness in the repo (`backend/src/tcs/research/`): the filter and exit studies of
   2026-11-18 (momentum / volume / trend filters, 11 exits, random-entry control, year split) as
   a CLI, so any rule change can be re-measured the same way.
-- Owner decision (rule change, new `RULESET_VERSION`): skip or re-target setups whose measured
-  target is at or behind the entry, or whose reward / risk is under 0.5 (2026-11-18 sample: 12
-  "wins" at negative R, 89 of 453 double bottoms/tops under 0.5 R).
+- Owner decision (rule change, new `RULESET_VERSION`): skip setups whose reward / risk is under
+  0.5 (2026-11-18 sample: 89 of 453 double bottoms/tops). Targets already passed at entry are
+  skipped since r5.
 - Order-book features for research: full depth needs snapshot + diff sync (today: top-20 partial book).
 - Liquidity heatmap (old Module 9); candidate renderer: nazmiefearmutcu/flowmap (see TOOLING).
 - Order-flow toolkit, free rebuild of paid tools (DeepCharts, Bookmap, CoinGlass, LuxAlgo); order and

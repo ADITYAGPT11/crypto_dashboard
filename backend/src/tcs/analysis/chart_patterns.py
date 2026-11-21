@@ -38,6 +38,9 @@ FLAG_POLE_BARS = (3, 15)
 FLAG_MIN_BARS = 3  # pause candles before a breakout counts
 FLAG_MAX_BARS = 20
 FLAG_MAX_RETRACE = 0.5  # pause gives back at most half the pole
+# Reversal patterns need a trend to reverse (Bulkowski: "prices trend downward into the pattern")
+PRIOR_BARS = 20  # the first low is compared with the close this many candles earlier
+PRIOR_TREND_ATR = 2.0  # ... and must lie at least this far below it
 # Shared plan
 STOP_PAD_ATR = 0.2
 
@@ -46,10 +49,26 @@ def _finite(x: float) -> bool:
     return bool(np.isfinite(x)) and x > 0
 
 
+def _not_rising(closes: FloatArray) -> bool:
+    """Least-squares slope of the closes is zero or negative."""
+    x = np.arange(closes.shape[0], dtype=np.float64)
+    dx = x - x.mean()
+    return float((dx * (closes - closes.mean())).sum()) <= 0
+
+
+def _trend_into(s: Series, a: FloatArray, first: Swing) -> bool:
+    """Price fell into the pattern: its first low is well below the close ``PRIOR_BARS`` before."""
+    i = first.index
+    if i - PRIOR_BARS < 0 or not _finite(float(a[i])):
+        return False
+    return float(s.close[i - PRIOR_BARS]) - first.price >= PRIOR_TREND_ATR * float(a[i])
+
+
 def double_bottoms(s: Series, a: FloatArray, lows: list[Swing]) -> list[PatternHit]:
     """Two swing lows within ``DB_LOW_TOL_ATR``; confirmed on a close above the peak between.
 
-    Entry = confirmation close; stop = lower low - 0.2 ATR; target = neckline + height.
+    Price must fall into the first low (``_trend_into``). Entry = confirmation close;
+    stop = lower low - 0.2 ATR; target = neckline + height (skipped when already passed).
     """
     hits: list[PatternHit] = []
     last_confirm = -1
@@ -77,12 +96,15 @@ def double_bottoms(s: Series, a: FloatArray, lows: list[Swing]) -> list[PatternH
             neckline = float(s.high[neck_idx])
             if neckline - max(first.price, second.price) < DB_MIN_HEIGHT_ATR * a2:
                 continue
+            if not _trend_into(s, a, first):
+                continue
             for c in range(i2 + 1, min(i2 + DB_CONFIRM_WITHIN, n - 1) + 1):
                 close = float(s.close[c])
                 if close < bottom:
                     break  # failed before confirming
                 if close > neckline:
-                    if c >= second.known_at and c > last_confirm:
+                    target = neckline + (neckline - bottom)
+                    if c >= second.known_at and c > last_confirm and target > close:
                         ac = float(a[c]) if _finite(float(a[c])) else a2
                         hits.append(
                             PatternHit(
@@ -91,7 +113,7 @@ def double_bottoms(s: Series, a: FloatArray, lows: list[Swing]) -> list[PatternH
                                 index=c,
                                 entry=close,
                                 stop=bottom - STOP_PAD_ATR * ac,
-                                target=neckline + (neckline - bottom),
+                                target=target,
                                 start=i1,
                                 extreme=bottom,
                                 points=(
@@ -105,13 +127,18 @@ def double_bottoms(s: Series, a: FloatArray, lows: list[Swing]) -> list[PatternH
                             )
                         )
                         last_confirm = c
-                    break  # first close above the neckline decides (before known = no signal)
+                    # The first close above the neckline decides: before the low is known, or
+                    # already past the target (the measured move is spent) = no signal.
+                    break
             break  # nearest qualifying first low only
     return hits
 
 
 def inverse_head_shoulders(s: Series, a: FloatArray, lows: list[Swing]) -> list[PatternHit]:
     """Three swing lows, the head lowest; the neckline joins the peaks between and may slope.
+
+    Price must fall into the left shoulder (``_trend_into``); a breakout already past the
+    target gives no signal.
 
     Entry = confirmation close; stop = right shoulder - 0.2 ATR;
     target = neckline at confirmation + (neckline at the head - head).
@@ -150,6 +177,8 @@ def inverse_head_shoulders(s: Series, a: FloatArray, lows: list[Swing]) -> list[
                     continue
                 if abs(left.price - right.price) > HS_SHOULDER_TOL_ATR * ar:
                     continue
+                if not _trend_into(s, a, left):
+                    continue
                 if float(s.low[i_l : i_r + 1].min()) < head.price - 1e-12:
                     continue
                 i_p1, i_p2 = peak_between(i_l, i_h), peak_between(i_h, i_r)
@@ -171,7 +200,7 @@ def inverse_head_shoulders(s: Series, a: FloatArray, lows: list[Swing]) -> list[
                     if close < right.price:
                         break  # right shoulder broke first
                     if close > neck(c):
-                        if c >= right.known_at:
+                        if c >= right.known_at and neck(c) + depth > close:
                             ac = float(a[c]) if _finite(float(a[c])) else ar
                             found = PatternHit(
                                 pattern="inverseHeadShoulders",
@@ -203,6 +232,9 @@ def inverse_head_shoulders(s: Series, a: FloatArray, lows: list[Swing]) -> list[
 def bull_flags(s: Series, a: FloatArray) -> list[PatternHit]:
     """A pole of at least 3 ATR in 3-15 candles, a pause giving back at most half of it.
 
+    The pause drifts sideways or against the pole: the least-squares slope of its closes is not
+    positive (Edwards & Magee: a flag slopes against the trend).
+
     The pole top is the highest high of the previous 15 candles. Confirmed on the
     first close above the pause's highest high, 4-20 candles after the top.
     Entry = confirmation close; stop = pause low - 0.2 ATR; target = entry + pole.
@@ -225,7 +257,7 @@ def bull_flags(s: Series, a: FloatArray) -> list[PatternHit]:
         flag_low, flag_low_idx, flag_high = float("inf"), t, float("-inf")
         for f in range(t + 1, min(t + FLAG_MAX_BARS, n - 1) + 1):
             close = float(s.close[f])
-            if f - t > FLAG_MIN_BARS and close > flag_high:
+            if f - t > FLAG_MIN_BARS and close > flag_high and _not_rising(s.close[t + 1 : f]):
                 af = float(a[f]) if _finite(float(a[f])) else at
                 hits.append(
                     PatternHit(

@@ -1,121 +1,220 @@
-"""Candlestick patterns: TA-Lib decides the SHAPE, these rules add context and a plan.
+"""Candlestick patterns, written in-house to the published definitions.
 
-TA-Lib is the reference implementation of Nison's definitions. It reports a
-pattern on its LAST candle (the moment it is complete), using only that candle
-and the averages of the candles before it, so there is no look-ahead.
+Why not TA-Lib's ``CDL*`` functions (used until rule set r4): its shooting star,
+inverted hammer and morning / evening star demand a gap between candle bodies,
+which a 24/7 market never has (each candle opens at the previous close), so they
+fired only on one-tick differences; its hammer family accepts a shadow just longer
+than the body where Nison asks for twice. See ``docs/product/patterns.md``.
 
-What TA-Lib leaves out and we add (one rule each, same for every pattern):
+Each rule is written once for the bullish pattern. The bearish twin is the same
+rule on the mirrored series (``tcs.common.series.mirror``): upside down, a hammer
+is a shooting star, an inverted hammer a hanging man.
 
-- **Trend context** (Nison: a reversal pattern needs a trend to reverse). The
-  close before the pattern must be below (bullish) / above (bearish) the close
-  ``TREND_BARS`` candles earlier.
-- **Size**: the pattern's high-low range must be at least ``MIN_RANGE_ATR`` ATR,
-  so near-flat "dust" candles do not count.
+Shape (Nison, *Japanese Candlestick Charting Techniques*; StockCharts ChartSchool):
+
+- **Bullish engulfing**: a down candle that is not a doji, then an up candle whose
+  body covers its body (one end may be equal).
+- **Hammer**: lower shadow at least twice the body, upper shadow at most a tenth of
+  the range. **Inverted hammer**: the same upside down within the candle (upper
+  shadow at least twice the body, lower shadow at most a tenth). No gap required.
+- **Morning star**: a long down candle; a short-bodied star whose body sits wholly
+  below the first body (touching allowed: the 24/7 form of the gap); a long up
+  candle closing above the middle of the first body ("well into it").
+- **Bullish harami**: a long down candle, then a short body inside its body.
+
+"Long" and "short" bodies are measured against the mean body of the ten candles
+before (TA-Lib's default candle settings, the common quantification); a doji's
+body is at most a tenth of its range.
+
+Context and plan, the same for every pattern:
+
+- **Trend** (a reversal needs a trend to reverse; StockCharts' first guideline):
+  the close before the pattern is below its 20-candle EMA and at least
+  ``TREND_MIN_ATR`` ATR below the close ``TREND_BARS`` candles earlier.
+- **Size**: the pattern's high-low range is at least ``MIN_RANGE_ATR`` ATR.
+- **Confirmation** (Nison; Bulkowski's breakout): within ``CONFIRM_BARS`` candles a
+  close above the pattern's high; a close below its low first cancels it. The
+  morning star confirms itself (its third candle).
 - **Plan**: entry at the confirmation close; stop ``STOP_PAD_ATR`` ATR beyond the
   pattern's extreme; target ``TARGET_R`` times the risk.
 
-Not used, because they need session gaps a 24/7 market almost never has (checked
-on a year of BTC 1h data: zero hits): piercing line, dark cloud cover, kicking,
-abandoned baby. Three white soldiers / black crows fire about once a year.
+Left out: piercing line, dark cloud cover, kicking and abandoned baby (their gaps
+are the pattern), three white soldiers / black crows (about once a year), doji
+(indecision, not a direction).
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 
 import numpy as np
-import numpy.typing as npt
-import talib
 
-from tcs.analysis.indicators import atr
-from tcs.analysis.types import Direction, PatternHit, Point
-from tcs.common.series import FloatArray, Series
+from tcs.analysis.indicators import atr, ema
+from tcs.analysis.mirroring import unmirror
+from tcs.analysis.types import PatternHit, Point
+from tcs.common.series import FloatArray, Series, mirror
 
+AVG_BODY_BARS = 10  # long / short bodies against the mean body of this many candles before
+DOJI_BODY = 0.1  # body at most this share of the range
+SHADOW_BODY = 2.0  # hammer family: long shadow at least this many bodies
+SHORT_SHADOW = 0.1  # hammer family: the other shadow at most this share of the range
+STAR_CLOSE_INTO = 0.5  # morning star: third close above this share of the first body
+TREND_EMA = 20
 TREND_BARS = 5
+TREND_MIN_ATR = 0.5
 MIN_RANGE_ATR = 0.8
+CONFIRM_BARS = 3
 STOP_PAD_ATR = 0.1
 TARGET_R = 1.5
 
-TaFn = Callable[[FloatArray, FloatArray, FloatArray, FloatArray], npt.NDArray[np.int32]]
+Shape = Callable[["_Bars", int], bool]
 
 
-@dataclass(frozen=True, slots=True)
-class CandleRule:
-    fn: str
-    size: int
-    bullish: str | None
-    bearish: str | None
+class _Bars:
+    """Per-candle measures every shape reads (one pass, plain floats)."""
+
+    def __init__(self, s: Series) -> None:
+        self.o, self.h, self.lo, self.c = s.open, s.high, s.low, s.close
+        self.top = np.maximum(s.open, s.close)
+        self.bottom = np.minimum(s.open, s.close)
+        self.body = self.top - self.bottom
+        self.range = s.high - s.low
+        mean = np.full(len(s), np.nan)
+        if len(s) > AVG_BODY_BARS:
+            csum = np.concatenate([[0.0], np.cumsum(self.body)])
+            idx = np.arange(AVG_BODY_BARS, len(s))
+            mean[idx] = (csum[idx] - csum[idx - AVG_BODY_BARS]) / AVG_BODY_BARS
+        self.avg_body = mean
+
+    def up(self, i: int) -> bool:
+        return bool(self.c[i] > self.o[i])
+
+    def down(self, i: int) -> bool:
+        return bool(self.c[i] < self.o[i])
+
+    def long(self, i: int) -> bool:
+        return bool(self.body[i] > self.avg_body[i])
+
+    def short(self, i: int) -> bool:
+        return bool(self.body[i] <= self.avg_body[i])
+
+    def doji(self, i: int) -> bool:
+        return bool(self.body[i] <= DOJI_BODY * self.range[i])
 
 
-RULES: tuple[CandleRule, ...] = (
-    CandleRule("CDLENGULFING", 2, "bullishEngulfing", "bearishEngulfing"),
-    CandleRule("CDLHAMMER", 1, "hammer", None),
-    CandleRule("CDLHANGINGMAN", 1, None, "hangingMan"),
-    CandleRule("CDLINVERTEDHAMMER", 1, "invertedHammer", None),
-    CandleRule("CDLSHOOTINGSTAR", 1, None, "shootingStar"),
-    CandleRule("CDLMORNINGSTAR", 3, "morningStar", None),
-    CandleRule("CDLEVENINGSTAR", 3, None, "eveningStar"),
-    CandleRule("CDLHARAMI", 2, "bullishHarami", "bearishHarami"),
-)
+def _engulfing(b: _Bars, i: int) -> bool:
+    j = i - 1
+    if not (b.down(j) and not b.doji(j) and b.up(i)):
+        return False
+    covers = b.o[i] <= b.c[j] and b.c[i] >= b.o[j]
+    return bool(covers and (b.o[i] < b.c[j] or b.c[i] > b.o[j]))
 
 
-def _ta(name: str) -> TaFn:
-    fn: TaFn = getattr(talib, name)
-    return fn
+def _hammer(b: _Bars, i: int) -> bool:
+    r = b.range[i]
+    lower, upper = b.bottom[i] - b.lo[i], b.h[i] - b.top[i]
+    return bool(r > 0 and lower >= SHADOW_BODY * b.body[i] and upper <= SHORT_SHADOW * r)
 
 
-def _trend_ok(s: Series, start: int, direction: Direction) -> bool:
-    before = start - 1
+def _inverted_hammer(b: _Bars, i: int) -> bool:
+    r = b.range[i]
+    lower, upper = b.bottom[i] - b.lo[i], b.h[i] - b.top[i]
+    return bool(r > 0 and upper >= SHADOW_BODY * b.body[i] and lower <= SHORT_SHADOW * r)
+
+
+def _morning_star(b: _Bars, i: int) -> bool:
+    first, star = i - 2, i - 1
+    if not (b.down(first) and b.long(first) and b.short(star) and b.up(i) and b.long(i)):
+        return False
+    below = b.top[star] <= b.bottom[first]  # star body wholly below the first body
+    middle = b.c[first] + STAR_CLOSE_INTO * b.body[first]
+    return bool(below and b.c[i] > middle)
+
+
+def _harami(b: _Bars, i: int) -> bool:
+    j = i - 1
+    if not (b.down(j) and b.long(j) and b.short(i)):
+        return False
+    inside = b.top[i] <= b.o[j] and b.bottom[i] >= b.c[j]
+    return bool(inside and b.body[i] < b.body[j])
+
+
+#: pattern -> (shape test on its last candle, candles, confirms itself)
+RULES: dict[str, tuple[Shape, int, bool]] = {
+    "bullishEngulfing": (_engulfing, 2, False),
+    "hammer": (_hammer, 1, False),
+    "invertedHammer": (_inverted_hammer, 1, False),
+    "morningStar": (_morning_star, 3, True),
+    "bullishHarami": (_harami, 2, False),
+}
+
+BEARISH_TWIN = {
+    "bullishEngulfing": "bearishEngulfing",
+    "hammer": "shootingStar",
+    "invertedHammer": "hangingMan",
+    "morningStar": "eveningStar",
+    "bullishHarami": "bearishHarami",
+}
+
+
+def _downtrend(s: Series, a: FloatArray, trend: FloatArray, before: int) -> bool:
     if before - TREND_BARS < 0:
         return False
-    prior = s.close[before - TREND_BARS]
-    return bool(s.close[before] < prior) if direction == "long" else bool(s.close[before] > prior)
+    ab, e = float(a[before]), float(trend[before])
+    if not (np.isfinite(ab) and np.isfinite(e)):
+        return False
+    close = float(s.close[before])
+    return close < e and close <= float(s.close[before - TREND_BARS]) - TREND_MIN_ATR * ab
 
 
-def detect_candlesticks(s: Series, atrs: FloatArray | None = None) -> list[PatternHit]:
-    if len(s) < 15:
-        return []
-    a = atr(s) if atrs is None else atrs
-    hits: list[PatternHit] = []
-    for rule in RULES:
-        out = _ta(rule.fn)(s.open, s.high, s.low, s.close)
-        for end in np.flatnonzero(out).tolist():
-            sign = int(out[end])
-            pattern = rule.bullish if sign > 0 else rule.bearish
-            if pattern is None:
-                continue
-            direction: Direction = "long" if sign > 0 else "short"
-            start = end - rule.size + 1
-            ae = float(a[end])
-            if not np.isfinite(ae) or ae <= 0 or start < 1:
+def _bullish(s: Series, a: FloatArray) -> list[PatternHit]:
+    n = len(s)
+    b = _Bars(s)
+    trend = ema(s.close, TREND_EMA)
+    found: dict[tuple[str, int], PatternHit] = {}
+    for end in range(AVG_BODY_BARS + 2, n):
+        for pattern, (shape, size, self_confirming) in RULES.items():
+            start = end - size + 1
+            if not shape(b, end):
                 continue
             low = float(s.low[start : end + 1].min())
             high = float(s.high[start : end + 1].max())
-            if high - low < MIN_RANGE_ATR * ae or not _trend_ok(s, start, direction):
+            ae = float(a[end])
+            if not np.isfinite(ae) or ae <= 0 or high - low < MIN_RANGE_ATR * ae:
                 continue
-            entry = float(s.close[end])
-            if direction == "long":
-                stop = low - STOP_PAD_ATR * ae
-                target = entry + TARGET_R * (entry - stop)
-                extreme = low
-            else:
-                stop = high + STOP_PAD_ATR * ae
-                target = entry - TARGET_R * (stop - entry)
-                extreme = high
-            if (direction == "long" and stop >= entry) or (direction == "short" and stop <= entry):
+            if not _downtrend(s, a, trend, start - 1):
                 continue
-            hits.append(
-                PatternHit(
-                    pattern=pattern,
-                    direction=direction,
-                    index=end,
-                    entry=entry,
-                    stop=stop,
-                    target=target,
-                    start=start,
-                    extreme=extreme,
-                    points=(Point(end, extreme),),
-                )
+            confirm: int | None = end if self_confirming else None
+            if confirm is None:
+                for c in range(end + 1, min(end + CONFIRM_BARS, n - 1) + 1):
+                    if s.close[c] < low:
+                        break
+                    if s.close[c] > high:
+                        confirm = c
+                        break
+            if confirm is None:
+                continue
+            ac = float(a[confirm])
+            entry = float(s.close[confirm])
+            stop = low - STOP_PAD_ATR * ac
+            found[(pattern, confirm)] = PatternHit(
+                pattern=pattern,
+                direction="long",
+                index=confirm,
+                entry=entry,
+                stop=stop,
+                target=entry + TARGET_R * (entry - stop),
+                start=start,
+                extreme=low,
+                points=tuple(Point(i, float(s.low[i])) for i in range(start, end + 1)),
             )
-    return hits
+    # A later pattern confirmed on the same candle replaces an earlier one (the latest trigger).
+    return list(found.values())
+
+
+def detect_candlesticks(s: Series, atrs: FloatArray | None = None) -> list[PatternHit]:
+    if len(s) < AVG_BODY_BARS + 3:
+        return []
+    a = atr(s) if atrs is None else atrs
+    bearish = [unmirror(h, BEARISH_TWIN[h.pattern]) for h in _bullish(mirror(s), a)]
+    return [*_bullish(s, a), *bearish]

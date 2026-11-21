@@ -118,12 +118,14 @@ const SetupCard: React.FC<Props> = ({
           <span className={styles.lbl}>
             Win rate · {coins} coins{years ? ` · ${years} y` : ""}{" "}
             <Explain title="How win rate is measured">
-              A case wins when the target is hit before the stop within {maxHoldBars} candles (a
-              candle touching both counts as a loss). Every past case of this exact setup (pattern,
-              direction, location, timeframes) across the research coins is counted by the same
-              rules that drew it here. The range is the 95% Wilson interval; the amber tick is the
-              break-even win rate for this setup's average win size. Edge candidate means the whole
-              range sits above break-even, with at least {minSample} cases.
+              A case wins when the target is hit before the stop within {maxHoldBars} candles, or
+              the pattern&apos;s own length when longer (a candle touching both counts as a loss). A
+              trade that reaches neither is closed at the market then and counts at its result.
+              Every past case of this exact setup (pattern, direction, location, timeframes) across
+              the research coins is counted by the same rules that drew it here. The range is the
+              95% Wilson interval; the amber tick is the break-even win rate for this setup's
+              average win size. Edge candidate means the whole range sits above break-even, with at
+              least {minSample} cases.
             </Explain>
           </span>
           {pooled ? (

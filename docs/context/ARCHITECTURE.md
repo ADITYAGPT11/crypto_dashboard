@@ -157,28 +157,28 @@ in the lockfile.
 
 ### Backend (Python)
 
-| Area           | Package                                                                                                 | Why                                                | Phase |
-| -------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----- |
-| Project & deps | **uv**                                                                                                  | Fast installs, lockfile, Python version management | P1    |
-| Lint + format  | **ruff**                                                                                                | One fast tool for both                             | P1    |
-| Type check     | **pyright**                                                                                             | Strict typing, same spirit as our TS               | P1    |
-| Tests          | **pytest**, pytest-asyncio, **hypothesis**                                                              | Unit + property tests (cost model, risk rules)     | P1    |
-| Data models    | **pydantic** v2, pydantic-settings                                                                      | Event contracts, config from env                   | P1    |
-| API            | **FastAPI**, uvicorn                                                                                    | REST + WebSocket, OpenAPI for TS types             | P1    |
-| Exchanges      | **ccxt** (includes pro WebSockets)                                                                      | Unified REST/WS for 100+ exchanges; backfill       | P1    |
-| HTTP / retries | httpx, tenacity                                                                                         | Non-ccxt sources (news), retry with backoff        | P1    |
-| QuestDB        | **questdb** (official ingest client), **psycopg** 3                                                     | Fast ingest (ILP) + SQL queries                    | P1    |
-| Logging        | structlog                                                                                               | JSON logs with context (exchange, symbol)          | P1    |
-| CLI            | typer                                                                                                   | `tcs …` commands                                   | P1    |
-| Dataframes     | **polars**, numpy                                                                                       | Features and analytics                             | P2    |
-| Indicators     | **TA-Lib** ✅ adopted (0.8.3)                                                                           | ATR/EMA/SMA + candlestick shapes for the rule set  | P1    |
-| Backtesting    | **vectorbt** (screening); own event-driven engine _or_ NautilusTrader (validation, decided at P2 start) | Fast idea screening, then realistic validation     | P2    |
-| Statistics     | scipy, statsmodels, arch                                                                                | Tests, regressions, cointegration, GARCH           | P2    |
-| Reports        | quantstats, plotly                                                                                      | Strategy tear sheets                               | P2    |
-| Optimisation   | optuna                                                                                                  | Param search inside walk-forward                   | P2    |
-| Research       | marimo (or Jupyter), duckdb (optional, local)                                                           | Reactive notebooks; fast local scans of Parquet    | P2    |
-| News NLP       | anthropic SDK or transformers (FinBERT)                                                                 | Classify and score news                            | P5    |
-| Alerts         | python-telegram-bot                                                                                     | Confirmation alerts                                | P6    |
+| Area           | Package                                                                                                 | Why                                                  | Phase |
+| -------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ----- |
+| Project & deps | **uv**                                                                                                  | Fast installs, lockfile, Python version management   | P1    |
+| Lint + format  | **ruff**                                                                                                | One fast tool for both                               | P1    |
+| Type check     | **pyright**                                                                                             | Strict typing, same spirit as our TS                 | P1    |
+| Tests          | **pytest**, pytest-asyncio, **hypothesis**                                                              | Unit + property tests (cost model, risk rules)       | P1    |
+| Data models    | **pydantic** v2, pydantic-settings                                                                      | Event contracts, config from env                     | P1    |
+| API            | **FastAPI**, uvicorn                                                                                    | REST + WebSocket, OpenAPI for TS types               | P1    |
+| Exchanges      | **ccxt** (includes pro WebSockets)                                                                      | Unified REST/WS for 100+ exchanges; backfill         | P1    |
+| HTTP / retries | httpx, tenacity                                                                                         | Non-ccxt sources (news), retry with backoff          | P1    |
+| QuestDB        | **questdb** (official ingest client), **psycopg** 3                                                     | Fast ingest (ILP) + SQL queries                      | P1    |
+| Logging        | structlog                                                                                               | JSON logs with context (exchange, symbol)            | P1    |
+| CLI            | typer                                                                                                   | `tcs …` commands                                     | P1    |
+| Dataframes     | **polars**, numpy                                                                                       | Features and analytics                               | P2    |
+| Indicators     | **TA-Lib** ✅ adopted (0.8.3)                                                                           | ATR/EMA/SMA for the rule set (candlesticks in-house) | P1    |
+| Backtesting    | **vectorbt** (screening); own event-driven engine _or_ NautilusTrader (validation, decided at P2 start) | Fast idea screening, then realistic validation       | P2    |
+| Statistics     | scipy, statsmodels, arch                                                                                | Tests, regressions, cointegration, GARCH             | P2    |
+| Reports        | quantstats, plotly                                                                                      | Strategy tear sheets                                 | P2    |
+| Optimisation   | optuna                                                                                                  | Param search inside walk-forward                     | P2    |
+| Research       | marimo (or Jupyter), duckdb (optional, local)                                                           | Reactive notebooks; fast local scans of Parquet      | P2    |
+| News NLP       | anthropic SDK or transformers (FinBERT)                                                                 | Classify and score news                              | P5    |
+| Alerts         | python-telegram-bot                                                                                     | Confirmation alerts                                  | P6    |
 
 ### Frontend (TypeScript), already: React 19, Vite+, react-router, eventemitter3, SCSS
 

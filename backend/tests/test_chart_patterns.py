@@ -15,36 +15,48 @@ def of(s: Series, pattern: str, after: int = 0) -> list[PatternHit]:
     return [h for h in detect_chart_patterns(s) if h.pattern == pattern and h.index > after]
 
 
+def falling_into(points: list[tuple[int, float]]) -> Series:
+    """The path with a 10-candle decline in front: reversals need a trend to reverse."""
+    return path([(0, points[0][1] + 10), *((i + 10, p) for i, p in points)])
+
+
 W = [(0, 110), (20, 90), (30, 100), (40, 90.3), (52, 104), (60, 103)]
 
 
 class TestDoubleBottom:
     def test_confirms_on_close_above_the_peak_with_measured_move(self) -> None:
-        hits = of(path(W), "doubleBottom")
+        hits = of(falling_into(W), "doubleBottom")
         assert len(hits) == 1
         h = hits[0]
         assert h.direction == "long"
-        assert h.index >= 40 + 3  # second low known 3 candles later
+        assert h.index >= 50 + 3  # second low known 3 candles later
         neckline = h.lines[0].a.price
         assert h.entry > neckline
         assert h.stop < h.extreme
         assert h.target == pytest.approx(neckline + (neckline - h.extreme))
 
     def test_needs_a_meaningful_peak_between_the_lows(self) -> None:
-        shallow = path([(0, 110), (20, 90), (30, 91.5), (40, 90.3), (52, 104)])
+        shallow = falling_into([(0, 110), (20, 90), (30, 91.5), (40, 90.3), (52, 104)])
         assert of(shallow, "doubleBottom") == []
 
     def test_lows_must_be_close_together(self) -> None:
-        uneven = path([(0, 110), (20, 90), (30, 100), (40, 95), (52, 104)])
+        uneven = falling_into([(0, 110), (20, 90), (30, 100), (40, 95), (52, 104)])
         assert of(uneven, "doubleBottom") == []
 
     def test_no_signal_when_price_breaks_the_lows_first(self) -> None:
-        failed = path([(0, 110), (20, 90), (30, 100), (40, 90.3), (46, 93), (50, 86), (64, 104)])
-        assert of(failed, "doubleBottom", after=40) == []
+        failed = falling_into(
+            [(0, 110), (20, 90), (30, 100), (40, 90.3), (46, 93), (50, 86), (64, 104)]
+        )
+        assert of(failed, "doubleBottom", after=50) == []
+
+    def test_needs_a_decline_into_the_first_low(self) -> None:
+        flat = path([(0, 91), (12, 90.6), (20, 90), (30, 100), (40, 90.3), (52, 104), (60, 103)])
+        assert of(flat, "doubleBottom") == []
 
     def test_double_top_is_the_mirror(self) -> None:
-        tops = of(mirror(path(W)), "doubleTop")
-        bottoms = of(path(W), "doubleBottom")
+        tops = of(mirror(falling_into(W)), "doubleTop")
+        bottoms = of(falling_into(W), "doubleBottom")
+        assert bottoms
         assert [(t.index, t.direction) for t in tops] == [(b.index, "short") for b in bottoms]
         assert tops[0].entry == pytest.approx(-bottoms[0].entry)
 
@@ -54,24 +66,28 @@ IHS = [(0, 104), (20, 90), (28, 96), (38, 84), (48, 96.5), (56, 90.5), (70, 100)
 
 class TestInverseHeadShoulders:
     def test_confirms_above_the_neckline(self) -> None:
-        hits = of(path(IHS), "inverseHeadShoulders")
+        hits = of(falling_into(IHS), "inverseHeadShoulders")
         assert len(hits) == 1
         h = hits[0]
-        assert h.index > 56 + 3
+        assert h.index > 66 + 3
         assert h.extreme == pytest.approx(83.5)  # head low
         assert h.stop < 90  # below the right shoulder
         assert h.target > h.entry
 
     def test_head_must_be_lower_than_both_shoulders(self) -> None:
-        flat = path([(0, 104), (20, 90), (28, 96), (38, 89.8), (48, 96.5), (56, 90.5), (70, 100)])
+        flat = falling_into(
+            [(0, 104), (20, 90), (28, 96), (38, 89.8), (48, 96.5), (56, 90.5), (70, 100)]
+        )
         assert of(flat, "inverseHeadShoulders") == []
 
     def test_needs_a_neckline_break(self) -> None:
-        stuck = path([(0, 104), (20, 90), (28, 96), (38, 84), (48, 96.5), (56, 90.5), (70, 94)])
+        stuck = falling_into(
+            [(0, 104), (20, 90), (28, 96), (38, 84), (48, 96.5), (56, 90.5), (70, 94)]
+        )
         assert of(stuck, "inverseHeadShoulders") == []
 
     def test_fails_when_right_shoulder_breaks_first(self) -> None:
-        failed = path(
+        failed = falling_into(
             [
                 (0, 104),
                 (20, 90),
@@ -84,7 +100,11 @@ class TestInverseHeadShoulders:
                 (80, 100),
             ]
         )
-        assert of(failed, "inverseHeadShoulders", after=56) == []
+        assert of(failed, "inverseHeadShoulders", after=66) == []
+
+    def test_needs_a_decline_into_the_left_shoulder(self) -> None:
+        flat = path([(0, 90.5), (20, 90), *IHS[2:]])
+        assert of(flat, "inverseHeadShoulders") == []
 
 
 FLAG = [(0, 100), (20, 100.2), (26, 112), (32, 109), (35, 114), (45, 115)]
@@ -104,6 +124,10 @@ class TestBullFlag:
     def test_pause_may_not_give_back_more_than_half(self) -> None:
         deep = path([(0, 100), (20, 100.2), (26, 112), (32, 104), (35, 114)])
         assert of(deep, "bullFlag") == []
+
+    def test_a_rising_pause_is_not_a_flag(self) -> None:
+        rising = path([(0, 100), (20, 100.2), (26, 112), (28, 109), (34, 111.5), (37, 115)])
+        assert of(rising, "bullFlag") == []
 
     def test_needs_a_real_pole(self) -> None:
         weak = path([(0, 100), (20, 100.2), (26, 102), (32, 101), (35, 103)])

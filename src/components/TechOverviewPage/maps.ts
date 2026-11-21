@@ -1609,9 +1609,9 @@ const analysisEngine: ArchMap = {
       lane: "detect",
       y: 70,
       title: "candlesticks.py",
-      sub: "TA-Lib shapes + context",
+      sub: "in-house shapes · trend · confirmation",
       kind: "py",
-      desc: "Candlestick shapes, kept only in the right context.",
+      desc: "Candlestick patterns to Nison / StockCharts: shape, a real trend, a confirmation close. Bearish versions come from mirroring.",
       files: ["backend/src/tcs/analysis/candlesticks.py"],
     },
     {
@@ -1621,7 +1621,7 @@ const analysisEngine: ArchMap = {
       title: "chart_patterns.py",
       sub: "double bottom · inv. H&S · flag",
       kind: "py",
-      desc: "Chart patterns; bearish versions come from mirroring.",
+      desc: "Chart patterns; reversals need a prior trend. Bearish versions come from mirroring.",
       files: ["backend/src/tcs/analysis/chart_patterns.py"],
     },
     {
@@ -1681,7 +1681,7 @@ const analysisEngine: ArchMap = {
       title: "outcomes.py",
       sub: "fixed target + trailing exit",
       kind: "py",
-      desc: "Win = target before stop. Trailing take-profit measured beside the fixed target.",
+      desc: "Win = target before stop within 30 candles or the pattern's length; expiries close at the market and count. Trailing take-profit measured beside the fixed target.",
       files: ["backend/src/tcs/analysis/outcomes.py"],
     },
     {
@@ -1691,7 +1691,7 @@ const analysisEngine: ArchMap = {
       title: "costs.py",
       sub: "fees · slippage · funding → R",
       kind: "py",
-      desc: "Every case measured after costs (rule set r4).",
+      desc: "Every case measured after costs (since rule set r4).",
       files: ["backend/src/tcs/analysis/costs.py"],
     },
     {
