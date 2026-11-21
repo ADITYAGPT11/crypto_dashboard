@@ -11,7 +11,7 @@ import {
   type LibraryFilter,
   type LibrarySort,
 } from "../../utils/setupLibrary";
-import { shownIds } from "../../utils/detectionConfig";
+import { loadDetection, pickedKeys, pickKey } from "../../utils/detectionConfig";
 import { pct, shortDate, signedPct, signedR } from "../../utils/format";
 import type { CandleInterval } from "../../types/marketData";
 import { CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
@@ -123,9 +123,10 @@ const StatsPage: React.FC = () => {
   const minSample = catalog?.minSample ?? 30;
 
   const all = useMemo(() => {
-    const shown = shownIds(catalog);
+    // The patterns picked in the chart's Patterns panel (chart patterns by default).
+    const picked = pickedKeys(loadDetection(), catalog);
     return [...statsByKey(res.data).values()].filter(
-      (s) => s.n > 0 && s.location === "*" && shown.has(s.pattern),
+      (s) => s.n > 0 && s.location === "*" && picked.has(pickKey(s.pattern, s.direction)),
     );
   }, [res.data, catalog]);
   const rows = useMemo(() => filterAndSort(all, filter, sort), [all, filter, sort]);
@@ -145,7 +146,7 @@ const StatsPage: React.FC = () => {
         <div>
           <h1>Pattern stats</h1>
           <p>
-            Every chart pattern in both directions, measured in the background on closed {interval}{" "}
+            Every pattern you picked on the chart, measured in the background on closed {interval}{" "}
             candles across {coins || "the research"} coins
             {years ? ` over ${years} years` : ""}. Win = target hit before stop within {maxHold}{" "}
             candles (or the pattern&apos;s length); trades that reach neither close at the market
@@ -201,7 +202,7 @@ const StatsPage: React.FC = () => {
         <div className={styles.card}>
           <span className={styles.lbl}>Setups measured</span>
           <span className={styles.big}>{res.data ? totals.setups : "…"}</span>
-          <span className={styles.mute}>chart pattern × direction</span>
+          <span className={styles.mute}>pattern × direction</span>
         </div>
         <div className={styles.card}>
           <span className={styles.lbl}>Resolved cases</span>
@@ -226,10 +227,10 @@ const StatsPage: React.FC = () => {
         <div className={styles.cardHead}>
           <h2 id="lib-title">Setup library</h2>
           <Explain title="Reading this table">
-            Each row pools every past case of one chart pattern in one direction across all coins.
-            The bar is the 95% range of the true win rate; the tick is the break-even win rate given
-            the average win size. Edge candidate: at least {minSample} cases and the whole range
-            right of the tick. Open a row to see each coin on its own.
+            Each row pools every past case of one pattern in one direction across all coins. The bar
+            is the 95% range of the true win rate; the tick is the break-even win rate given the
+            average win size. Edge candidate: at least {minSample} cases and the whole range right
+            of the tick. Open a row to see each coin on its own.
           </Explain>
           <div className={styles.controls}>
             <div className={styles.pills} role="group" aria-label="Verdict">

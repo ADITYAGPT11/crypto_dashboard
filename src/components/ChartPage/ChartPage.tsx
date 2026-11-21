@@ -20,7 +20,8 @@ import { pct, price, shortDate } from "../../utils/format";
 import {
   loadDetection,
   saveDetection,
-  shownIds,
+  pickedKeys,
+  pickKey,
   type DetectionConfig,
 } from "../../utils/detectionConfig";
 import {
@@ -181,10 +182,10 @@ const ChartPage: React.FC = () => {
 
   const found: Found[] = useMemo(() => {
     const out: Found[] = [];
-    const visible = shownIds(catalog); // chart patterns only
+    const visible = pickedKeys(config, catalog); // the patterns picked in the Patterns panel
     for (const [tf, a] of analyses) {
       for (const occ of a.occurrences) {
-        if (!visible.has(occ.pattern)) continue;
+        if (!visible.has(pickKey(occ.pattern, occ.direction))) continue;
         out.push({
           occ: { ...occ, symbol },
           tf,
@@ -194,7 +195,7 @@ const ChartPage: React.FC = () => {
       }
     }
     return out.sort((x, y) => y.closeTime - x.closeTime);
-  }, [analyses, catalog, symbol]);
+  }, [analyses, catalog, config, symbol]);
 
   const recent = useMemo(() => found.slice(0, 12), [found]);
   const selected = recent.find((f) => foundId(f) === selId) ?? recent[0] ?? null;

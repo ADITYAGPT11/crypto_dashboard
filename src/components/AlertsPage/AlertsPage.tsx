@@ -4,7 +4,7 @@ import { useCatalog, useStats } from "../../custom-hooks/useAnalysisApi";
 import { useSetupAlerts } from "../../custom-hooks/useSetupAlerts";
 import { SetupAlertService, type TelegramStatus } from "../../services/SetupAlertService";
 import { parseSetupKey, setupKey as keyOf } from "../../utils/setupKeys";
-import { shownPatterns } from "../../utils/detectionConfig";
+import { isPicked, loadDetection, patternOptions } from "../../utils/detectionConfig";
 import { patternLabel } from "../../utils/patternLabels";
 import { statsByKey } from "../../utils/setupLibrary";
 import {
@@ -76,12 +76,13 @@ const AlertsPage: React.FC = () => {
   const catalog = useCatalog().data;
   const patternChoices = useMemo(
     () =>
-      shownPatterns(catalog).flatMap((p) =>
-        (p.bias === "either" ? (["long", "short"] as const) : [p.bias]).map((d) => ({
-          value: `${p.id}|${d}`,
-          label: `${d === "long" ? "▲" : "▼"} ${p.label}${p.bias === "either" ? (d === "long" ? " (up)" : " (down)") : ""}`,
+      // The patterns picked in the chart's Patterns panel (chart patterns by default).
+      patternOptions(catalog)
+        .filter((o) => isPicked(loadDetection(), o))
+        .map((o) => ({
+          value: o.key,
+          label: `${o.direction === "long" ? "▲" : "▼"} ${o.label}`,
         })),
-      ),
     [catalog],
   );
   const [interval, setTf] = useState<CandleInterval>(

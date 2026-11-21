@@ -1,98 +1,236 @@
-import type { CatalogOut, RunOut } from "../../api/schema";
-import { useStats } from "../../custom-hooks/useAnalysisApi";
-import type { CandleInterval } from "../../types/marketData";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import type { CatalogOut } from "../../api/schema";
 import {
   DETECTION_TFS,
-  shownPatterns,
+  isPicked,
+  patternOptions,
+  setPicks,
   toggleTf,
   type DetectionConfig,
+  type PatternOption,
 } from "../../utils/detectionConfig";
-import { shortDate } from "../../utils/format";
+import { TfBadge } from "./TfBadge";
 import styles from "./ChartPage.module.scss";
 
 const TF_NAME: Record<string, string> = { "1h": "1 hour", "4h": "4 hours", "1d": "1 day" };
-
-/** Families shown in the list: each pattern with its bearish twin as one line. */
-const FAMILIES: { label: string; ids: string[] }[] = [
-  { label: "Double bottom / top", ids: ["doubleBottom", "doubleTop"] },
-  { label: "Head and shoulders", ids: ["inverseHeadShoulders", "headShoulders"] },
-  { label: "Bull / bear flag", ids: ["bullFlag", "bearFlag"] },
-  {
-    label: "Triangles",
-    ids: ["ascendingTriangle", "descendingTriangle", "symmetricalTriangle"],
-  },
-  { label: "Wedges", ids: ["fallingWedge", "risingWedge"] },
+const KINDS = [
+  { kind: "chart" as const, title: "Chart patterns" },
+  { kind: "candlestick" as const, title: "Candlestick patterns" },
 ];
 
-function runText(run: RunOut | null | undefined, error: string | null): string {
-  if (error) return "service offline";
-  if (!run) return "not measured yet";
-  if (run.status === "running") return `measuring ${run.done}/${run.coins.length} coins…`;
-  if (run.status === "failed") return "failed · retrying";
-  return `ready · ${run.coins.length - run.failed.length} coins · ${shortDate(run.finishedAt ?? run.startedAt)}`;
-}
-
-/** Status of the background statistics for the first picked timeframe. */
-function WinRateStatus({ tf }: { tf: CandleInterval }) {
-  const s = useStats(tf, tf);
-  const text = runText(s.data?.run, s.error);
+/** A button that opens a menu below it; closes on an outside click or Escape. */
+function Dropdown({
+  label,
+  summary,
+  children,
+}: {
+  label: string;
+  summary: ReactNode;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (
+        e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)
+      )
+        setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
   return (
-    <p className={styles.patStatus}>
-      <span className={styles.mute}>Win rates</span>
-      <span className={`${styles.num} ${text.startsWith("ready") ? styles.up : ""}`}>{text}</span>
-    </p>
+    <div className={styles.pick} ref={ref}>
+      <span className={styles.pickLabel} id={`${id}-label`}>
+        {label}
+      </span>
+      <button
+        type="button"
+        className={styles.pickBtn}
+        aria-expanded={open}
+        aria-controls={id}
+        aria-labelledby={`${id}-label`}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className={styles.pickSummary}>{summary}</span>
+        <span aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <div id={id} className={styles.pickMenu} role="group" aria-labelledby={`${id}-label`}>
+          {children}
+        </div>
+      )}
+    </div>
   );
 }
 
-/** One setting: the timeframes chart patterns are looked for on. */
+/** A checkbox row: the real input stays focusable, a drawn box shows its state. */
+function Check({
+  on,
+  onChange,
+  children,
+}: {
+  on: boolean;
+  onChange: (on: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <label className={`${styles.opt} ${on ? styles.optOn : ""}`}>
+      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
+      <span className={styles.optBox} aria-hidden="true">
+        <svg width="10" height="8" viewBox="0 0 10 8">
+          <path d="M1 4l3 3 5-6" />
+        </svg>
+      </span>
+      {children}
+    </label>
+  );
+}
+
+/** Small trend line: rising for bullish patterns, falling for bearish ones. */
+function TrendIcon({ up }: { up: boolean }) {
+  return (
+    <span className={`${styles.trend} ${up ? styles.up : styles.down}`} aria-hidden="true">
+      <svg width="14" height="10" viewBox="0 0 14 10">
+        <path d={up ? "M1 9 L5 5 L8 7 L13 1" : "M1 1 L5 5 L8 3 L13 9"} />
+      </svg>
+    </span>
+  );
+}
+
+/** The pattern menu's list: sections by kind, then bullish / bearish; scrolls with a fade. */
+function PatternList({
+  options,
+  config,
+  onChange,
+}: {
+  options: PatternOption[];
+  config: DetectionConfig;
+  onChange: (cfg: DetectionConfig) => void;
+}) {
+  // The bottom fades only while there is more below.
+  const [atEnd, setAtEnd] = useState(true);
+  const ref = useRef<HTMLDivElement>(null);
+  const measure = () => {
+    const el = ref.current;
+    if (el) setAtEnd(el.scrollTop + el.clientHeight >= el.scrollHeight - 4);
+  };
+  useEffect(measure, []);
+  return (
+    <div
+      ref={ref}
+      className={`${styles.pickScroll} ${atEnd ? "" : styles.pickFade}`}
+      onScroll={measure}
+    >
+      {KINDS.map(({ kind, title }) => {
+        const list = options.filter((o) => o.kind === kind);
+        if (list.length === 0) return null;
+        const on = list.filter((o) => isPicked(config, o)).length;
+        const all = on === list.length;
+        return (
+          <section key={kind} aria-label={title}>
+            <div className={styles.pickSection}>
+              <span>
+                {title} · {on} of {list.length}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  onChange(
+                    setPicks(
+                      config,
+                      list.map((o) => o.key),
+                      !all,
+                    ),
+                  )
+                }
+              >
+                {all ? "Clear" : "Select all"}
+              </button>
+            </div>
+            {(["long", "short"] as const).map((dir) => (
+              <div key={dir} className={styles.pickSide}>
+                <span className={dir === "long" ? styles.up : styles.down}>
+                  {dir === "long" ? "Bullish" : "Bearish"}
+                </span>
+                {list
+                  .filter((o) => o.direction === dir)
+                  .map((o) => (
+                    <Check
+                      key={o.key}
+                      on={isPicked(config, o)}
+                      onChange={(v) => onChange(setPicks(config, [o.key], v))}
+                    >
+                      <TrendIcon up={dir === "long"} />
+                      <span>{o.label}</span>
+                    </Check>
+                  ))}
+              </div>
+            ))}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Two choices for every screen: which timeframes, and which patterns (per direction). */
 const DetectionSettings: React.FC<{
   config: DetectionConfig;
   onChange: (cfg: DetectionConfig) => void;
   catalog: CatalogOut | null;
 }> = ({ config, onChange, catalog }) => {
-  const ids = new Set(shownPatterns(catalog).map((p) => p.id));
-  const families = FAMILIES.filter((f) => f.ids.some((id) => ids.has(id)));
+  const options = patternOptions(catalog);
+  const count = (kind: PatternOption["kind"]) =>
+    options.filter((o) => o.kind === kind && isPicked(config, o)).length;
   return (
     <section className={`${styles.card} ${styles.feature}`} aria-labelledby="det-title">
       <div className={styles.cardHead}>
         <h2 id="det-title">Patterns</h2>
-        <p>
-          Chart patterns found by the analysis service
-          {catalog ? ` (rules ${catalog.ruleset})` : ""}. Pick the candles they are looked for on.
-        </p>
+        <p>Found by the analysis service{catalog ? ` (rules ${catalog.ruleset})` : ""}.</p>
       </div>
-      <fieldset className={styles.tfPick}>
-        <legend className={styles.sub}>Timeframes</legend>
-        <div>
+      <div className={styles.picks}>
+        <Dropdown
+          label="Timeframes"
+          summary={
+            config.tfs.length ? (
+              config.tfs.map((tf) => <TfBadge key={tf} tf={tf} />)
+            ) : (
+              <span className={styles.mute}>None: no patterns shown</span>
+            )
+          }
+        >
           {DETECTION_TFS.map((tf) => (
-            <button
+            <Check
               key={tf}
-              type="button"
-              aria-pressed={config.tfs.includes(tf)}
-              onClick={() => onChange(toggleTf(config, tf))}
+              on={config.tfs.includes(tf)}
+              onChange={() => onChange(toggleTf(config, tf))}
             >
-              <b>{tf}</b>
-              <span>{TF_NAME[tf]}</span>
-            </button>
+              <b className={styles.num}>{tf}</b>
+              <span className={styles.mute}>{TF_NAME[tf]}</span>
+            </Check>
           ))}
-        </div>
-        <p className={styles.mute}>
-          {config.tfs.length
-            ? `Showing patterns from ${config.tfs.join(", ")} on any chart view.`
-            : "No timeframe picked: no patterns are shown."}
-        </p>
-      </fieldset>
-      <h3 className={styles.sub}>Looked for</h3>
-      {catalog ? (
-        <ul className={styles.patNames}>
-          {families.map((f) => (
-            <li key={f.label}>{f.label}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className={styles.mute}>Loading the pattern list…</p>
-      )}
-      {config.tfs.length > 0 && <WinRateStatus tf={config.tfs[0]} />}
+        </Dropdown>
+        <Dropdown
+          label="Patterns"
+          summary={
+            catalog ? (
+              `${count("chart")} chart · ${count("candlestick")} candlestick`
+            ) : (
+              <span className={styles.mute}>Loading…</span>
+            )
+          }
+        >
+          <PatternList options={options} config={config} onChange={onChange} />
+        </Dropdown>
+      </div>
     </section>
   );
 };
