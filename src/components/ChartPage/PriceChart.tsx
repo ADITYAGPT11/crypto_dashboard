@@ -686,18 +686,29 @@ const PriceChart: React.FC<Props> = ({
           const bw = (v / max) * maxW;
           g.fillRect(plotW - bw, yTop + 0.5, bw, Math.max(1, yBot - yTop - 1));
         });
-        const yPoc = y(vp.pocPrice);
-        if (yPoc !== null) {
-          g.setLineDash([5, 4]);
-          g.strokeStyle = C.signal;
+        // Light dashed POC, VAH and VAL across the chart, labelled beside the histogram.
+        const lines: [string, number, string, string][] = [
+          ["VAH", vp.vahPrice, "rgba(148,170,200,0.4)", "rgba(154,167,180,0.8)"],
+          ["POC", vp.pocPrice, "rgba(76,154,255,0.55)", "rgba(76,154,255,0.85)"],
+          ["VAL", vp.valPrice, "rgba(148,170,200,0.4)", "rgba(154,167,180,0.8)"],
+        ];
+        g.save();
+        g.lineWidth = 1;
+        g.setLineDash([4, 4]);
+        g.font = "9.5px JetBrains Mono, monospace";
+        g.textAlign = "right";
+        for (const [tag, p, stroke, text] of lines) {
+          const py = y(p);
+          if (py === null) continue;
+          g.strokeStyle = stroke;
           g.beginPath();
-          g.moveTo(0, yPoc);
-          g.lineTo(plotW, yPoc);
+          g.moveTo(0, Math.round(py) + 0.5);
+          g.lineTo(plotW, Math.round(py) + 0.5);
           g.stroke();
-          g.setLineDash([]);
-          g.fillStyle = C.signal;
-          g.fillText("POC (visible range)", 8, yPoc - 9);
+          g.fillStyle = text;
+          g.fillText(`${tag} ${fmtPrice(p)}`, plotW - maxW - 6, py - 5);
         }
+        g.restore();
       }
     }
 

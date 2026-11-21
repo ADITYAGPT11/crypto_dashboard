@@ -194,7 +194,6 @@ const DetectionSettings: React.FC<{
     <section className={`${styles.card} ${styles.feature}`} aria-labelledby="det-title">
       <div className={styles.cardHead}>
         <h2 id="det-title">Patterns</h2>
-        <p>Found by the analysis service{catalog ? ` (rules ${catalog.ruleset})` : ""}.</p>
       </div>
       <div className={styles.picks}>
         <Dropdown

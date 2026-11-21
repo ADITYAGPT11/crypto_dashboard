@@ -136,7 +136,7 @@ renders/s), `useLiveCandle` (forming candle: Binance, OKX when Binance is silent
 `useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
 
 **Analysis in the browser**: none that feeds statistics (the service owns every rule). Display
-helpers: `volumeProfile` (visible-range histogram, key volume levels), `timeframeMapping` (times
+helpers: `volumeProfile` (visible-range histogram, POC / value area), `timeframeMapping` (times
 → view positions for patterns, zones, blocks, gaps), `patternGeometry` (how a selected pattern is
 drawn: shaded formation, necklines/trendlines, key-point tags, measured move, position box), `setupKeys` (`pattern|direction|location`,
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
