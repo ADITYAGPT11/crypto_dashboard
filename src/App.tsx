@@ -14,6 +14,7 @@ import { SetupAlertService } from "./services/SetupAlertService";
 // The chart library is large; load it only when the Chart page opens.
 const ChartPage = lazy(() => import("./components/ChartPage"));
 const StatsPage = lazy(() => import("./components/StatsPage"));
+const TechOverviewPage = lazy(() => import("./components/TechOverviewPage"));
 
 function App() {
   // Setup alerts are checked while any GreenMTM page is open (Phase 1a, browser-side).
@@ -31,6 +32,8 @@ function App() {
           <Route path="/risk" element={<RiskPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/markets" element={<Markets />} />
+          <Route path="/tech-overview" element={<TechOverviewPage />} />
+          <Route path="/tech-overview/:mapId" element={<TechOverviewPage />} />
           <Route path="/about" element={<AboutUs />} />
         </Routes>
       </Suspense>

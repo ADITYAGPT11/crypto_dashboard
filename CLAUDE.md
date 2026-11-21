@@ -19,6 +19,7 @@
 | `docs/context/ROADMAP.md`      | planning new work                                   | a phase starts, finishes or changes scope             |
 | `docs/context/DECISIONS.md`    | "why is it like this?"                              | a non-obvious choice is made (append, never rewrite)  |
 | `docs/context/MINDMAP.md`      | onboarding / big picture                            | modules or roadmap phases change                      |
+| `TechOverviewPage/maps.ts`     | the clickable architecture map at `/tech-overview`  | modules, files or data flows are added or moved       |
 | `docs/product/README.md`       | product questions, principles                       | product principles or module list change              |
 | `docs/product/COMPETITORS.md`  | deciding what to build next vs paid tools           | a competitor, price or rebuild priority changes       |
 | `docs/product/modules/M*.md`   | working on that module (load only the one you need) | its scope, status or acceptance criteria change       |
