@@ -467,3 +467,15 @@ rate on most candlestick patterns (4h bullish engulfing 27.4% → 31.8%, n 416 �
 Wilson ranges. No variant made a bullish candlestick setup profitable. Same day the owner chose
 to drop the filter for the ten candlestick patterns (r6); chart reversals keep theirs. Display fix shipped with this: the
 candlestick box no longer includes the confirmation candle.
+
+### 2026-11-22 · Confidence = measured win rate of the same score, not a weighted score (r7)
+
+Why: the owner asked for one confidence % on the chart from volume, momentum, zones and similar.
+A weighted 0-100 score would need invented weights (guardrail 3), so the score is a count of
+yes/no checks and the % is the measured win rate of past setups with the same pattern, direction,
+timeframe and count. Six candidate checks were tested on 2 years × 10 coins, year 1 vs year 2
+(pooled over patterns): with the trend (EMA200) +2 to +7 points, order flow confirms +2 to +4,
+**no** volume spike +7 to +8, RSI **not** below 35 +6 to +8; at a zone −1 to +4 (dropped), strong
+zone ≈ 0 (dropped). The textbook signs (volume spike, oversold) hurt. Score 0 → 4 on 4h: about 15%
+→ 38% wins in both years; 1d is too small to tell. Shown in the box (or above it when the box is
+too narrow) with ± half the Wilson range; the setup card is unchanged.

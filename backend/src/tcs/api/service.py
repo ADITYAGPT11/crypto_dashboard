@@ -6,9 +6,10 @@ import math
 import threading
 import time
 from collections import OrderedDict
-from typing import Any
+from typing import Any, Literal
 
 from tcs.analysis.catalog import CATALOG, RULESET_VERSION
+from tcs.analysis.confidence import SCORE_CONTEXTS
 from tcs.analysis.engine import analyze
 from tcs.analysis.flow import CONTEXTS
 from tcs.analysis.outcomes import MAX_HOLD_BARS
@@ -21,7 +22,9 @@ from tcs.api.schemas import (
     CaseOut,
     CatalogOut,
     CoinSummaryOut,
+    ConfidenceOut,
     ContextSummaryOut,
+    OccurrenceOut,
     PatternOut,
     ScannerItemOut,
     ScannerOut,
@@ -133,7 +136,8 @@ class Service:
             hit = self._cache.get(key)
             if hit is not None:
                 self._cache.move_to_end(key)
-                return hit
+        if hit is not None:
+            return self._with_confidence(hit, tf)
         s = self.history.load(symbol, tf, since, now)
         zs = s if zone_tf == tf else self.history.load(symbol, zone_tf, zone_since, now)
         a = analyze(s, zs)
@@ -151,12 +155,51 @@ class Service:
             self._cache[key] = out
             while len(self._cache) > CACHE_SIZE:
                 self._cache.popitem(last=False)
-        return out
+        return self._with_confidence(out, tf)
+
+    def _with_confidence(self, out: AnalysisOut, tf: Timeframe) -> AnalysisOut:
+        """Each occurrence with the latest run's record of its pattern at its score (read on
+        every call: a statistics run can finish while the analysis is cached)."""
+        if tf not in STATS_TFS or not out.occurrences:
+            return out
+        rows = {
+            ctx: {
+                (p, d): s
+                for p, d, loc, s in self.store.stats(RULESET_VERSION, tf, tf, context=ctx)
+                if loc == "*"
+            }
+            for ctx in ("*", *SCORE_CONTEXTS)
+        }
+
+        def confidence(o: OccurrenceOut) -> ConfidenceOut | None:
+            tries: tuple[tuple[str, Literal["score", "pattern"]], ...] = (
+                (f"score:{o.score}", "score"),
+                ("*", "pattern"),
+            )
+            for ctx, basis in tries:
+                s = rows[ctx].get((o.pattern, o.direction))
+                if s is not None and s["n"] >= MIN_SAMPLE:
+                    return ConfidenceOut(
+                        win_rate=s["win_rate"],
+                        ci_low=s["ci_low"],
+                        ci_high=s["ci_high"],
+                        n=s["n"],
+                        basis=basis,
+                    )
+            return None
+
+        return out.model_copy(
+            update={
+                "occurrences": [
+                    o.model_copy(update={"confidence": confidence(o)}) for o in out.occurrences
+                ]
+            }
+        )
 
     # Statistics --------------------------------------------------------------
 
     def stats(self, tf: Timeframe, zone_tf: Timeframe, context: str = "*") -> StatsOut:
-        if context != "*" and context not in CONTEXTS:
+        if context != "*" and context not in (*CONTEXTS, *SCORE_CONTEXTS):
             raise BadRequest(f"unknown context {context!r}")
         rows = self.store.stats(RULESET_VERSION, tf, zone_tf, context=context)
         return StatsOut(

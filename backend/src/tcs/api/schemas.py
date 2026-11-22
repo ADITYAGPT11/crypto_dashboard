@@ -62,6 +62,20 @@ class FlowOut(Out):
     cvd_divergence: bool | None
 
 
+class ConfidenceOut(Out):
+    """Measured win rate of past setups like this one (same pattern, direction, timeframe and
+    confidence score, pooled across coins; the pattern's whole record when that score has too
+    few cases)."""
+
+    win_rate: float
+    #: Wilson 95% range of the win rate.
+    ci_low: float
+    ci_high: float
+    n: int
+    #: "score" = same score; "pattern" = every case of the pattern (score bucket too small).
+    basis: Literal["score", "pattern"]
+
+
 class OccurrenceOut(Out):
     pattern: str
     direction: Literal["long", "short"]
@@ -78,6 +92,10 @@ class OccurrenceOut(Out):
     outcome: OutcomeOut
     flow: FlowOut
     trail: TrailOut
+    #: Confidence checks passed at confirmation, 0-4 (``analysis/confidence.py``).
+    score: int
+    #: Filled from the latest statistics run; None until it has at least ``MIN_SAMPLE`` cases.
+    confidence: ConfidenceOut | None = None
 
 
 class ZoneOut(Out):
@@ -252,6 +270,8 @@ class CaseOut(Out):
     delta_ratio: float | None = None
     flow: Literal["confirms", "against", "neutral"] | None = None
     cvd_divergence: bool | None = None
+    #: Confidence checks passed (0-4); None for cases stored before rule set r7.
+    score: int | None = None
     trail_result: Literal["win", "loss", "expired", "open"] | None = None
     trail_r: float | None = None
     trail_bars: int | None = None

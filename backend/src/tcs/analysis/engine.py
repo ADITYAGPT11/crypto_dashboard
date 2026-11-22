@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from tcs.analysis.candlesticks import detect_candlesticks
 from tcs.analysis.chart_patterns import detect_chart_patterns
+from tcs.analysis.confidence import Score, scorer
 from tcs.analysis.flow import FlowContext, flow_at
 from tcs.analysis.indicators import atr
 from tcs.analysis.location import locate
@@ -33,6 +34,8 @@ class Occurrence:
     flow: FlowContext
     #: The same setup exited with the trailing take-profit (outcomes.py).
     trail: Trail
+    #: Confidence checks passed at confirmation (confidence.py); statistics split by its total.
+    score: Score
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,14 +82,18 @@ def analyze(
     a = atr(s)
     found = hits if hits is not None else detect_patterns(s)
     mirrored = mirror(s) if any(h.direction == "short" for h in found) else None
-    occurrences = [
-        Occurrence(
-            hit,
-            locate(hit, s, float(a[hit.index]), lv_series, lv.zones, lv.order_blocks),
-            evaluate(s, hit),
-            flow_at(s, hit, mirrored),
-            evaluate_trailing(s, hit, a),
+    score = scorer(s, mirrored)
+    occurrences: list[Occurrence] = []
+    for hit in found:
+        flow = flow_at(s, hit, mirrored)
+        occurrences.append(
+            Occurrence(
+                hit,
+                locate(hit, s, float(a[hit.index]), lv_series, lv.zones, lv.order_blocks),
+                evaluate(s, hit),
+                flow,
+                evaluate_trailing(s, hit, a),
+                score(hit, flow),
+            )
         )
-        for hit in found
-    ]
     return Analysis(s, lv_series, occurrences, lv)

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 #: Bump when ANY rule, threshold or outcome rule changes. Statistics are stored per version.
-RULESET_VERSION = "2026.11-r6"
+RULESET_VERSION = "2026.11-r7"
 
 Kind = Literal["chart", "candlestick"]
 Bias = Literal["long", "short", "either"]

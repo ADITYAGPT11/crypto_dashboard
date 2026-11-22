@@ -4,6 +4,7 @@
  * Geometry comes from `utils/patternGeometry.ts`; this file only paints it.
  */
 import type { Candle } from "../../types/marketData";
+import { confidenceLabel } from "../../utils/confidence";
 import { formatPrice } from "../../utils/priceUtils";
 import {
   candleSpan,
@@ -291,7 +292,9 @@ export function drawPattern(
     const sx = x(fig.span.x);
     const sy = y(long ? fig.span.high : fig.span.low);
     if (sx !== null && sy !== null) {
-      softPill(g, sx, sy + (long ? -14 : 14), `${long ? "▲" : "▼"} ${name}`, rgb, "left");
+      const conf = confidenceLabel(vp.confidence);
+      const tag = conf ? `${name} · ${conf.value} ${conf.spread}` : name;
+      softPill(g, sx, sy + (long ? -14 : 14), `${long ? "▲" : "▼"} ${tag}`, rgb, "left");
     }
     // 7. Breakout marker on the confirmation close.
     const bm = map(fig.breakout);
@@ -315,14 +318,42 @@ export function drawPattern(
     const yHigh = span.length ? y(Math.max(...span.map((c) => c.high))) : null;
     const yLow = span.length ? y(Math.min(...span.map((c) => c.low))) : null;
     if (x1 !== null && x2 !== null && yHigh !== null && yLow !== null) {
+      // The confidence sits faintly in a band above the candles inside the box; the box never
+      // widens for it (that would cover other candles), so on narrow boxes it sits just above.
+      const conf = confidenceLabel(vp.confidence);
       const pad = Math.max(0, (barW * 1.4 - (x2 - x1)) / 2);
+      const boxW = x2 - x1 + pad * 2;
+      const sub = conf ? `confidence ${conf.spread}` : "";
+      g.font = "600 14px Inter, system-ui, sans-serif";
+      const valueW = conf ? g.measureText(conf.value).width + 6 : 0;
+      g.font = "9px Inter, system-ui, sans-serif";
+      const subW = conf ? g.measureText(sub).width + 6 : 0;
+      const inside = conf !== null && boxW >= valueW;
+      const head = !inside ? 0 : boxW >= subW ? 30 : 18;
+      const top = yHigh - 6 - head;
       g.fillStyle = `rgba(${rgb},0.14)`;
-      g.fillRect(x1 - pad, yHigh - 6, x2 - x1 + pad * 2, yLow - yHigh + 12);
+      g.fillRect(x1 - pad, top, boxW, yLow - top + 6);
       g.strokeStyle = solid;
       g.lineWidth = 1.5;
-      g.strokeRect(x1 - pad, yHigh - 6, x2 - x1 + pad * 2, yLow - yHigh + 12);
+      g.strokeRect(x1 - pad, top, boxW, yLow - top + 6);
       const cx = (x1 + x2) / 2;
-      softPill(g, cx, long ? yLow + 20 : yHigh - 20, `${long ? "▲" : "▼"} ${name}`, rgb);
+      if (conf) {
+        g.save();
+        g.textAlign = "center";
+        g.textBaseline = "alphabetic";
+        g.fillStyle = "rgba(230,237,243,0.45)";
+        g.font = "600 14px Inter, system-ui, sans-serif";
+        const vy = inside ? top + 17 : top - 6;
+        g.fillText(conf.value, cx, vy);
+        if (head === 30) {
+          g.font = "9px Inter, system-ui, sans-serif";
+          g.fillStyle = "rgba(230,237,243,0.38)";
+          g.fillText(sub, cx, top + 27);
+        }
+        g.restore();
+      }
+      const above = inside ? top : top - 20;
+      softPill(g, cx, long ? yLow + 20 : above - 14, `${long ? "▲" : "▼"} ${name}`, rgb);
     }
   }
   g.restore();

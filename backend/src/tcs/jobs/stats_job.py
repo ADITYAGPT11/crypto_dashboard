@@ -8,8 +8,8 @@ code the chart uses. Results are grouped by
     (zone timeframe, coin or '*' pooled, pattern, direction, location or '*' any)
 
 and, pooled across coins only, also per order-flow context (``analysis/flow.py``: delta
-confirms / against / neutral, CVD divergence yes / no), so every setup can be compared with
-and without flow agreeing. Swapped into the store atomically when the run finishes.
+confirms / against / neutral, CVD divergence yes / no) and per confidence score
+(``analysis/confidence.py``: ``score:0`` .. ``score:4``, what the chart shows). Swapped into the store atomically when the run finishes.
 
 This is independent of what any chart is showing; it only answers "how has this
 setup done in the past?".
@@ -165,6 +165,7 @@ def _case(s: Series, c: Costed) -> dict[str, Any]:
         "deltaRatio": None if o.flow.delta_ratio is None else round(o.flow.delta_ratio, 4),
         "flow": o.flow.flow,
         "cvdDivergence": o.flow.divergence,
+        "score": o.score.total,
         "trailResult": o.trail.result,
         "trailR": round(o.trail.r, 4),
         "trailBars": o.trail.bars,
@@ -200,14 +201,14 @@ def _aggregate(
     groups: dict[Key, list[Costed]],
 ) -> list[tuple[str, str, str, str, str, str, dict[str, Any]]]:
     """Per coin and pooled ('*'), per location and any location ('*'); pooled rows also per
-    order-flow context (context '*' = every case)."""
+    order-flow context and per confidence score (``score:<n>``; context '*' = every case)."""
     rolled: dict[StatKey, list[Costed]] = defaultdict(list)
     for (zone_tf, symbol, pattern, direction, location), occ in groups.items():
         for loc in (location, "*"):
             rolled[(zone_tf, symbol, pattern, direction, loc, "*")].extend(occ)
             rolled[(zone_tf, "*", pattern, direction, loc, "*")].extend(occ)
             for c in occ:
-                for ctx in contexts(c.o.flow):
+                for ctx in (*contexts(c.o.flow), c.o.score.context):
                     rolled[(zone_tf, "*", pattern, direction, loc, ctx)].append(c)
     out: list[tuple[str, str, str, str, str, str, dict[str, Any]]] = []
     for key, occ in rolled.items():

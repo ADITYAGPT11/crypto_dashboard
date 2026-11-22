@@ -1,5 +1,5 @@
 {
- "ruleset": "2026.11-r6",
+ "ruleset": "2026.11-r7",
  "candles": 2190,
  "hits": {
   "ascendingTriangle|orderBlock|loss": 1,
@@ -125,6 +125,18 @@
   "short|confirms|div=True": 14,
   "short|neutral|div=False": 31,
   "short|neutral|div=True": 7
+ },
+ "scores": {
+  "long|score=0": 15,
+  "long|score=1": 28,
+  "long|score=2": 50,
+  "long|score=3": 39,
+  "long|score=4": 11,
+  "short|score=0": 4,
+  "short|score=1": 28,
+  "short|score=2": 50,
+  "short|score=3": 43,
+  "short|score=4": 5
  },
  "zones": 94,
  "orderBlocks": 133,

@@ -9,7 +9,7 @@
  *   lower view the entry sits after the last lower candle of that block.
  */
 import type { Candle, CandleInterval } from "../types/marketData";
-import type { OccurrenceOut } from "../api/schema";
+import type { ConfidenceOut, OccurrenceOut } from "../api/schema";
 import type { Direction, FairValueGap, OrderBlock, PatternId, Zone } from "../types/analysis";
 import { INTERVAL_TO_MS } from "./candleUtils";
 
@@ -69,6 +69,8 @@ export interface ViewPattern {
   startX: number;
   /** Necklines, trendlines and flag lines. */
   lines: ViewLine[];
+  /** Measured win rate of past setups like this one (null until a statistics run has it). */
+  confidence: ConfidenceOut | null;
   /** The pattern's extreme (low for longs, high for shorts): where its tag sits. */
   extreme: number;
   entry: number;
@@ -133,6 +135,7 @@ export function toViewPattern(
       label: l.label,
     })),
     extreme: occ.extreme,
+    confidence: occ.confidence ?? null,
     entry: occ.entry,
     stop: occ.stop,
     target: occ.target,

@@ -79,6 +79,7 @@ def occurrence(s: Series, o: Occurrence) -> OccurrenceOut:
             activated_time=_t(s, o.trail.activated),
             stops=[StopOut(time=_at(s, i), price=p) for i, p in o.trail.stops],
         ),
+        score=o.score.total,
     )
 
 

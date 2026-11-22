@@ -45,6 +45,7 @@ function occurrence(partial: Partial<OccurrenceOut>): OccurrenceOut {
     lines: [],
     outcome: { result: "open", exitTime: null, movePct: 0, r: 0, bars: 0 },
     flow: { deltaRatio: null, flow: null, cvdDivergence: null },
+    score: 2,
     trail: {
       result: "open",
       exitTime: null,
@@ -129,6 +130,14 @@ describe("toViewPattern", () => {
     expect(vp.exitX).toBe(13.5);
     expect(vp.windowEndX).toBe(40.5); // beyond the loaded candles it extrapolates by time
     expect(vp.outcome).toEqual({ result: "loss", r: -1 });
+  });
+
+  it("carries the measured confidence through (null until a statistics run has it)", () => {
+    const c = { winRate: 0.41, ciLow: 0.34, ciHigh: 0.48, n: 210, basis: "score" as const };
+    expect(
+      toViewPattern(occurrence({ confidence: c }), "4h", series(80, H4), "4h").confidence,
+    ).toEqual(c);
+    expect(toViewPattern(occurrence({}), "4h", series(80, H4), "4h").confidence).toBeNull();
   });
 
   it("maps the trailing exit: each stop from the left edge of the candle it applies to", () => {

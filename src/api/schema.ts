@@ -39,6 +39,7 @@ export interface CaseOut {
   deltaRatio?: number | null;
   flow?: "confirms" | "against" | "neutral" | null;
   cvdDivergence?: boolean | null;
+  score?: number | null;
   trailResult?: "win" | "loss" | "expired" | "open" | null;
   trailR?: number | null;
   trailBars?: number | null;
@@ -60,6 +61,14 @@ export interface CatalogOut {
 export interface CoinSummaryOut {
   symbol: string;
   summary: SummaryOut;
+}
+
+export interface ConfidenceOut {
+  winRate: number;
+  ciLow: number;
+  ciHigh: number;
+  n: number;
+  basis: "score" | "pattern";
 }
 
 export interface ContextSummaryOut {
@@ -151,6 +160,8 @@ export interface OccurrenceOut {
   outcome: OutcomeOut;
   flow: FlowOut;
   trail: TrailOut;
+  score: number;
+  confidence?: ConfidenceOut | null;
 }
 
 export interface OrderBlockOut {

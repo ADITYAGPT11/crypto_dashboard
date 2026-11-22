@@ -12,6 +12,7 @@ import {
   useSetupDetail,
   useStats,
 } from "../../custom-hooks/useAnalysisApi";
+import { confidenceLabel } from "../../utils/confidence";
 import { setupKey } from "../../utils/setupKeys";
 import { statsByKey } from "../../utils/setupLibrary";
 import { patternLabel } from "../../utils/patternLabels";
@@ -488,6 +489,7 @@ const ChartPage: React.FC = () => {
               {recent.map((f) => {
                 const st =
                   f.tf === selTf && f.zoneTf === selZoneTf ? statsMap.get(keyOf(f.occ)) : undefined;
+                const conf = confidenceLabel(f.occ.confidence);
                 return (
                   <li key={foundId(f)}>
                     <button
@@ -505,10 +507,15 @@ const ChartPage: React.FC = () => {
                         </span>{" "}
                         {patternLabel(f.occ.pattern)}
                       </b>
-                      <span className={styles.num}>{st ? pct(st.winRate) : ""}</span>
+                      <span
+                        className={styles.num}
+                        title="Confidence: how often past setups like this one reached their target"
+                      >
+                        {conf ? conf.value : st ? pct(st.winRate) : ""}
+                      </span>
                       <small>
                         {isNow(f) ? "Now" : shortDate(f.closeTime - 1)}
-                        {st ? ` · ${st.n} past cases` : ""}
+                        {conf ? ` · confidence ${conf.spread}` : st ? ` · ${st.n} past cases` : ""}
                       </small>
                     </button>
                   </li>

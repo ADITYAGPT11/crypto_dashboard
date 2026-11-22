@@ -17,7 +17,7 @@ confirmations yet (by design).
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
    r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
    the estimated liquidation map (`COMPETITORS.md` §4).
-1. Owner: run `npm start` on a machine that reaches Binance, let the first r6
+1. Owner: run `npm start` on a machine that reaches Binance, let the first r7
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
 2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
@@ -32,9 +32,9 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 378 tests, 37 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 382 tests, 38 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 171 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 182 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -117,10 +117,17 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
   Pattern stats, Dashboard and Alerts. Drawing: the name and key-point tags are 10 px see-through
   pills, the entry / stop / target zones 6% (were 14%), no text inside the box, and the price axis
   shows only the three prices (no Entry / Stop / Target words). The win-rates status line is gone.
+- 2026-11-22: **Confidence % on every pattern (rule set r7)** (owner). `analysis/confidence.py`
+  counts four checks (trend, flow, calm volume, RSI not stretched; each kept for lifting the win
+  rate in both years of 2 × 10 coins); the stats job adds `score:0..4` contexts and
+  `/api/v1/analysis` gives each occurrence `score` + `confidence` (that score's measured win rate
+  and Wilson range, or the pattern's record when under 30 cases). Drawn faintly in the
+  candlestick box (above it when too narrow), on chart-pattern tags and in the patterns list.
+  Verified in headless Chromium on real BTC 4h stats (bullish engulfing 28% ±6).
 - 2026-11-22: **Candlesticks: no trend filter (rule set r6)** (owner). A/B on 2 years × 10 coins:
   the prior-decline filter did not raise win rates and kept a third of the cases; a "big body"
   engulfing rule did not help either (not adopted). Chart box covers only the pattern's own
-  candles, not the confirmation candle. Statistics must be re-run for r6. `DECISIONS.md`.
+  candles, not the confirmation candle. Statistics must be re-run. `DECISIONS.md`.
 - 2026-11-21: **Simpler pattern UI** (owner). The app shows chart patterns only; one setting picks
   the timeframes they are looked for on (was a dropdown per pattern, a level-source selector and
   a statistics table); setups are no longer split by location (zone / order block / confluence)

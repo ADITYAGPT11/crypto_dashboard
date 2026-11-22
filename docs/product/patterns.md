@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r6`)
+# Pattern, zone and order-block rules (rule set `2026.11-r7`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -102,6 +102,26 @@ it so a setup can be compared with and without flow agreeing; it never creates a
 The 0.02 cut comes from the feature's own spread (median |ratio| 0.023 on real ETH 4h), not from
 outcomes. Unknown (no taker volume in the window) falls in no bucket. Context records are pooled
 across coins only (per-coin buckets would be too small).
+
+## Confidence score (`analysis/confidence.py`, since r7)
+
+Four yes/no checks at the confirmation candle, counted 0-4. The chart shows the **win rate of
+past setups of the same pattern, direction, timeframe and score** (pooled across coins, with its
+Wilson range as ±), or the pattern's whole record when that score has under 30 cases; nothing
+until a statistics run has 30. Never a weighted guess.
+
+| Check         | Passes when                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| With trend    | the confirmation close is on the trade's side of the EMA(200)                                     |
+| Flow agrees   | delta over the last 3 candles `confirms` (order-flow context above)                               |
+| Calm volume   | no candle from the pattern's first to the confirmation traded ≥ 1.5× the 20-candle mean before it |
+| Not stretched | RSI(14) stayed above 35 through the pattern (below 65 for shorts, via the mirror)                 |
+
+Each check was kept because it raised the win rate in **both** years of a 2-year sample (10 coins,
+1h and 4h, every pattern pooled). Tested and dropped: at a demand / supply zone or order block
+(no lift), "strong" zone with a ≥ 2 ATR departure (no lift). A volume spike and an oversold RSI
+**lowered** the win rate, so the kept checks are their opposites. On 1d the sample is too small to
+tell; the score is still measured there, not assumed.
 
 ## Chart patterns (in-house)
 

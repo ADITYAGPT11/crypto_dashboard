@@ -21,6 +21,7 @@ function occurrence(time: number, result: SetupOccurrence["outcome"]["result"]):
     lines: [],
     outcome: { result, exitTime: null, movePct: 0, r: 0, bars: 0 },
     flow: { deltaRatio: null, flow: null, cvdDivergence: null },
+    score: 2,
     trail: {
       result: "open",
       exitTime: null,
