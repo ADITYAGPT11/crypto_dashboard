@@ -98,6 +98,13 @@ def test_chart_analysis_carries_each_patterns_checklist(client: TestClient) -> N
         assert occ["score"] == sum(c["passed"] for c in occ["checks"]) <= max_score
 
 
+def test_patterns_are_found_on_15m_too(client: TestClient) -> None:
+    assert client.get("/api/v1/patterns").json()["timeframes"] == ["15m", "1h", "4h", "1d"]
+    a = client.get("/api/v1/analysis/AAA-USDT", params={"tf": "15m", "limit": 400}).json()
+    assert a["tf"] == "15m"
+    assert a["coverage"]["behind"] == 0
+
+
 def test_scanner_lists_recent_setups_best_checklist_first(client: TestClient) -> None:
     body = client.get("/api/v1/scanner", params={"tf": "4h", "bars": 20}).json()
     assert body["failed"] == []

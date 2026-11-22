@@ -100,6 +100,7 @@ interface Props {
 
 /** Colour per detection timeframe (also used by the page's badges). */
 export const TF_COLOR: Record<string, string> = {
+  "15m": "#2DD4BF",
   "1h": "#C084FC",
   "4h": "#4C9AFF",
   "1d": "#F0A35E",
