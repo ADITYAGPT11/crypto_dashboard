@@ -4,7 +4,7 @@
  *
  * - analysis: refetched just after each candle of its timeframe closes, so new
  *   patterns appear as live candles complete;
- * - stats: every 15 s while the background job is running, else every 5 min;
+ * - stats (pooled, or one coin's): every 15 s while the background job is running, else every 5 min;
  * - scanner: after each candle close; catalogue: once.
  */
 import type { AnalysisOut, CatalogOut, ScannerOut, SetupDetailOut, StatsOut } from "../api/schema";
@@ -27,6 +27,10 @@ export function analysisKey(symbol: string, tf: CandleInterval, zoneTf: CandleIn
 /** `context` restricts the records to one order-flow bucket ("*" = every case). */
 export function statsKey(tf: CandleInterval, zoneTf: CandleInterval, context = "*") {
   return context === "*" ? `${tf}|${zoneTf}` : `${tf}|${zoneTf}|${context}`;
+}
+/** One coin's own record of every setup (no order-flow split). */
+export function coinStatsKey(symbol: string, tf: CandleInterval, zoneTf: CandleInterval) {
+  return `${symbol}|${tf}|${zoneTf}`;
 }
 export function setupDetailKey(
   tf: CandleInterval,
@@ -61,6 +65,13 @@ function createResources() {
       fetch: (key) => {
         const [tf, zoneTf, context] = key.split("|");
         return apiGet<StatsOut>("/stats", context ? { tf, zoneTf, context } : { tf, zoneTf });
+      },
+      refreshIn: (d) => (d.run?.status === "running" || !d.run ? 15_000 : 300_000),
+    }),
+    coinStats: new ApiResource<StatsOut>({
+      fetch: (key) => {
+        const [symbol, tf, zoneTf] = key.split("|");
+        return apiGet<StatsOut>("/stats", { tf, zoneTf, symbol });
       },
       refreshIn: (d) => (d.run?.status === "running" || !d.run ? 15_000 : 300_000),
     }),

@@ -244,6 +244,7 @@ export interface StatsOut {
   zoneTf: string;
   run: RunOut | null;
   context?: string;
+  symbol?: string;
   setups: SetupStatOut[];
 }
 

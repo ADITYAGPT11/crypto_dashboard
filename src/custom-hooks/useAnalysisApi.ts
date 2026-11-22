@@ -3,6 +3,7 @@ import type { ApiResource, ResourceState } from "../services/ApiResource";
 import {
   analysisApi,
   analysisKey,
+  coinStatsKey,
   scannerKey,
   setupDetailKey,
   statsKey,
@@ -40,6 +41,15 @@ export function useStats(
   context = "*",
 ): ResourceState<StatsOut> {
   return useResource(analysisApi().stats, statsKey(tf, zoneTf, context));
+}
+
+/** One coin's own record of every setup on one timeframe; `null` symbol = nothing requested. */
+export function useCoinStats(
+  symbol: string | null,
+  tf: CandleInterval,
+  zoneTf: CandleInterval = tf,
+): ResourceState<StatsOut> {
+  return useResource(analysisApi().coinStats, symbol ? coinStatsKey(symbol, tf, zoneTf) : null);
 }
 
 export function useSetupDetail(
