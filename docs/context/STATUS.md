@@ -27,14 +27,14 @@ confirmations yet (by design).
 
 ## Health
 
-Verified 2026-11-11 (checks and test counts 2026-11-21):
+Verified 2026-11-11 (checks and test counts 2026-11-22):
 
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 382 tests, 38 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 385 tests, 39 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 182 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 183 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -56,12 +56,15 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
   **liquidity heatmap** layer with a pools table. Only **key levels** are drawn (Overlays →
   Display settings, saved per browser): intact, nearest 2 of each kind, zones ≥ 2 ATR departure,
   overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options.
-  **Patterns** panel: two multi-select dropdowns, the timeframes (1h / 4h / 1d) and the patterns
-  per direction (chart and candlestick sections, bullish / bearish, trend icons); chart patterns
-  on and candlesticks off by default; saved per browser and applied on every page. Zones and order
-  blocks come from the pattern's own timeframe. Setup card: win rate of every
-  past case of that pattern and direction (any location) with its range and break-even, average
-  result after costs, plan, last cases.
+  Full-width chart; the Dashboard's **watchlist** as chips above it (24 h change, add / remove the
+  current coin). **Patterns** button in the chart toolbar: a popover with two multi-select
+  dropdowns, the timeframes (1h / 4h / 1d) and the patterns per direction (chart and candlestick
+  sections, bullish / bearish, trend icons); chart patterns on and candlesticks off by default;
+  saved per browser and applied on every page. Zones and order blocks come from the pattern's own
+  timeframe. **Patterns on this chart** under it: one row per pattern and direction (newest
+  first, win rate and n on the timeframe it was found); the open row is drawn and shows this
+  coin's record on every picked timeframe (n, win rate, Wilson 95% range, break-even, average
+  after costs; under 30 cases only n) and the plan with Size in Risk / Alert me.
 - **Pattern choice is display only.** The backend detects and measures every pattern and the
   location / order-flow splits whatever is picked; no screen shows the splits.
 - **Pattern stats** (`/stats`): every chart pattern × direction on 1h/4h/1d, per-coin
@@ -104,6 +107,13 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
 
 ## History
 
+- 2026-11-22: **Chart page layout C** (owner, designed on the canvas first, idea C of three).
+  The right column is gone: the chart is full width, the watchlist sits above it as chips, the
+  Patterns settings open from a toolbar button, and the pattern list + setup card became
+  expandable rows under the chart with this coin's record per timeframe (the pooled all-coins
+  record and last cases stay on Pattern stats). `GET /api/v1/stats?symbol=` returns one coin's
+  record of every setup (`useCoinStats`); `utils/patternGroups.ts` groups detections. `SetupCard`
+  removed.
 - 2026-11-21: **Chart page: levels on the chart, not in cards** (owner, designed first). The Key
   volume levels and Zones and order blocks cards under the chart are gone; with Volume profile on,
   the chart draws light dashed POC, VAH and VAL lines (visible range) with small labels beside
@@ -122,7 +132,7 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
   rate in both years of 2 × 10 coins); the stats job adds `score:0..4` contexts and
   `/api/v1/analysis` gives each occurrence `score` + `confidence` (that score's measured win rate
   and Wilson range, or the pattern's record when under 30 cases). Drawn faintly in the
-  candlestick box (above it when too narrow), on chart-pattern tags and in the patterns list.
+  candlestick box (above it when too narrow) and on chart-pattern tags.
   Verified in headless Chromium on real BTC 4h stats (bullish engulfing 28% ±6).
 - 2026-11-22: **Candlesticks: no trend filter (rule set r6)** (owner). A/B on 2 years × 10 coins:
   the prior-decline filter did not raise win rates and kept a third of the cases; a "big body"

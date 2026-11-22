@@ -478,4 +478,4 @@ timeframe and count. Six candidate checks were tested on 2 years × 10 coins, ye
 **no** volume spike +7 to +8, RSI **not** below 35 +6 to +8; at a zone −1 to +4 (dropped), strong
 zone ≈ 0 (dropped). The textbook signs (volume spike, oversold) hurt. Score 0 → 4 on 4h: about 15%
 → 38% wins in both years; 1d is too small to tell. Shown in the box (or above it when the box is
-too narrow) with ± half the Wilson range; the setup card is unchanged.
+too narrow) with ± half the Wilson range, on the chart only (owner: no extra panel).

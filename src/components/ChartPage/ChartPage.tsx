@@ -6,18 +6,16 @@ import type { AnalysisOut } from "../../api/schema";
 import type { SetupOccurrence } from "../../types/analysis";
 import { useHistories } from "../../custom-hooks/useHistories";
 import { researchUniverse } from "../../custom-hooks/useUniverseCandles";
-import {
-  useAnalysis,
-  useCatalog,
-  useSetupDetail,
-  useStats,
-} from "../../custom-hooks/useAnalysisApi";
-import { confidenceLabel } from "../../utils/confidence";
+import { useAnalysis, useCatalog, useCoinStats } from "../../custom-hooks/useAnalysisApi";
+import { useUniverseCandles } from "../../custom-hooks/useUniverseCandles";
 import { setupKey } from "../../utils/setupKeys";
 import { statsByKey } from "../../utils/setupLibrary";
-import { patternLabel } from "../../utils/patternLabels";
-import { pct, price, shortDate } from "../../utils/format";
+import { groupDetections } from "../../utils/patternGroups";
+import { loadWatchlist, saveWatchlist } from "../../utils/watchlistStorage";
+import type { SetupStats } from "../../types/analysis";
+import { price } from "../../utils/format";
 import {
+  DETECTION_TFS,
   loadDetection,
   saveDetection,
   pickedKeys,
@@ -71,19 +69,11 @@ import {
   type IndicatorId,
   type IndicatorInstance,
 } from "../../utils/indicatorRegistry";
-import SetupCard from "./SetupCard";
-import DetectionSettings from "./DetectionSettings";
-import { TfBadge } from "./TfBadge";
+import DetectionSettings, { detectionSummary } from "./DetectionSettings";
+import PatternRows, { type Found } from "./PatternRows";
+import WatchlistStrip from "./WatchlistStrip";
 import styles from "./ChartPage.module.scss";
 
-/** An occurrence plus the timeframe it was detected on and its level timeframe (the same). */
-interface Found {
-  occ: SetupOccurrence;
-  tf: CandleInterval;
-  zoneTf: CandleInterval;
-  /** Close time of the confirmation candle (when the signal existed). */
-  closeTime: number;
-}
 const foundId = (f: Found) => `${f.tf}-${f.occ.pattern}-${f.occ.direction}-${f.occ.time}`;
 /** Records are read at any location: the app no longer splits setups by zone / order block. */
 const keyOf = (o: Pick<SetupOccurrence, "pattern" | "direction">) =>
@@ -152,7 +142,19 @@ const ChartPage: React.FC = () => {
     a.click();
   };
 
-  const [selId, setSelId] = useState<string | null>(null);
+  // The Dashboard's watchlist, as chips above the chart (1h candles for the 24 h change).
+  const [watchlist, setWatchlistState] = useState<string[]>(() => loadWatchlist());
+  const toggleWatch = () => {
+    const next = watchlist.includes(symbol)
+      ? watchlist.filter((s) => s !== symbol)
+      : [...watchlist, symbol];
+    setWatchlistState(next);
+    saveWatchlist(next);
+  };
+  const watchCandles = useUniverseCandles(watchlist, "1h").candles;
+
+  // The open pattern row (`pattern|direction`); its newest detection is drawn.
+  const [openId, setOpenId] = useState<string | null>(null);
   // Bumped on every click, so picking the same pattern again scrolls back to it.
   const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
 
@@ -181,6 +183,8 @@ const ChartPage: React.FC = () => {
         if (!visible.has(pickKey(occ.pattern, occ.direction))) continue;
         out.push({
           occ: { ...occ, symbol },
+          pattern: occ.pattern,
+          direction: occ.direction,
           tf,
           zoneTf: a.zoneTf as CandleInterval,
           closeTime: occ.time + TF_MS[tf],
@@ -191,7 +195,9 @@ const ChartPage: React.FC = () => {
   }, [analyses, catalog, config, symbol]);
 
   const recent = useMemo(() => found.slice(0, 12), [found]);
-  const selected = recent.find((f) => foundId(f) === selId) ?? recent[0] ?? null;
+  const groups = useMemo(() => groupDetections(found, DETECTION_TFS), [found]);
+  const openGroup = groups.find((g) => g.id === openId) ?? groups[0] ?? null;
+  const selected = openGroup?.latest ?? null;
   const selTf = selected?.tf ?? patternTfs[0] ?? "4h";
   const selZoneTf = selected?.zoneTf ?? selTf;
   const selAnalysis = analyses.get(selTf) ?? analyses.values().next().value ?? null;
@@ -203,22 +209,19 @@ const ChartPage: React.FC = () => {
   const live = liveFeed.candle;
   const candles = view.candles;
 
-  // Pooled statistics from the background job (all coins, one to two years).
-  const ctxStats = useStats(selTf, selZoneTf);
-  const statsMap = useMemo(() => statsByKey(ctxStats.data), [ctxStats.data]);
+  // This coin's own record of every setup per timeframe (background job, one to two years).
+  const c1h = useCoinStats(patternTfs.includes("1h") ? symbol : null, "1h");
+  const c4h = useCoinStats(patternTfs.includes("4h") ? symbol : null, "4h");
+  const c1d = useCoinStats(patternTfs.includes("1d") ? symbol : null, "1d");
+  const coinStats = useMemo(() => {
+    const out = new Map<CandleInterval, Map<string, SetupStats>>();
+    if (c1h.data) out.set("1h", statsByKey(c1h.data));
+    if (c4h.data) out.set("4h", statsByKey(c4h.data));
+    if (c1d.data) out.set("1d", statsByKey(c1d.data));
+    return out;
+  }, [c1h.data, c4h.data, c1d.data]);
+  const selStats = selTf === "1h" ? c1h : selTf === "1d" ? c1d : c4h;
   const key = selected ? keyOf(selected.occ) : null;
-  const pooled = key ? (statsMap.get(key) ?? null) : null;
-  const detail = useSetupDetail(
-    selTf,
-    selZoneTf,
-    selected
-      ? {
-          pattern: selected.occ.pattern,
-          direction: selected.occ.direction,
-          location: "*",
-        }
-      : null,
-  ).data;
 
   // Past cases of the selected setup on this chart, as markers.
   const history = useMemo(
@@ -332,224 +335,184 @@ const ChartPage: React.FC = () => {
         </p>
       )}
 
-      <div className={styles.ws}>
-        <div className={styles.col}>
-          <div className={styles.chartCard} ref={chartCardRef}>
-            <ChartToolbar
-              symbol={symbol}
-              symbols={symbols}
-              onSymbol={(sym) => navigate(`/chart/${sym}`)}
-              lastPrice={live ? price(live.close) : last ? price(last.close) : null}
-              liveSource={liveFeed.source}
-              liveAt={liveFeed.at}
-              viewTf={viewTf}
-              onTf={setViewTf}
-              favorites={prefs.favorites}
-              onToggleFavorite={(tf) =>
-                setPrefs({
-                  ...prefs,
-                  favorites: prefs.favorites.includes(tf)
-                    ? prefs.favorites.filter((f) => f !== tf)
-                    : [...prefs.favorites, tf],
-                })
-              }
-              chartType={prefs.chartType}
-              onChartType={(chartType) => setPrefs({ ...prefs, chartType })}
-              onIndicators={() => setDialog({ kind: "indicators" })}
-              layers={layers}
-              onLayer={(k) => setOverlays({ ...overlays, [k]: !overlays[k] })}
-              onDisplaySettings={() => setDialog({ kind: "overlays" })}
-              scale={prefs.scale}
-              onScale={(scale) => setPrefs({ ...prefs, scale })}
-              onScreenshot={screenshot}
-              onFullscreen={() => void chartCardRef.current?.requestFullscreen?.()}
-            />
-            {view.loading && (
-              <div className={styles.state}>
-                Loading {viewTf} history for {symbol}…
-              </div>
-            )}
-            {view.error && (
-              <div className={styles.state} role="alert">
-                <span>
-                  Couldn't load {symbol} history: {view.error}. Binance's public API (or the
-                  analysis service) must be reachable from this browser.
-                </span>
-                <button type="button" className={styles.btn} onClick={retry}>
-                  Try again
-                </button>
-              </div>
-            )}
-            <div className={styles.chartWithTools}>
-              <DrawingToolbar
-                tool={tool}
-                onTool={setTool}
-                magnet={magnet}
-                onMagnet={() => setMagnet((m) => !m)}
-                visible={drawingsVisible}
-                onVisible={() => setDrawingsVisible((v) => !v)}
-                onClear={() => chartHandle.current?.clearDrawings()}
-              />
-              <PriceChart
-                symbol={symbol}
-                candles={candles}
-                viewTf={viewTf}
-                live={live}
-                chartType={prefs.chartType}
-                scale={prefs.scale}
-                indicators={indicators}
-                onIndicator={onIndicator}
-                levels={viewLevels}
-                heatmap={heatmap}
-                bigTrades={layers.bigTrades ? bigTrades : null}
-                footprint={layers.footprint ? footprint : null}
-                selected={viewSelected}
-                plan={selected ? selected.occ : null}
-                focusKey={focus ? `${focus.id}#${focus.n}` : null}
-                others={viewOthers}
-                markers={markers}
-                layers={layers}
-                tool={tool}
-                onToolChange={setTool}
-                magnet={magnet}
-                drawingsVisible={drawingsVisible}
-                handleRef={chartHandle}
-              />
-            </div>
-            <div className={styles.legend} aria-hidden="true">
-              <span>
-                <i style={{ background: "rgba(86,211,100,.35)" }} />
-                Demand zone
-              </span>
-              <span>
-                <i style={{ background: "rgba(244,112,103,.35)" }} />
-                Supply zone
-              </span>
-              <span>
-                <i style={{ border: "1px dashed #4C9AFF" }} />
-                Order block
-              </span>
-              <span>
-                <i style={{ background: "rgba(76,154,255,.5)" }} />
-                Volume by price
-              </span>
-              {layers.heatmap && (
-                <span title="Resting limit orders on Binance + OKX + Delta perpetuals added together (±2% of the price), one column per snapshot; brightest = the largest few percent on screen (Display settings → heatmap contrast). Bars at the right edge: the current book, bids green, asks red.">
-                  <i
-                    style={{
-                      background:
-                        "linear-gradient(90deg,#0c1648,#1634a0,#008cd2,#00c8aa,#5ad746,#f5e132,#fa8c1e,#eb3223,#fff5e6)",
-                    }}
-                  />
-                  Resting liquidity (order book), thin → thick
-                </span>
-              )}
-              {layers.footprint && (
-                <span title="Volume by price inside each candle from Binance perpetual trades since this page opened: aggressive sells (left) × aggressive buys (right). Zoom in for numbers. Coloured edge or text = 3× diagonal imbalance; amber box = most traded row.">
-                  <i
-                    style={{
-                      background: "linear-gradient(90deg,rgba(244,112,103,.6),rgba(86,211,100,.6))",
-                    }}
-                  />
-                  Footprint: sells × buys per {price(footprintStep)} row
-                  {footprint.trades === 0 ? " (waiting for trades…)" : ""}
-                </span>
-              )}
-              {layers.bigTrades && (
-                <span title="Binance perpetual taker orders in the top 1% by size of recent prints, since this page opened. One order split across many fills counts once.">
-                  <i style={{ background: "rgba(86,211,100,.5)", borderRadius: "50%" }} />
-                  <i style={{ background: "rgba(244,112,103,.5)", borderRadius: "50%" }} />
-                  {bigTrades.threshold
-                    ? `Big trades ≥ ${formatCompactUsd(bigTrades.threshold)} (bought / sold)`
-                    : "Big trades: measuring typical size…"}
-                </span>
-              )}
-              <span>▲ W / L = past outcomes of the selected setup</span>
-            </div>
-          </div>
+      <WatchlistStrip
+        symbols={watchlist}
+        current={symbol}
+        candles={watchCandles}
+        onToggleCurrent={toggleWatch}
+      />
 
-          {layers.heatmap && (
-            <LiquidityPanel
-              liquidity={liquidity}
-              pools={pools}
-              history={depthHistory}
-              since={depthSamples[0]?.time}
-            />
+      <div className={styles.col}>
+        <div className={styles.chartCard} ref={chartCardRef}>
+          <ChartToolbar
+            symbol={symbol}
+            symbols={symbols}
+            onSymbol={(sym) => navigate(`/chart/${sym}`)}
+            lastPrice={live ? price(live.close) : last ? price(last.close) : null}
+            liveSource={liveFeed.source}
+            liveAt={liveFeed.at}
+            viewTf={viewTf}
+            onTf={setViewTf}
+            favorites={prefs.favorites}
+            onToggleFavorite={(tf) =>
+              setPrefs({
+                ...prefs,
+                favorites: prefs.favorites.includes(tf)
+                  ? prefs.favorites.filter((f) => f !== tf)
+                  : [...prefs.favorites, tf],
+              })
+            }
+            chartType={prefs.chartType}
+            onChartType={(chartType) => setPrefs({ ...prefs, chartType })}
+            onIndicators={() => setDialog({ kind: "indicators" })}
+            layers={layers}
+            onLayer={(k) => setOverlays({ ...overlays, [k]: !overlays[k] })}
+            onDisplaySettings={() => setDialog({ kind: "overlays" })}
+            patternsLabel={`Patterns · ${detectionSummary(config, catalog ?? null)}`}
+            patterns={
+              <DetectionSettings config={config} onChange={setConfig} catalog={catalog ?? null} />
+            }
+            scale={prefs.scale}
+            onScale={(scale) => setPrefs({ ...prefs, scale })}
+            onScreenshot={screenshot}
+            onFullscreen={() => void chartCardRef.current?.requestFullscreen?.()}
+          />
+          {view.loading && (
+            <div className={styles.state}>
+              Loading {viewTf} history for {symbol}…
+            </div>
           )}
+          {view.error && (
+            <div className={styles.state} role="alert">
+              <span>
+                Couldn't load {symbol} history: {view.error}. Binance's public API (or the analysis
+                service) must be reachable from this browser.
+              </span>
+              <button type="button" className={styles.btn} onClick={retry}>
+                Try again
+              </button>
+            </div>
+          )}
+          <div className={styles.chartWithTools}>
+            <DrawingToolbar
+              tool={tool}
+              onTool={setTool}
+              magnet={magnet}
+              onMagnet={() => setMagnet((m) => !m)}
+              visible={drawingsVisible}
+              onVisible={() => setDrawingsVisible((v) => !v)}
+              onClear={() => chartHandle.current?.clearDrawings()}
+            />
+            <PriceChart
+              symbol={symbol}
+              candles={candles}
+              viewTf={viewTf}
+              live={live}
+              chartType={prefs.chartType}
+              scale={prefs.scale}
+              indicators={indicators}
+              onIndicator={onIndicator}
+              levels={viewLevels}
+              heatmap={heatmap}
+              bigTrades={layers.bigTrades ? bigTrades : null}
+              footprint={layers.footprint ? footprint : null}
+              selected={viewSelected}
+              plan={selected ? selected.occ : null}
+              focusKey={focus ? `${focus.id}#${focus.n}` : null}
+              others={viewOthers}
+              markers={markers}
+              layers={layers}
+              tool={tool}
+              onToolChange={setTool}
+              magnet={magnet}
+              drawingsVisible={drawingsVisible}
+              handleRef={chartHandle}
+            />
+          </div>
+          <div className={styles.legend} aria-hidden="true">
+            <span>
+              <i style={{ background: "rgba(86,211,100,.35)" }} />
+              Demand zone
+            </span>
+            <span>
+              <i style={{ background: "rgba(244,112,103,.35)" }} />
+              Supply zone
+            </span>
+            <span>
+              <i style={{ border: "1px dashed #4C9AFF" }} />
+              Order block
+            </span>
+            <span>
+              <i style={{ background: "rgba(76,154,255,.5)" }} />
+              Volume by price
+            </span>
+            {layers.heatmap && (
+              <span title="Resting limit orders on Binance + OKX + Delta perpetuals added together (±2% of the price), one column per snapshot; brightest = the largest few percent on screen (Display settings → heatmap contrast). Bars at the right edge: the current book, bids green, asks red.">
+                <i
+                  style={{
+                    background:
+                      "linear-gradient(90deg,#0c1648,#1634a0,#008cd2,#00c8aa,#5ad746,#f5e132,#fa8c1e,#eb3223,#fff5e6)",
+                  }}
+                />
+                Resting liquidity (order book), thin → thick
+              </span>
+            )}
+            {layers.footprint && (
+              <span title="Volume by price inside each candle from Binance perpetual trades since this page opened: aggressive sells (left) × aggressive buys (right). Zoom in for numbers. Coloured edge or text = 3× diagonal imbalance; amber box = most traded row.">
+                <i
+                  style={{
+                    background: "linear-gradient(90deg,rgba(244,112,103,.6),rgba(86,211,100,.6))",
+                  }}
+                />
+                Footprint: sells × buys per {price(footprintStep)} row
+                {footprint.trades === 0 ? " (waiting for trades…)" : ""}
+              </span>
+            )}
+            {layers.bigTrades && (
+              <span title="Binance perpetual taker orders in the top 1% by size of recent prints, since this page opened. One order split across many fills counts once.">
+                <i style={{ background: "rgba(86,211,100,.5)", borderRadius: "50%" }} />
+                <i style={{ background: "rgba(244,112,103,.5)", borderRadius: "50%" }} />
+                {bigTrades.threshold
+                  ? `Big trades ≥ ${formatCompactUsd(bigTrades.threshold)} (bought / sold)`
+                  : "Big trades: measuring typical size…"}
+              </span>
+            )}
+            <span>▲ W / L = past outcomes of the selected setup</span>
+          </div>
         </div>
 
-        <aside className={styles.col} aria-label="Setups">
-          <DetectionSettings config={config} onChange={setConfig} catalog={catalog} />
-          <section className={styles.card} aria-labelledby="pat-title">
-            <div className={styles.cardHead}>
-              <h2 id="pat-title">Patterns on this chart</h2>
-              <p>Most recent first. Pick one to see its record.</p>
-            </div>
-            <ul className={styles.patList}>
-              {recent.map((f) => {
-                const st =
-                  f.tf === selTf && f.zoneTf === selZoneTf ? statsMap.get(keyOf(f.occ)) : undefined;
-                const conf = confidenceLabel(f.occ.confidence);
-                return (
-                  <li key={foundId(f)}>
-                    <button
-                      type="button"
-                      aria-pressed={selected !== null && foundId(f) === foundId(selected)}
-                      onClick={() => {
-                        setSelId(foundId(f));
-                        setFocus((p) => ({ id: foundId(f), n: (p?.n ?? 0) + 1 }));
-                      }}
-                    >
-                      <b>
-                        <TfBadge tf={f.tf} />{" "}
-                        <span className={f.occ.direction === "long" ? styles.up : styles.down}>
-                          {f.occ.direction === "long" ? "▲" : "▼"}
-                        </span>{" "}
-                        {patternLabel(f.occ.pattern)}
-                      </b>
-                      <span
-                        className={styles.num}
-                        title="Confidence: how often past setups like this one reached their target"
-                      >
-                        {conf ? conf.value : st ? pct(st.winRate) : ""}
-                      </span>
-                      <small>
-                        {isNow(f) ? "Now" : shortDate(f.closeTime - 1)}
-                        {conf ? ` · confidence ${conf.spread}` : st ? ` · ${st.n} past cases` : ""}
-                      </small>
-                    </button>
-                  </li>
-                );
-              })}
-              {analyses.size > 0 && recent.length === 0 && (
-                <li className={styles.mute}>
-                  No patterns found on the selected timeframes in this history.
-                </li>
-              )}
-              {analysisLoading && analyses.size === 0 && (
-                <li className={styles.mute}>Detecting patterns…</li>
-              )}
-              {catalog && patternTfs.length === 0 && (
-                <li className={styles.mute}>No timeframe picked under Patterns.</li>
-              )}
-            </ul>
-          </section>
-          {selected && (
-            <SetupCard
-              occurrence={selected.occ}
-              interval={selected.tf}
-              zoneTf={selected.zoneTf}
-              isCurrent={isNow(selected)}
-              pooled={pooled}
-              recent={detail?.recent ?? []}
-              run={ctxStats.data?.run ?? null}
-              statsError={ctxStats.error}
-              ruleset={catalog?.ruleset ?? null}
-              maxHoldBars={catalog?.maxHoldBars ?? 30}
-              minSample={catalog?.minSample ?? 30}
-            />
-          )}
-        </aside>
+        {layers.heatmap && (
+          <LiquidityPanel
+            liquidity={liquidity}
+            pools={pools}
+            history={depthHistory}
+            since={depthSamples[0]?.time}
+          />
+        )}
+
+        <PatternRows
+          symbol={symbol}
+          groups={groups}
+          openId={openGroup?.id ?? null}
+          onOpen={(g) => {
+            setOpenId(g.id);
+            setFocus((p) => ({ id: foundId(g.latest), n: (p?.n ?? 0) + 1 }));
+          }}
+          tfs={patternTfs}
+          stats={coinStats}
+          isNow={isNow}
+          run={selStats.data?.run ?? null}
+          statsError={selStats.error}
+          ruleset={catalog?.ruleset ?? null}
+          maxHoldBars={catalog?.maxHoldBars ?? 30}
+          minSample={catalog?.minSample ?? 30}
+          loading={analysisLoading && analyses.size === 0}
+          empty={
+            catalog && patternTfs.length === 0
+              ? "No timeframe picked: open Patterns in the chart toolbar."
+              : "No patterns found on the picked timeframes in this history."
+          }
+        />
       </div>
       {dialog?.kind === "overlays" && (
         <OverlaySettingsDialog

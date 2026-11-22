@@ -28,6 +28,7 @@ const P: Record<string, string> = {
   fx: "M10 4c-3 0-3 3-3 6v10M4 10h7M13 10l7 9M20 10l-7 9",
   star: "M12 3l2.7 5.6 6.2.9-4.5 4.4 1 6.1L12 17.1 6.6 20l1-6.1L3.1 9.5l6.2-.9z",
   chevron: "M6 9l6 6 6-6",
+  sliders: "M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M7 10v4M15 16v4",
   close: "M6 6l12 12M18 6L6 18",
 };
 

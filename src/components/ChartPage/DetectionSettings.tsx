@@ -181,6 +181,12 @@ function PatternList({
   );
 }
 
+/** "2 TF · 14 on": the Patterns button's summary of the settings. */
+export function detectionSummary(config: DetectionConfig, catalog: CatalogOut | null): string {
+  const on = catalog ? patternOptions(catalog).filter((o) => isPicked(config, o)).length : null;
+  return `${config.tfs.length} TF${on === null ? "" : ` · ${on} on`}`;
+}
+
 /** Two choices for every screen: which timeframes, and which patterns (per direction). */
 const DetectionSettings: React.FC<{
   config: DetectionConfig;
@@ -191,46 +197,43 @@ const DetectionSettings: React.FC<{
   const count = (kind: PatternOption["kind"]) =>
     options.filter((o) => o.kind === kind && isPicked(config, o)).length;
   return (
-    <section className={`${styles.card} ${styles.feature}`} aria-labelledby="det-title">
-      <div className={styles.cardHead}>
-        <h2 id="det-title">Patterns</h2>
-      </div>
-      <div className={styles.picks}>
-        <Dropdown
-          label="Timeframes"
-          summary={
-            config.tfs.length ? (
-              config.tfs.map((tf) => <TfBadge key={tf} tf={tf} />)
-            ) : (
-              <span className={styles.mute}>None: no patterns shown</span>
-            )
-          }
-        >
-          {DETECTION_TFS.map((tf) => (
-            <Check
-              key={tf}
-              on={config.tfs.includes(tf)}
-              onChange={() => onChange(toggleTf(config, tf))}
-            >
-              <b className={styles.num}>{tf}</b>
-              <span className={styles.mute}>{TF_NAME[tf]}</span>
-            </Check>
-          ))}
-        </Dropdown>
-        <Dropdown
-          label="Patterns"
-          summary={
-            catalog ? (
-              `${count("chart")} chart · ${count("candlestick")} candlestick`
-            ) : (
-              <span className={styles.mute}>Loading…</span>
-            )
-          }
-        >
-          <PatternList options={options} config={config} onChange={onChange} />
-        </Dropdown>
-      </div>
-    </section>
+    <div className={styles.picks}>
+      <h2 className={styles.popTitle}>Pattern settings</h2>
+      <Dropdown
+        label="Timeframes"
+        summary={
+          config.tfs.length ? (
+            config.tfs.map((tf) => <TfBadge key={tf} tf={tf} />)
+          ) : (
+            <span className={styles.mute}>None: no patterns shown</span>
+          )
+        }
+      >
+        {DETECTION_TFS.map((tf) => (
+          <Check
+            key={tf}
+            on={config.tfs.includes(tf)}
+            onChange={() => onChange(toggleTf(config, tf))}
+          >
+            <b className={styles.num}>{tf}</b>
+            <span className={styles.mute}>{TF_NAME[tf]}</span>
+          </Check>
+        ))}
+      </Dropdown>
+      <Dropdown
+        label="Patterns"
+        summary={
+          catalog ? (
+            `${count("chart")} chart · ${count("candlestick")} candlestick`
+          ) : (
+            <span className={styles.mute}>Loading…</span>
+          )
+        }
+      >
+        <PatternList options={options} config={config} onChange={onChange} />
+      </Dropdown>
+      <p className={styles.note}>Saved in this browser and used on every page.</p>
+    </div>
   );
 };
 

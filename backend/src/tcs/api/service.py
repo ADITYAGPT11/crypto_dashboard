@@ -198,15 +198,21 @@ class Service:
 
     # Statistics --------------------------------------------------------------
 
-    def stats(self, tf: Timeframe, zone_tf: Timeframe, context: str = "*") -> StatsOut:
+    def stats(
+        self, tf: Timeframe, zone_tf: Timeframe, context: str = "*", symbol: str = "*"
+    ) -> StatsOut:
+        """Every setup's record; ``symbol`` restricts it to one coin (no order-flow split then)."""
         if context != "*" and context not in (*CONTEXTS, *SCORE_CONTEXTS):
             raise BadRequest(f"unknown context {context!r}")
-        rows = self.store.stats(RULESET_VERSION, tf, zone_tf, context=context)
+        if symbol != "*" and context != "*":
+            raise BadRequest("per-coin records have no order-flow split")
+        rows = self.store.stats(RULESET_VERSION, tf, zone_tf, symbol=symbol, context=context)
         return StatsOut(
             ruleset=RULESET_VERSION,
             tf=tf,
             zone_tf=zone_tf,
             context=context,
+            symbol=symbol,
             run=convert.run(self.store.run(RULESET_VERSION, tf)),
             setups=[
                 SetupStatOut.model_validate(

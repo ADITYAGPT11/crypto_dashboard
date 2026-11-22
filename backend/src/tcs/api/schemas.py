@@ -251,6 +251,8 @@ class StatsOut(Out):
     run: RunOut | None
     #: Order-flow context the records are restricted to ("*" = every case).
     context: str = "*"
+    #: The one coin the records are restricted to ("*" = every coin pooled).
+    symbol: str = "*"
     setups: list[SetupStatOut]
 
 
