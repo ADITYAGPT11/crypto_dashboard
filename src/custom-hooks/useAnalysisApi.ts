@@ -1,14 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import type { ApiResource, ResourceState } from "../services/ApiResource";
-import {
-  analysisApi,
-  analysisKey,
-  coinStatsKey,
-  scannerKey,
-  setupDetailKey,
-  statsKey,
-} from "../services/AnalysisApi";
-import type { AnalysisOut, CatalogOut, ScannerOut, SetupDetailOut, StatsOut } from "../api/schema";
+import { analysisApi, analysisKey, scannerKey } from "../services/AnalysisApi";
+import type { AnalysisOut, CatalogOut, ScannerOut } from "../api/schema";
 import type { CandleInterval } from "../types/marketData";
 
 const IDLE: ResourceState<never> = { data: null, error: null, loading: false, updatedAt: null };
@@ -33,34 +26,6 @@ export function useAnalysis(
   zoneTf: CandleInterval,
 ): ResourceState<AnalysisOut> {
   return useResource(analysisApi().analysis, symbol ? analysisKey(symbol, tf, zoneTf) : null);
-}
-
-export function useStats(
-  tf: CandleInterval,
-  zoneTf: CandleInterval,
-  context = "*",
-): ResourceState<StatsOut> {
-  return useResource(analysisApi().stats, statsKey(tf, zoneTf, context));
-}
-
-/** One coin's own record of every setup on one timeframe; `null` symbol = nothing requested. */
-export function useCoinStats(
-  symbol: string | null,
-  tf: CandleInterval,
-  zoneTf: CandleInterval = tf,
-): ResourceState<StatsOut> {
-  return useResource(analysisApi().coinStats, symbol ? coinStatsKey(symbol, tf, zoneTf) : null);
-}
-
-export function useSetupDetail(
-  tf: CandleInterval,
-  zoneTf: CandleInterval,
-  setup: { pattern: string; direction: string; location: string } | null,
-): ResourceState<SetupDetailOut> {
-  return useResource(
-    analysisApi().setup,
-    setup ? setupDetailKey(tf, zoneTf, setup.pattern, setup.direction, setup.location) : null,
-  );
 }
 
 export function useScanner(

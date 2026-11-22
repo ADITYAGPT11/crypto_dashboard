@@ -26,11 +26,11 @@ class Settings:
     db_path: Path = field(
         default_factory=lambda: Path(os.environ.get("TCS_DB", "data/tcs.sqlite3"))
     )
-    #: Days of history the statistics job measures (one to two years).
-    stats_days: int = field(default_factory=lambda: int(os.environ.get("TCS_STATS_DAYS", "730")))
+    #: Days of history ``tcs backfill`` downloads.
+    history_days: int = field(
+        default_factory=lambda: int(os.environ.get("TCS_HISTORY_DAYS", "730"))
+    )
     universe: tuple[str, ...] = field(default_factory=_universe)
-    #: Run the background statistics job on a schedule inside the API process.
-    schedule: bool = field(default_factory=lambda: os.environ.get("TCS_STATS_SCHEDULE", "1") != "0")
     #: Record order-book depth (heatmap history) inside the API process.
     record_depth: bool = field(
         default_factory=lambda: os.environ.get("TCS_DEPTH_RECORD", "1") != "0"
@@ -39,10 +39,5 @@ class Settings:
     depth_symbols: tuple[str, ...] = field(default_factory=_depth_symbols)
     #: Days of depth history kept.
     depth_days: int = field(default_factory=lambda: int(os.environ.get("TCS_DEPTH_DAYS", "7")))
-    #: Trading costs every statistic is measured after (percent of notional, per side).
-    fee_pct: float = field(default_factory=lambda: float(os.environ.get("TCS_FEE_PCT", "0.05")))
-    slippage_pct: float = field(
-        default_factory=lambda: float(os.environ.get("TCS_SLIPPAGE_PCT", "0.025"))
-    )
     host: str = field(default_factory=lambda: os.environ.get("TCS_HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: int(os.environ.get("TCS_PORT", "8000")))

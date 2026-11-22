@@ -1,44 +1,28 @@
 import { describe, expect, it } from "vite-plus/test";
-import type { SummaryOut } from "../../api/schema";
-import { toStats } from "../setupKeys";
+import { locationLabel, normalizeSetupKey, parseSetupKey, setupKey } from "../setupKeys";
 
-const gross: SummaryOut = {
-  n: 40,
-  wins: 22,
-  losses: 18,
-  expired: 3,
-  open: 1,
-  winRate: 0.55,
-  ciLow: 0.4,
-  ciHigh: 0.69,
-  breakEven: 0.4,
-  avgWinPct: 3,
-  avgLossPct: -2,
-  expectancyR: 0.38,
-  medianBars: 6,
-  verdict: "noEdge",
-};
-
-describe("toStats", () => {
-  it("reads expectancy and break-even after costs, keeping gross alongside", () => {
-    const s = toStats("doubleBottom", "long", "*", {
-      ...gross,
-      expectancyNetR: 0.21,
-      breakEvenNet: 0.47,
-      avgCostR: 0.17,
+describe("setup keys", () => {
+  it("round-trips and rejects junk", () => {
+    expect(parseSetupKey(setupKey("doubleTop", "short", "confluence"))).toEqual({
+      pattern: "doubleTop",
+      direction: "short",
+      location: "confluence",
     });
-    expect(s.expectancyR).toBe(0.21);
-    expect(s.expectancyGrossR).toBe(0.38);
-    expect(s.breakEven).toBe(0.47);
-    expect(s.breakEvenGross).toBe(0.4);
-    expect(s.avgCostR).toBe(0.17);
+    expect(parseSetupKey("doubleTop|sideways|zone")).toBeNull();
+    expect(parseSetupKey("doubleTop|short|nowhere")).toBeNull();
+    expect(parseSetupKey("a b|long|zone")).toBeNull();
+    expect(parseSetupKey("")).toBeNull();
   });
 
-  it("falls back to the gross figures for runs before costs were measured", () => {
-    const s = toStats("doubleBottom", "long", "*", gross);
-    expect(s.expectancyR).toBe(0.38);
-    expect(s.breakEven).toBe(0.4);
-    expect(s.avgCostR).toBe(0);
-    expect(s.trail).toBeNull();
+  it("upgrades keys stored before directions existed", () => {
+    expect(normalizeSetupKey("doubleBottom|demandZone")).toBe("doubleBottom|long|zone");
+    expect(normalizeSetupKey("hammer|openSpace")).toBe("hammer|long|openSpace");
+    expect(normalizeSetupKey("tweezersBottom|openSpace")).toBeNull(); // retired pattern
+  });
+
+  it("names locations by direction", () => {
+    expect(locationLabel("zone", "long")).toBe("in demand zone");
+    expect(locationLabel("zone", "short")).toBe("in supply zone");
+    expect(locationLabel("orderBlock", "short")).toBe("at bearish order block");
   });
 });

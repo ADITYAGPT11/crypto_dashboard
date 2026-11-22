@@ -9,7 +9,7 @@ statistical probability, technical analysis, news impact and risk management.
 **Current stage:** a React app over exchange public APIs (Binance, OKX, Delta Exchange India) and
 a Python analysis service that detects chart and candlestick patterns, demand/supply zones and
 order blocks, and measures how every setup has performed over one to two years. Live prices,
-TradingView-style charts with a liquidity heatmap, pattern statistics, risk sizing and alerts.
+TradingView-style charts with a liquidity heatmap, pattern detection with a setup checklist, risk sizing and alerts.
 Analysis only; no trade execution. See
 [`docs/context/STATUS.md`](docs/context/STATUS.md) for what currently works and what's broken.
 
@@ -34,7 +34,7 @@ The first start downloads two years of history and measures every setup in the b
 | `npm run build`     | Type-check + production build into `dist/`                                                       |
 | `npm run preview`   | Serve the production build                                                                       |
 | `npm run backend`   | Bundle and start the backend prototype (Express + SQLite) on port 3001                           |
-| `npm run api`       | Python analysis service (FastAPI) on port 8000 + background statistics                           |
+| `npm run api`       | Python analysis service (FastAPI) on port 8000                                                   |
 | `npm run api:check` | Python format, lint, strict types and tests                                                      |
 
 No API keys or `.env` are needed for the dashboard; only public exchange endpoints are used.

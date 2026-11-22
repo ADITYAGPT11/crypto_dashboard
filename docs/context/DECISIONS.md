@@ -513,3 +513,16 @@ groups pass, all shorts (1h rising wedge / symmetrical triangle / double top at 
 bearish harami, double top, hanging man, symmetrical and descending triangles, bearish engulfing
 at score 3; 1d bear flag). With ~330 groups tested and a falling market, chance and regime can
 explain them; the forward record decides.
+
+### 2026-11-22 · Trade plan and win-rate statistics removed; a setup checklist instead (r10)
+
+Why: the owner asked to remove the trade plan (entry, stop, take-profit, trailing exit) and all of
+its statistics, and to score each pattern by where it formed instead: at a bullish order block or
+demand zone, RSI 50–70 ("healthy", above 70 stretched), a volume spike, close above VWAP,
+expanding ATR, Supertrend agreeing (mirrored for shorts). It is shown as "4/6 checks". Chosen over a
+percentage so it never reads as a win probability: guardrail 3 requires measured figures, and
+this checklist is an observation of context, not measured against outcomes. Earlier research in
+this conversation found several of these checks (zones, volume spikes, oversold RSI) did not
+improve results under the old plan; the owner chose the checklist knowing that. The research and
+its code are in the history (r5–r9 entries above) if measurement returns. Removed with it: order-
+flow context and funding history (only the statistics used them) and the Pattern stats page.

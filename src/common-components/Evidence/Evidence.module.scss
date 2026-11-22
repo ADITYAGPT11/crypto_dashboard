@@ -30,36 +30,6 @@
   color: var(--t-muted);
 }
 
-.ci {
-  position: relative;
-  height: 10px;
-  min-width: 110px;
-  border-radius: 5px;
-  background: var(--t-inner);
-}
-.band {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-radius: 5px;
-  background: var(--t-signal-soft);
-}
-.pt {
-  position: absolute;
-  top: -3px;
-  width: 3px;
-  height: 16px;
-  border-radius: 2px;
-  background: var(--t-signal);
-}
-.be {
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  width: 2px;
-  background: var(--t-amber);
-}
-
 .explain {
   position: relative;
   display: inline-flex;

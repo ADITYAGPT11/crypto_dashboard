@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { candleSpan, isChartPattern, patternFigure, positionBox } from "../patternGeometry";
+import { candleSpan, isChartPattern, patternFigure } from "../patternGeometry";
 import type { ViewPattern } from "../timeframeMapping";
 
 function view(partial: Partial<ViewPattern>): ViewPattern {
@@ -12,16 +12,10 @@ function view(partial: Partial<ViewPattern>): ViewPattern {
     entryX: 30.5,
     startX: 9.5,
     lines: [],
-    confidence: null,
-    passes: true,
+    score: 3,
+    checks: [],
     extreme: 90,
-    entry: 106,
-    stop: 89,
-    target: 115,
-    outcome: { result: "open", r: 0, exitPrice: null },
-    exitX: null,
-    windowEndX: 60.5,
-    trail: { result: "open", r: 0, exitX: null, exitPrice: null, activatedX: null, stops: [] },
+    close: 106,
     ...partial,
   };
 }
@@ -46,8 +40,6 @@ describe("patternFigure", () => {
       { at: { x: 26, price: 91 }, text: "B2", side: "below" },
     ]);
     expect(f.height).toEqual({ from: { x: 10, price: 90 }, to: { x: 10, price: 105 } });
-    expect(f.projection?.from).toEqual({ x: 30, price: 105 });
-    expect(f.projection?.to.price).toBe(115);
     expect(f.breakout).toEqual({ x: 30, price: 106 });
   });
 
@@ -114,7 +106,6 @@ describe("patternFigure", () => {
     ]);
     expect(f.dots).toHaveLength(4);
     expect(f.height).toEqual({ from: { x: 10, price: 98 }, to: { x: 10, price: 110 } });
-    expect(f.projection?.text).toBe("Height at start");
   });
 
   it("draws a flag as a pole and a box over the pause", () => {
@@ -138,49 +129,11 @@ describe("patternFigure", () => {
     });
     expect(f.fill.map((p) => p.price)).toEqual([108, 108, 102, 102]);
     expect(f.fill.map((p) => p.x)).toEqual([15, 30, 30, 15]);
-    expect(f.projection?.text).toBe("Pole length");
   });
 
   it("tells candlestick patterns from chart patterns", () => {
     expect(isChartPattern(doubleBottom)).toBe(true);
     expect(isChartPattern(view({ pattern: "hammer" }))).toBe(false);
-  });
-});
-
-describe("positionBox", () => {
-  it("spans the outcome window and marks where a loss stopped out", () => {
-    const b = positionBox({
-      ...doubleBottom,
-      outcome: { result: "loss", r: -1, exitPrice: 89 },
-      exitX: 34.5,
-    });
-    expect(b.x1).toBe(30.5);
-    expect(b.x2).toBe(60.5);
-    expect(b.rr).toBeCloseTo(9 / 17);
-    expect(b.exit).toEqual({ x: 34.5, price: 89 });
-    expect(b.targetPct).toBeCloseTo((9 / 106) * 100);
-  });
-
-  it("reports a target already behind the entry as reward / risk ≤ 0", () => {
-    const b = positionBox(
-      view({
-        direction: "short",
-        entry: 100,
-        stop: 105,
-        target: 101,
-        outcome: { result: "win", r: -0.2, exitPrice: 101 },
-        exitX: 31.5,
-      }),
-    );
-    expect(b.rr).toBeCloseTo(-0.2);
-    expect(b.exit).toEqual({ x: 31.5, price: 101 });
-  });
-
-  it("has no exit marker while the trade is open or expired", () => {
-    expect(
-      positionBox(view({ outcome: { result: "expired", r: 0.3, exitPrice: 103 }, exitX: 60.5 }))
-        .exit,
-    ).toBeNull();
   });
 });
 

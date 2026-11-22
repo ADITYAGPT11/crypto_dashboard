@@ -12,5 +12,5 @@ SCHEMA_TS = Path(__file__).parents[2] / "src" / "api" / "schema.ts"
 
 
 def test_schema_ts_is_up_to_date() -> None:
-    expected = generate(create_app(Settings(schedule=False)).openapi())
+    expected = generate(create_app(Settings(record_depth=False)).openapi())
     assert SCHEMA_TS.read_text() == expected, "run `npm run api:types` and commit src/api/schema.ts"

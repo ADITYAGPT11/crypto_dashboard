@@ -30,8 +30,7 @@ const catalog = {
     },
     { id: "hammer", label: "Hammer", kind: "candlestick", bias: "long", source: "", summary: "" },
   ],
-  maxHoldBars: 30,
-  minSample: 30,
+  maxScore: 6,
   timeframes: ["1h", "4h", "1d"],
   universe: [],
 } satisfies CatalogOut;

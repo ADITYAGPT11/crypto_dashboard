@@ -3,16 +3,12 @@ import type { DrawingKind } from "lightweight-charts-drawing";
 import { useNavigate, useParams } from "react-router-dom";
 import type { CandleInterval } from "../../types/marketData";
 import type { AnalysisOut } from "../../api/schema";
-import type { SetupOccurrence } from "../../types/analysis";
 import { useHistories } from "../../custom-hooks/useHistories";
 import { researchUniverse } from "../../custom-hooks/useUniverseCandles";
-import { useAnalysis, useCatalog, useCoinStats } from "../../custom-hooks/useAnalysisApi";
+import { useAnalysis, useCatalog } from "../../custom-hooks/useAnalysisApi";
 import { useUniverseCandles } from "../../custom-hooks/useUniverseCandles";
-import { setupKey } from "../../utils/setupKeys";
-import { statsByKey } from "../../utils/setupLibrary";
 import { groupDetections } from "../../utils/patternGroups";
 import { loadWatchlist, saveWatchlist } from "../../utils/watchlistStorage";
-import type { SetupStats } from "../../types/analysis";
 import { price } from "../../utils/format";
 import {
   DETECTION_TFS,
@@ -22,19 +18,8 @@ import {
   pickKey,
   type DetectionConfig,
 } from "../../utils/detectionConfig";
-import {
-  TF_MS,
-  toViewLevels,
-  toViewPattern,
-  viewBarTimeForClose,
-  type ViewPattern,
-} from "../../utils/timeframeMapping";
-import PriceChart, {
-  type ChartHandle,
-  type IndicatorAction,
-  type Layers,
-  type ViewMarker,
-} from "./PriceChart";
+import { TF_MS, toViewLevels, toViewPattern, type ViewPattern } from "../../utils/timeframeMapping";
+import PriceChart, { type ChartHandle, type IndicatorAction, type Layers } from "./PriceChart";
 import ChartToolbar from "./ChartToolbar";
 import DrawingToolbar from "./DrawingToolbar";
 import IndicatorsDialog from "./IndicatorsDialog";
@@ -75,9 +60,6 @@ import WatchlistStrip from "./WatchlistStrip";
 import styles from "./ChartPage.module.scss";
 
 const foundId = (f: Found) => `${f.tf}-${f.occ.pattern}-${f.occ.direction}-${f.occ.time}`;
-/** Records are read at any location: the app no longer splits setups by zone / order block. */
-const keyOf = (o: Pick<SetupOccurrence, "pattern" | "direction">) =>
-  setupKey(o.pattern, o.direction, "*");
 
 const ChartPage: React.FC = () => {
   const params = useParams();
@@ -209,29 +191,6 @@ const ChartPage: React.FC = () => {
   const live = liveFeed.candle;
   const candles = view.candles;
 
-  // This coin's own record of every setup per timeframe (background job, one to two years).
-  const c1h = useCoinStats(patternTfs.includes("1h") ? symbol : null, "1h");
-  const c4h = useCoinStats(patternTfs.includes("4h") ? symbol : null, "4h");
-  const c1d = useCoinStats(patternTfs.includes("1d") ? symbol : null, "1d");
-  const coinStats = useMemo(() => {
-    const out = new Map<CandleInterval, Map<string, SetupStats>>();
-    if (c1h.data) out.set("1h", statsByKey(c1h.data));
-    if (c4h.data) out.set("4h", statsByKey(c4h.data));
-    if (c1d.data) out.set("1d", statsByKey(c1d.data));
-    return out;
-  }, [c1h.data, c4h.data, c1d.data]);
-  const selStats = selTf === "1h" ? c1h : selTf === "1d" ? c1d : c4h;
-  const key = selected ? keyOf(selected.occ) : null;
-
-  // Past cases of the selected setup on this chart, as markers.
-  const history = useMemo(
-    () =>
-      selected
-        ? (analyses.get(selected.tf)?.occurrences ?? []).filter((o) => keyOf(o) === key)
-        : [],
-    [analyses, selected, key],
-  );
-
   // Everything drawn on the chart, mapped onto the view timeframe by time.
   const viewSelected: ViewPattern | null = useMemo(
     () =>
@@ -248,26 +207,9 @@ const ChartPage: React.FC = () => {
         : [],
     [recent, selected, candles, viewTf, overlays.patternTags],
   );
-  const markers: ViewMarker[] = useMemo(() => {
-    if (!selected || !candles.length) return [];
-    return history.flatMap((o) => {
-      const time = viewBarTimeForClose(candles, o.time, TF_MS[selected.tf]);
-      return time === null
-        ? []
-        : [
-            {
-              time,
-              result: o.outcome.result,
-              current: o.time === selected.occ.time,
-              direction: o.direction,
-            },
-          ];
-    });
-  }, [history, selected, candles]);
-
   const levelTf = (selAnalysis?.zoneTf ?? selZoneTf) as CandleInterval;
   // Only the key levels are drawn (Overlays → Display settings); every level still
-  // counts for the setups' locations and statistics.
+  // counts for the setups' locations.
   const lastClose = candles.length ? candles[candles.length - 1].close : null;
   const shown = useMemo(
     () => (selAnalysis && lastClose !== null ? keyLevels(selAnalysis, lastClose, overlays) : null),
@@ -417,10 +359,8 @@ const ChartPage: React.FC = () => {
               bigTrades={layers.bigTrades ? bigTrades : null}
               footprint={layers.footprint ? footprint : null}
               selected={viewSelected}
-              plan={selected ? selected.occ : null}
               focusKey={focus ? `${focus.id}#${focus.n}` : null}
               others={viewOthers}
-              markers={markers}
               layers={layers}
               tool={tool}
               onToolChange={setTool}
@@ -477,7 +417,6 @@ const ChartPage: React.FC = () => {
                   : "Big trades: measuring typical size…"}
               </span>
             )}
-            <span>▲ W / L = past outcomes of the selected setup</span>
           </div>
         </div>
 
@@ -498,15 +437,8 @@ const ChartPage: React.FC = () => {
             setOpenId(g.id);
             setFocus((p) => ({ id: foundId(g.latest), n: (p?.n ?? 0) + 1 }));
           }}
-          tfs={patternTfs}
-          stats={coinStats}
           isNow={isNow}
-          run={selStats.data?.run ?? null}
-          statsError={selStats.error}
           ruleset={catalog?.ruleset ?? null}
-          maxHoldBars={catalog?.maxHoldBars ?? 120}
-          trailAtr={catalog?.trailAtr ?? 2}
-          minSample={catalog?.minSample ?? 30}
           loading={analysisLoading && analyses.size === 0}
           empty={
             catalog && patternTfs.length === 0

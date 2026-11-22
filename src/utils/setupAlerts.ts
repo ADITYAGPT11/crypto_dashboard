@@ -4,18 +4,17 @@
  * Pure rule matching and storage parsing; the live wiring is
  * `services/SetupAlertService.ts`. An alert fires once per occurrence, only for
  * candles that closed after the rule was created ("next time", not history),
- * and carries the setup's pooled record so the message is evidence, not a bare signal.
+ * and carries the setup's checklist (what was met at the confirmation candle).
  */
 import type { CandleInterval } from "../types/marketData";
-import type { OutcomeResult, SetupOccurrence, SetupStats, Verdict } from "../types/analysis";
+import type { SetupOccurrence } from "../types/analysis";
 import type { AlertTrigger } from "../types/alertRules";
 import { patternLabel } from "./patternLabels";
 import { locationLabel, normalizeSetupKey, parseSetupKey, setupKey } from "./setupKeys";
 
-/** A setup confirmed on a recent closed candle, with its pooled record (null = not measured). */
+/** A setup confirmed on a recent closed candle. */
 export interface CurrentSetup {
   occurrence: SetupOccurrence;
-  pooled: SetupStats | null;
 }
 
 /** Rule symbol meaning "any coin on my watchlist". */
@@ -33,8 +32,6 @@ export interface SetupAlertRule {
   interval: CandleInterval;
   telegram: boolean;
   inApp: boolean;
-  /** Fire only while the pooled verdict is "edge". */
-  edgeOnly: boolean;
   paused: boolean;
   createdAt: number;
 }
@@ -51,11 +48,12 @@ export interface SetupAlertFiring {
   /** Open time (ms) of the confirmation candle. */
   time: number;
   firedAt: number;
-  entry: number;
-  stop: number;
-  target: number;
-  record: { n: number; wins: number; winRate: number; ci: [number, number]; verdict: Verdict };
-  outcome: OutcomeResult;
+  /** Close of the confirmation candle. */
+  close: number;
+  /** Checklist items met, out of `of`; `met` = their labels. */
+  score: number;
+  of: number;
+  met: string[];
   telegram: Delivery;
   /** Shown in the in-app banner until dismissed. */
   unseen: boolean;
@@ -90,7 +88,7 @@ export function matchFirings(
     if (rule.paused || rule.interval !== interval) continue;
     const want = parseSetupKey(rule.setupKey);
     if (!want) continue;
-    for (const { occurrence: o, pooled } of current) {
+    for (const { occurrence: o } of current) {
       const key = setupKey(o.pattern, o.direction, o.location);
       const matches =
         o.pattern === want.pattern &&
@@ -98,7 +96,6 @@ export function matchFirings(
         (want.location === "*" || o.location === want.location);
       if (!matches || !ruleCovers(rule, o.symbol, watchlist)) continue;
       if (o.time + ms < rule.createdAt) continue; // closed before the rule existed
-      if (rule.edgeOnly && pooled?.verdict !== "edge") continue;
       const id = `${rule.id}|${o.symbol}|${o.time}`;
       if (known.has(id) || out.some((f) => f.id === id)) continue;
       out.push({
@@ -109,37 +106,16 @@ export function matchFirings(
         interval,
         time: o.time,
         firedAt: now,
-        entry: o.entry,
-        stop: o.stop,
-        target: o.target,
-        record: pooled
-          ? {
-              n: pooled.n,
-              wins: pooled.wins,
-              winRate: pooled.winRate,
-              ci: pooled.ci,
-              verdict: pooled.verdict,
-            }
-          : { n: 0, wins: 0, winRate: 0, ci: [0, 1], verdict: "tooFew" },
-        outcome: o.outcome.result,
+        close: o.close,
+        score: o.score,
+        of: o.checks.length,
+        met: o.checks.filter((c) => c.passed).map((c) => c.label),
         telegram: rule.telegram ? "offline" : "off",
         unseen: rule.inApp,
       });
     }
   }
   return out;
-}
-
-/** The latest outcome of a fired setup, from the coin's newer analysis (unchanged if not found). */
-export function resolveOutcome(
-  firing: SetupAlertFiring,
-  occurrences: readonly SetupOccurrence[],
-): OutcomeResult {
-  const occ = occurrences.find(
-    (o) =>
-      o.time === firing.time && setupKey(o.pattern, o.direction, o.location) === firing.setupKey,
-  );
-  return occ?.outcome.result ?? firing.outcome;
 }
 
 /** "Long double bottom" (plus its location on rules saved before r5's UI) or the raw key. */
@@ -150,31 +126,18 @@ export function setupName(key: string): string {
     : key;
 }
 
-const VERDICT_TEXT: Record<Verdict, string> = {
-  edge: "edge candidate after costs (in-sample, not yet forward-tested)",
-  noEdge: "no edge: the range overlaps break-even",
-  tooFew: "too few cases for a verdict",
-};
-
-function pctText(v: number): string {
-  return `${Math.round(v * 100)}%`;
-}
-
-/** The backend's Telegram payload for a firing: the setup, the plan and its record. */
+/** The backend's Telegram payload for a firing: the setup and its checklist. */
 export function toTrigger(f: SetupAlertFiring): AlertTrigger {
-  const r = f.record;
   return {
     ruleId: f.ruleId,
     ruleName: `${f.symbol} · ${setupName(f.setupKey)} · ${f.interval}`,
     firedAt: f.firedAt,
     values: {
-      entry: String(f.entry),
-      stop: String(f.stop),
-      target: String(f.target),
-      record: `${r.wins} of ${r.n} won (${pctText(r.winRate)}, 95% range ${pctText(r.ci[0])}–${pctText(r.ci[1])})`,
-      verdict: VERDICT_TEXT[r.verdict],
+      close: String(f.close),
+      checks: `${f.score}/${f.of}`,
+      met: f.met.join("; ") || "none",
     },
-    reason: `${f.symbol} printed a ${setupName(f.setupKey).toLowerCase()} setup on a closed ${f.interval} candle. Past record is after estimated costs; you decide and trade.`,
+    reason: `${f.symbol} printed a ${setupName(f.setupKey).toLowerCase()} setup on a closed ${f.interval} candle. The checklist describes where it formed; it is not a prediction. You decide and trade.`,
   };
 }
 
@@ -213,7 +176,6 @@ export function parseRules(value: unknown): SetupAlertRule[] {
       interval: tf,
       telegram: v.telegram === true,
       inApp: v.inApp !== false,
-      edgeOnly: v.edgeOnly === true,
       paused: v.paused === true,
       createdAt: typeof v.createdAt === "number" ? v.createdAt : 0,
     });
@@ -222,8 +184,6 @@ export function parseRules(value: unknown): SetupAlertRule[] {
   return out;
 }
 
-const OUTCOMES: readonly OutcomeResult[] = ["win", "loss", "expired", "open"];
-const VERDICTS: readonly Verdict[] = ["edge", "noEdge", "tooFew"];
 const DELIVERIES: readonly Delivery[] = ["sent", "failed", "offline", "off"];
 
 export function parseFirings(value: unknown): SetupAlertFiring[] {
@@ -231,17 +191,14 @@ export function parseFirings(value: unknown): SetupAlertFiring[] {
   const out: SetupAlertFiring[] = [];
   for (const raw of value) {
     const v = obj(raw);
-    const rec = obj(v?.record);
-    if (!v || !rec) continue;
+    if (!v) continue;
     const tf = interval(v.interval);
-    const nums = [v.time, v.firedAt, v.entry, v.stop, v.target, rec.n, rec.wins, rec.winRate];
+    const nums = [v.time, v.firedAt];
     if (!tf || nums.some((n) => typeof n !== "number" || !Number.isFinite(n))) continue;
     if (typeof v.id !== "string" || typeof v.ruleId !== "string") continue;
     if (typeof v.symbol !== "string" || typeof v.setupKey !== "string") continue;
     const setupKeyNow = normalizeSetupKey(v.setupKey);
     if (!setupKeyNow) continue;
-    const ci = Array.isArray(rec.ci) && rec.ci.length === 2 ? rec.ci : null;
-    if (!ci || ci.some((n) => typeof n !== "number")) continue;
     out.push({
       id: v.id,
       ruleId: v.ruleId,
@@ -250,17 +207,11 @@ export function parseFirings(value: unknown): SetupAlertFiring[] {
       interval: tf,
       time: v.time as number,
       firedAt: v.firedAt as number,
-      entry: v.entry as number,
-      stop: v.stop as number,
-      target: v.target as number,
-      record: {
-        n: rec.n as number,
-        wins: rec.wins as number,
-        winRate: rec.winRate as number,
-        ci: [ci[0] as number, ci[1] as number],
-        verdict: VERDICTS.find((x) => x === rec.verdict) ?? "tooFew",
-      },
-      outcome: OUTCOMES.find((x) => x === v.outcome) ?? "open",
+      // Firings stored before the checklist (with a trade plan) keep their time and setup only.
+      close: typeof v.close === "number" && Number.isFinite(v.close) ? v.close : 0,
+      score: typeof v.score === "number" ? v.score : 0,
+      of: typeof v.of === "number" ? v.of : 0,
+      met: Array.isArray(v.met) ? v.met.filter((m): m is string => typeof m === "string") : [],
       telegram: DELIVERIES.find((x) => x === v.telegram) ?? "off",
       unseen: v.unseen === true,
     });

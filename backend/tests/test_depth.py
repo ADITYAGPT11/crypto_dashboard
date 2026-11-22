@@ -299,7 +299,7 @@ def test_depth_endpoint_serves_recorded_columns(tmp_path: Path) -> None:
     from tcs.api.service import now_ms
     from tcs.depth.sampler import Column
 
-    settings = Settings(db_path=tmp_path / "a.sqlite3", schedule=False, record_depth=False)
+    settings = Settings(db_path=tmp_path / "a.sqlite3", record_depth=False)
     svc = Service(settings)
     t = now_ms() // 60_000 * 60_000 - 120_000
     svc.store.put_depth("ETH-USDT", Column(t, 0.5, 3000.0, 30, {6000: 1234.5}, {6002: 99.0}))

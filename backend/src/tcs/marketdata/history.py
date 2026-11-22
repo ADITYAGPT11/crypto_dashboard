@@ -140,44 +140,6 @@ class History:
             log.info("archive file unavailable: %s", err)
             return None
 
-    def ensure_funding(self, symbol: str, since: int, now: int) -> list[tuple[int, float]]:
-        """Funding events (time ms, rate %) in [since, now]: archive months, then the REST tail.
-
-        Fails soft: whatever the sources give is returned; the caller treats any time after the
-        last known event as unknown (``analysis/costs.py`` carries the last rate forward).
-        """
-        this_month = dt.datetime.fromtimestamp(now / 1000, dt.UTC).replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
-        done = self.store.funding_months(symbol)
-        months = [
-            (y, m)
-            for y, m in _month_starts(since, _ms(this_month) - 1)
-            if f"{y:04d}-{m:02d}" not in done
-        ]
-
-        def fetch(ym: tuple[int, int]) -> tuple[tuple[int, int], list[tuple[int, float]] | None]:
-            try:
-                return ym, self.source.archive_funding_month(symbol, *ym) or []
-            except SourceUnavailable as err:
-                log.info("funding archive %s %s unavailable: %s", symbol, ym, err)
-                return ym, None  # not marked done: tried again next time
-
-        with ThreadPoolExecutor(max_workers=ARCHIVE_WORKERS) as pool:
-            for (y, m), rows in pool.map(fetch, months):
-                if rows is not None:
-                    self.store.put_funding(symbol, rows, month=f"{y:04d}-{m:02d}")
-        known = self.store.funding(symbol, since, now)
-        start = known[-1][0] + 1 if known else since
-        try:
-            tail = self.source.rest_funding(symbol, start, now)
-            if tail:
-                self.store.put_funding(symbol, tail)
-                known = self.store.funding(symbol, since, now)
-        except SourceUnavailable as err:
-            log.info("funding REST tail for %s unavailable: %s", symbol, err)
-        return known
-
     def load(self, symbol: str, tf: Timeframe, since: int, now: int) -> Series:
         """Closed candles from ``since`` (never the forming candle)."""
         return self.store.series(symbol, tf, since=since, until=last_closed_open(now, tf))

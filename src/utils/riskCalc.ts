@@ -95,11 +95,6 @@ export function computePosition(input: RiskInput): RiskResult {
   };
 }
 
-/** Mean result per trade at win rate `p`, after fees. */
-export function expectedValue(position: Position, p: number): number {
-  return p * position.gainAtTarget - (1 - p) * position.lossAtStop;
-}
-
 // ----------------------------------------------------------------------------
 // Remembered defaults (account size, risk %, fee) — a per-browser convenience.
 // ----------------------------------------------------------------------------

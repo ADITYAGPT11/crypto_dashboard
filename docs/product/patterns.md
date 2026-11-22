@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r9`)
+# Pattern, zone and order-block rules (rule set `2026.11-r10`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -6,77 +6,37 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
 
 ## Rules every detector follows
 
-| Rule                                                                             | How it is enforced                                                                                            |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Closed candles only; a hit confirms on candle _i_ using only candles ≤ _i_       | `tests/test_invariants.py::test_no_look_ahead` (each hit must reappear, identical, on the history cut at _i_) |
-| Thresholds in ATR(14), never in price units                                      | `test_scale_invariant_and_deterministic` (prices × 1000 → same hits)                                          |
-| Swings are used only once confirmed (3 candles each side, known 3 candles later) | `swings.py::Swing.known_at`; prefix test                                                                      |
-| Bearish patterns (chart and candlestick) are the bullish rule upside down        | `common/series.py::mirror`; `test_bearish_patterns_are_mirrored_bullish_ones`, `test_candlesticks.py`         |
-| Every plan has its stop behind and its target ahead of the entry                 | `test_plan_is_ordered_stop_entry_target`                                                                      |
-| Zones, order blocks and gaps exist from the close of the candle that formed them | `test_levels_known_when_formed`                                                                               |
-| Every pattern in the catalogue can fire on real data                             | `test_every_pattern_in_the_catalogue_can_fire`                                                                |
-| Any rule change shows up as a reviewed diff                                      | `tests/test_golden.py` on a year of real ETH 4h candles                                                       |
+| Rule                                                                                                 | How it is enforced                                                                                            |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Closed candles only; a hit confirms on candle _i_ using only candles ≤ _i_                           | `tests/test_invariants.py::test_no_look_ahead` (each hit must reappear, identical, on the history cut at _i_) |
+| Thresholds in ATR(14), never in price units                                                          | `test_scale_invariant_and_deterministic` (prices × 1000 → same hits)                                          |
+| Swings are used only once confirmed (3 candles each side, known 3 candles later)                     | `swings.py::Swing.known_at`; prefix test                                                                      |
+| Bearish patterns (chart and candlestick) are the bullish rule upside down                            | `common/series.py::mirror`; `test_bearish_patterns_are_mirrored_bullish_ones`, `test_candlesticks.py`         |
+| Every detection's invalidation price is behind and its measured move ahead of the confirmation close | `test_plan_is_ordered_stop_entry_target` (internal: not shown in the app since r10)                           |
+| Zones, order blocks and gaps exist from the close of the candle that formed them                     | `test_levels_known_when_formed`                                                                               |
+| Every pattern in the catalogue can fire on real data                                                 | `test_every_pattern_in_the_catalogue_can_fire`                                                                |
+| Any rule change shows up as a reviewed diff                                                          | `tests/test_golden.py` on a year of real ETH 4h candles                                                       |
 
-## Outcome and statistics (one rule for every setup)
+## Setup checklist (`analysis/checklist.py`, since r10)
 
-- **Trade plan** (since r8, `analysis/outcomes.py` + `analysis/plan.py`; owner's "plan B"):
-  **entry** at the confirmation close; **stop** at the detector's invalidation price, on **1h**
-  0.5 ATR beyond it in total (detectors use 0.2 ATR, candlesticks 0.1; 4h and 1d keep that);
-  **TP1** = the pattern's target, which does not close the trade: from the close of the candle
-  that touched it, the stop trails the best price since entry by **2 ATR** and only tightens;
-  the stop moves only at candle closes (a resting order). **Holding limit** 120 candles or the
-  formation's length; then closed at the market (**expired**, counted at its R, never a win).
-  **Win** = closed in profit. Setups whose fees + slippage would cost more than **0.1R** (stop
-  under about 1.5% of price) are skipped.
-- **Strict fills** (since r8): every trade is walked on **5-minute candles** where they are
-  stored (`stats_job.FINE_TF`; the chart loads up to 730 days). A stop the market has already
-  passed when it is set or when a candle opens fills at that candle's **open**, not at the stop
-  price; a candle touching the stop counts as the stop even if it also touched TP1. Because the
-  stop only moves at candle closes, the fill does not depend on the order of prices inside a
-  candle; the 5-minute candles add gap fills inside it. Measured (2026-11-22, 10 coins × 2 years):
-  moving the stop every 5 minutes instead was not better, and the earlier "fill at the stop
-  price" simulation overstated trailing exits by about 0.06–0.10R (see `DECISIONS.md`).
-- **Costs** (since r4; `analysis/costs.py`), per case in R (percent of notional ÷ risk in
-  percent, so tight stops pay more): taker **fee 0.05% a side** (Binance USDⓈ-M regular tier) +
-  **slippage 0.025% a side** (`TCS_FEE_PCT`, `TCS_SLIPPAGE_PCT`), and the **funding actually
-  paid** between entry (confirmation close) and exit (exit candle's close) from Binance's funding
-  history (archive months + REST tail; longs pay a positive rate, shorts receive it). After the
-  last known event the last rate is carried forward (estimated). Median cost: about 0.14 R a
-  trade on 1h, 0.06 R on 4h, 0.03 R on 1d.
-- **Win rate** (target hits ÷ every resolved case, expiries included) with a **Wilson 95%**
-  range; **break-even** after costs = L / (W + L), W = mean win in R minus its costs, L = mean
-  loss in R (costs included) of the cases that did not win, stop-outs and expiries alike (1.0
-  when wins lose after costs, 0 when the non-wins do not lose on average); the gross break-even
-  (same formula without costs) is kept alongside.
-- **Expectancy** = mean R per resolved case after costs (gross alongside).
-- **Verdict**: fewer than 30 resolved cases → too few; Wilson low above the break-even after
-  costs → edge candidate; else no edge. In-sample.
-- **Trailing record** (`summary.trail`): since r8 the same trades as the main record (the plan
-  is the trailing exit), kept for the API; expectancy with a 95% range of the mean.
-- **Setup** = pattern × direction × location × pattern timeframe × level timeframe. Pooled across
-  the research coins; each coin also on its own; "any location" is the pattern's baseline.
-  Pooled records are also split by order-flow context (below).
+Every pattern gets six yes/no checks read at its **confirmation candle** (only candles up to it),
+shown as "4/6 checks" on the chart, in the pattern rows, the Dashboard scanner and alerts. It
+describes the context the pattern formed in. It is **not** a probability and has not been
+measured against outcomes (the owner removed the trade plan and all win-rate statistics on
+2026-11-22, `DECISIONS.md`). Bullish form; bearish setups use the mirror.
 
-### Exit study (2026-11-18, 10 coins × 2 years, costs 0.15% per round trip; rule set r3)
+| Check      | Passes when                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------------- |
+| Location   | the pattern formed at an intact bullish order block or demand zone (`location.py`, below)               |
+| RSI        | RSI(14) between 50 and 70 (shorts 30–50); above 70 (below 30) fails and is marked overbought (oversold) |
+| Volume     | the confirmation candle traded ≥ 1.5× the mean volume of the 20 candles before it                       |
+| VWAP       | the confirmation close is above the rolling VWAP(20) (below for shorts)                                 |
+| ATR        | ATR(14) is at or above its own 50-candle mean (volatility expanding)                                    |
+| Supertrend | Supertrend(10, 3) points up (down for shorts)                                                           |
 
-Eleven exits on the same 45,425 setups, each also run on random entries with the same direction,
-stop and target distance. Picked on year 1, checked on year 2.
-
-| Group (net R per trade)        | Fixed 30 | Trailing TP 0.5 ATR | Random entry, trailing TP | Year 2 fixed / trailing |
-| ------------------------------ | -------: | ------------------: | ------------------------: | ----------------------- |
-| Chart patterns 1d              |   +0.155 |              +0.326 |                    +0.165 | +0.103 / +0.215         |
-| Chart patterns 1d, momentum ok |   +0.330 |              +0.489 |                    +0.176 | +0.228 / +0.332         |
-| Chart patterns 4h              |   −0.111 |              −0.012 |                    +0.030 | −0.175 / −0.103         |
-| Chart patterns 1h              |   −0.091 |              +0.001 |                    −0.012 | −0.089 / +0.024         |
-| Candlesticks (all)             |   −0.227 |              −0.142 |                    −0.105 | −0.229 / −0.133         |
-
-**Superseded (2026-11-22):** this study filled trailed stops at the stop price even when the candle
-opened beyond it, which overstated trailing exits; with strict fills (r8) their gain mostly goes.
-The trailing exit roughly doubles the daily chart patterns' result and wins out of sample, but
-random entries gain from it too: it improves the exit, not the pattern's edge over chance. It does
-not make 1h, 4h or candlestick setups profitable after costs. The study ran on the r3 rules (before
-the r5 rule review below) and its scripts are not in the repository yet (`ROADMAP.md → Parking
-lot`).
+VWAP is rolling over 20 candles (typical price × volume) rather than session-anchored, so it means
+the same on every timeframe. Supertrend: bands at hl2 ± 3 × ATR(10) that only tighten while price
+stays on their side; the trend flips when a close crosses the opposite band.
 
 ## Location
 
@@ -92,48 +52,11 @@ Levels can come from a higher timeframe; matching is by time.
 | `orderBlock` | at a bullish (long) or bearish (short) order block |
 | `openSpace`  | neither                                            |
 
-## Order-flow context (`analysis/flow.py`, since r2)
-
-Measured for every setup at its confirmation candle, from Binance's per-candle taker (aggressive)
-buy volume; delta = aggressive buys − aggressive sells. Context only: the statistics are split by
-it so a setup can be compared with and without flow agreeing; it never creates a setup.
-
-| Context          | Rule (longs; shorts use the mirrored series, where buyers and sellers swap)                         |
-| ---------------- | --------------------------------------------------------------------------------------------------- |
-| `delta:confirms` | Σ delta / Σ volume over the last 3 candles (confirmation included) ≥ +0.02                          |
-| `delta:against`  | that ratio ≤ −0.02                                                                                  |
-| `delta:neutral`  | in between                                                                                          |
-| `cvdDiv:yes`     | the last 10 candles made a lower low than the 10 before, while CVD's low over the last 10 is higher |
-| `cvdDiv:no`      | measurable, no divergence                                                                           |
-
-The 0.02 cut comes from the feature's own spread (median |ratio| 0.023 on real ETH 4h), not from
-outcomes. Unknown (no taker volume in the window) falls in no bucket. Context records are pooled
-across coins only (per-coin buckets would be too small).
-
-## Confidence filter (`analysis/confidence.py`, since r9; score since r7)
-
-Three yes/no order-flow checks at the confirmation candle, counted **0-3**: delta **not against**
-the trade, delta **agrees** (so flow scores 0 against / 1 neutral / 2 agrees), and a **CVD
-divergence** in the trade's favour (`flow.py`). The statistics are split by score (`score:<n>`).
-Each setup shows the win rate of past setups of the same pattern, direction, timeframe and score
-(the pattern's whole record when that score has under 30 cases), and it **passes the filter** only
-when that record's verdict is **edge**: at least 30 cases and the Wilson low of the win rate above
-the break-even after costs. Setups that do not pass are **drawn grey** ("filtered") on the chart
-and in the pattern list; the trade plan itself is the same for every setup.
-
-Chosen on the r8 plan with strict 5-minute fills: candidates picked on **year 1 only** (net R,
-|t| ≥ 2) and kept only when **year 2** agreed. Kept: order flow (4h: +0.12 / +0.13R agrees,
-+0.17 / +0.21R not against) and CVD divergence (1h +0.10 / +0.10R, 4h +0.24 / +0.25R). Dropped:
-Bitcoin's trend (flipped in year 2), daily trend (year 2 only), EMA-200 trend, calm volume and RSI
-not stretched (the r7 checks). Score 3 on 4h: +0.22R (year 1) / +0.15R (year 2) after costs;
-score 0: −0.13 / −0.28R. On 1d the samples are too small to sort.
-
-**Caveats.** In-sample records; about 330 groups (pattern × direction × timeframe × score) are
-tested, so a few "edges" are expected by chance, and in the 2024-11 → 2026-11 sample every passing
-group was a **short** (a falling market). Treat a pass as "worth a look", confirmed only by the
-forward record.
-
 ## Chart patterns (in-house)
+
+The "Plan" columns below are each detector's internal invalidation price and measured move. They
+keep the detectors honest in the invariant tests and are not shown in the app (no trade plan since
+r10).
 
 | Pattern                          | Rule (bullish form; bearish twin by mirroring)                                                                                                                                                                                                                                                                                                                                                                                        | Plan                                                                          | Source                                      |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------- |
@@ -178,7 +101,7 @@ The same for every pattern:
 - **Confirmation** (Nison; Bulkowski's breakout): within 3 candles a close above the pattern's
   high; a close below its low first cancels it. The morning / evening star confirms itself on
   its third candle (StockCharts: no further confirmation needed).
-- **Plan**: entry at the confirmation close; stop 0.1 ATR beyond the pattern's extreme; target
+- **Plan** (internal, not shown since r10): entry at the confirmation close; stop 0.1 ATR beyond the pattern's extreme; target
   1.5 R.
 
 **Left out on purpose**: piercing line, dark cloud cover, kicking, abandoned baby (their gaps are

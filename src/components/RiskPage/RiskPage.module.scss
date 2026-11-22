@@ -125,18 +125,3 @@
     font-family: var(--t-font-data);
   }
 }
-.ev {
-  margin-top: 16px;
-  padding: 14px;
-  border-radius: 10px;
-  background: var(--t-well);
-  border: 1px solid var(--t-inner);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-}
-.evNum {
-  font-family: var(--t-font-data);
-  font-size: 18px;
-}

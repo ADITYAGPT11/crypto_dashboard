@@ -10,20 +10,14 @@ import {
   LineStyle,
   PriceScaleMode,
   createChart,
-  createSeriesMarkers,
   type IChartApi,
-  type IPriceLine,
   type ISeriesApi,
-  type ISeriesMarkersPluginApi,
   type Logical,
-  type SeriesMarker,
   type SeriesType,
-  type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
 import { DrawingManager, type DrawingKind } from "lightweight-charts-drawing";
 import type { Candle, CandleInterval } from "../../types/marketData";
-import type { Direction, OutcomeResult } from "../../types/analysis";
 import type { ViewLevel, ViewPattern } from "../../utils/timeframeMapping";
 import { patternLabel, patternShort } from "../../utils/patternLabels";
 import { drawPattern } from "./drawPattern";
@@ -62,22 +56,6 @@ export interface Layers {
   labels: boolean;
 }
 
-/** Past case of the selected setup, already placed on a view bar. */
-export interface ViewMarker {
-  /** Open time (ms) of the view bar where the source candle closed. */
-  time: number;
-  result: OutcomeResult;
-  current: boolean;
-  direction: Direction;
-}
-
-/** Plan prices of the selected setup. */
-export interface Plan {
-  entry: number;
-  stop: number;
-  target: number;
-}
-
 /** Imperative actions for the toolbar. */
 export interface ChartHandle {
   /** PNG data URL of the chart with our overlay, or null. */
@@ -108,12 +86,10 @@ interface Props {
   footprint?: Footprint | null;
   /** The selected setup mapped onto the view. */
   selected: ViewPattern | null;
-  plan: Plan | null;
   /** Changes when the user picks a pattern: the chart scrolls to it then, and only then. */
   focusKey?: string | null;
   /** Other recent patterns, drawn as small timeframe tags. */
   others: ViewPattern[];
-  markers: ViewMarker[];
   layers: Layers;
   tool: DrawingKind | null;
   onToolChange: (tool: DrawingKind | null) => void;
@@ -128,8 +104,6 @@ export const TF_COLOR: Record<string, string> = {
   "4h": "#4C9AFF",
   "1d": "#F0A35E",
 };
-/** Tag colour of a setup the confidence filter leaves out. */
-const FILTERED_TAG = "#5B6672";
 
 const C = {
   up: "#56D364",
@@ -212,10 +186,8 @@ const PriceChart: React.FC<Props> = ({
   bigTrades = null,
   footprint = null,
   selected,
-  plan,
   focusKey = null,
   others,
-  markers,
   layers,
   tool,
   onToolChange,
@@ -229,10 +201,8 @@ const PriceChart: React.FC<Props> = ({
   const focusedRef = useRef<string | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const mainRef = useRef<{ api: ISeriesApi<SeriesType>; type: ChartType } | null>(null);
-  const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const drawingsRef = useRef<DrawingManager | null>(null);
   const indRef = useRef<IndicatorSeries[]>([]);
-  const priceLinesRef = useRef<IPriceLine[]>([]);
   const displayRef = useRef<Candle[]>([]);
   const propsRef = useRef({
     candles,
@@ -336,8 +306,6 @@ const PriceChart: React.FC<Props> = ({
       const api = mainSeriesFor(chart, chartType);
       main = { api, type: chartType };
       mainRef.current = main;
-      markersRef.current = createSeriesMarkers(api, []);
-      priceLinesRef.current = [];
       const dm = new DrawingManager(chart, api, { magnet: magnet ? "weak" : "off" });
       dm.on("tool", (k) => onToolRef.current(k));
       dm.on("change", () => {
@@ -736,7 +704,7 @@ const PriceChart: React.FC<Props> = ({
           px,
           py + (o.direction === "long" ? 16 : -16),
           `${o.tf} ${arrow}${patternShort(o.pattern)}`,
-          o.passes ? (TF_COLOR[o.tf] ?? C.muted) : FILTERED_TAG,
+          TF_COLOR[o.tf] ?? C.muted,
         );
       }
     }
@@ -763,58 +731,25 @@ const PriceChart: React.FC<Props> = ({
     requestAnimationFrame(() => drawRef.current());
   }, [levels, heatmap, bigTrades, footprint, others, layers]);
 
-  // Selected setup: plan price lines, history markers, scroll into view.
+  // Selected setup: scroll it into view.
   useEffect(() => {
-    const main = mainRef.current;
     const chart = chartRef.current;
-    if (!main || !chart) return;
-    for (const pl of priceLinesRef.current) main.api.removePriceLine(pl);
-    priceLinesRef.current = [];
-    const ms: SeriesMarker<Time>[] = markers
-      .filter((m) => m.result !== "open" || m.current)
-      .map((m) => ({
-        time: t(m.time),
-        position: m.direction === "long" ? ("belowBar" as const) : ("aboveBar" as const),
-        shape: m.direction === "long" ? ("arrowUp" as const) : ("arrowDown" as const),
-        color: m.result === "win" ? C.up : m.result === "loss" ? C.down : C.muted,
-        text: m.current ? "" : m.result === "win" ? "W" : m.result === "loss" ? "L" : "–",
-      }))
-      .sort((a, b) => (a.time as number) - (b.time as number));
-    markersRef.current?.setMarkers(layers.pattern ? ms : []);
-    if (selected && plan && layers.pattern) {
-      const add = (priceValue: number, color: string, title: string, style: LineStyle) =>
-        priceLinesRef.current.push(
-          main.api.createPriceLine({
-            price: priceValue,
-            color,
-            title,
-            lineStyle: style,
-            lineWidth: 1,
-            // The position box on the chart shows the levels; the axis keeps the prices.
-            lineVisible: false,
-            axisLabelVisible: true,
-          }),
-        );
-      // Prices only: the colour says which is which (green target, blue entry, red stop).
-      add(plan.target, C.up, "", LineStyle.Dashed);
-      add(plan.entry, C.signal, "", LineStyle.Solid);
-      add(plan.stop, C.down, "", LineStyle.Dashed);
-      // Scroll to the pattern only when the user picked it, never on a data refresh
-      // (otherwise every candle close would pull the view away from the latest candle).
-      if (focusKey !== null && focusKey !== focusedRef.current) {
-        focusedRef.current = focusKey;
-        const len = propsRef.current.candles.length;
-        // Candlestick patterns are a few candles: a closer view keeps their shape readable.
-        const minSpan = selected.lines.length > 0 ? 110 : 60;
-        const span = Math.max(minSpan, selected.entryX - selected.startX + 40);
-        chart.timeScale().setVisibleLogicalRange({
-          from: Math.max(0, selected.startX - (span - (selected.entryX - selected.startX)) * 0.7),
-          to: Math.min(len + 10, Math.max(selected.entryX + 50, (selected.trail.exitX ?? 0) + 8)),
-        });
-      }
+    if (!mainRef.current || !chart) return;
+    // Scroll to the pattern only when the user picked it, never on a data refresh
+    // (otherwise every candle close would pull the view away from the latest candle).
+    if (selected && layers.pattern && focusKey !== null && focusKey !== focusedRef.current) {
+      focusedRef.current = focusKey;
+      const len = propsRef.current.candles.length;
+      // Candlestick patterns are a few candles: a closer view keeps their shape readable.
+      const minSpan = selected.lines.length > 0 ? 110 : 60;
+      const span = Math.max(minSpan, selected.entryX - selected.startX + 40);
+      chart.timeScale().setVisibleLogicalRange({
+        from: Math.max(0, selected.startX - (span - (selected.entryX - selected.startX)) * 0.7),
+        to: Math.min(len + 10, selected.entryX + 50),
+      });
     }
     requestAnimationFrame(() => drawRef.current());
-  }, [selected, plan, markers, layers.pattern, chartType, focusKey]);
+  }, [selected, layers.pattern, chartType, focusKey]);
 
   // Legend values: hovered bar, else the latest (forming candle when live).
   const n = candles.length;

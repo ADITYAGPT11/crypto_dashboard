@@ -2,14 +2,7 @@
  * Setup keys and labels. A setup is pattern × direction × location; its key is
  * `pattern|direction|location` (URL- and storage-safe).
  */
-import type { SetupStatOut, SummaryOut } from "../api/schema";
-import type {
-  Direction,
-  LocationFilter,
-  PatternId,
-  SetupLocation,
-  SetupStats,
-} from "../types/analysis";
+import type { Direction, LocationFilter, PatternId, SetupLocation } from "../types/analysis";
 
 export const LOCATIONS: readonly SetupLocation[] = [
   "confluence",
@@ -81,40 +74,4 @@ export function locationLabel(location: LocationFilter, direction: Direction): s
     case "*":
       return "";
   }
-}
-
-export function toStats(
-  pattern: PatternId,
-  direction: Direction,
-  location: LocationFilter,
-  s: SummaryOut,
-): SetupStats {
-  return {
-    key: setupKey(pattern, direction, location),
-    pattern,
-    direction,
-    location,
-    n: s.n,
-    wins: s.wins,
-    losses: s.losses,
-    expired: s.expired,
-    winRate: s.winRate,
-    ci: [s.ciLow, s.ciHigh],
-    // Statistics are read after costs (rule set r4; older runs only have gross figures).
-    breakEven: s.breakEvenNet ?? s.breakEven,
-    breakEvenGross: s.breakEven,
-    avgWinPct: s.avgWinPct,
-    avgLossPct: s.avgLossPct,
-    expectancyR: s.expectancyNetR ?? s.expectancyR,
-    expectancyGrossR: s.expectancyR,
-    avgCostR: s.avgCostR ?? 0,
-    medianBars: s.medianBars,
-    verdict: s.verdict,
-    trail: s.trail ?? null,
-  };
-}
-
-export function fromSetupStat(s: SetupStatOut): SetupStats | null {
-  const location = LOCATION_FILTERS.find((x) => x === s.location);
-  return location ? toStats(s.pattern, s.direction, location, s.summary) : null;
 }

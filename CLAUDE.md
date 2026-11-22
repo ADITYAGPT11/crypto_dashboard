@@ -5,9 +5,10 @@
 > edge, statistical probability, technical analysis, news impact and risk management.
 >
 > **Today it is:** a React app plus a **Python analysis service** (`backend/`) that owns every
-> rule: chart and candlestick patterns, demand/supply zones, order blocks, and the win-rate
-> history of every setup (background job over 1–2 years). Dashboard, Chart (with a liquidity
-> heatmap), Pattern stats, Risk, Alerts. Read `docs/context/STATUS.md` first.
+> rule: chart and candlestick patterns, demand/supply zones, order blocks, and a six-item setup
+> checklist (level, RSI, volume, VWAP, ATR, Supertrend) shown as "4/6". No trade plan and no
+> win-rate statistics (removed 2026-11-22, owner). Dashboard, Chart (with a liquidity heatmap),
+> Risk, Alerts. Read `docs/context/STATUS.md` first.
 
 ## Context map: read in this order, only as deep as the task needs
 
@@ -24,7 +25,7 @@
 | `docs/product/COMPETITORS.md`  | deciding what to build next vs paid tools           | a competitor, price or rebuild priority changes       |
 | `docs/product/modules/M*.md`   | working on that module (load only the one you need) | its scope, status or acceptance criteria change       |
 | `docs/product/ux/PHASE1_UX.md` | building any UI screen                              | features, screens or visual rules change              |
-| `docs/product/patterns.md`     | touching a detector, location, outcome or statistic | any rule or threshold changes (new `RULESET_VERSION`) |
+| `docs/product/patterns.md`     | touching a detector, location or checklist rule     | any rule or threshold changes (new `RULESET_VERSION`) |
 | `docs/context/TOOLING.md`      | adding a dependency, skill or MCP                   | a tool is adopted, rejected or dropped                |
 
 Prefer these files over re-reading the whole repo. If a file disagrees with the code, the code
@@ -40,7 +41,7 @@ npm test            # Vitest unit tests (vp test)
 npm run check       # format + lint + typecheck (vp check); `npx vp check --fix` to fix
 npm run build       # tsc -b (app, node, backend) + production build
 npm run backend     # bundles and starts the Node prototype on :3001 (Telegram; Python replaces it)
-npm run api         # Python analysis service on :8000 (uv; first run backfills, then stats job)
+npm run api         # Python analysis service on :8000 (uv; downloads candles on demand)
 npm run api:check   # ruff format + lint, pyright strict, pytest (backend/)
 npm run api:types   # regenerate src/api/schema.ts after changing backend/src/tcs/api/schemas.py
 ```
@@ -73,13 +74,14 @@ npm run api:types   # regenerate src/api/schema.ts after changing backend/src/tc
   `subscribe()` returning an unsubscribe fn + a small hook in `custom-hooks/`
   (pattern: `useLivePrice.ts`). Don't push tick data through parent React state.
 - New pure logic goes in `src/utils/<name>.ts` with tests in `src/utils/__tests__/`.
-- **Every rule that feeds a statistic lives in `backend/src/tcs/analysis/`** (Python), called
-  through `engine.analyze` by both the chart API and the stats job. Never re-implement a detector
+- **Every pattern, level and checklist rule lives in `backend/src/tcs/analysis/`** (Python),
+  called through `engine.analyze` by the chart API and the scanner. Never re-implement a detector
   in TypeScript. New detectors: thresholds in ATR, swings only after `known_at`, bullish rule +
   mirrored twin, and they must pass `tests/test_invariants.py`. Bump `RULESET_VERSION` on any
   rule change and regenerate the golden snapshot.
 - Analysis must never look ahead: detectors confirm a pattern only with candles that existed at
-  that time, and statistics show n, a Wilson 95% range and a break-even comparison.
+  that time. The checklist score is an observation, never shown as a probability; any future
+  statistic must show n, a Wilson 95% range and a break-even comparison.
 - New pages share `src/styles/_page.scss` mixins and `--t-*` tokens from `src/styles/tokens.css`.
 - New components: folder + `index.ts` + `Component.module.scss`. Don't copy the global-`.scss`
   pattern in `components/dashboard/*`.
