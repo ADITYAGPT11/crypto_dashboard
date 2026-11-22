@@ -7,7 +7,7 @@ import { useHistories } from "../../custom-hooks/useHistories";
 import { researchUniverse } from "../../custom-hooks/useUniverseCandles";
 import { useAnalysis, useCatalog } from "../../custom-hooks/useAnalysisApi";
 import { useUniverseCandles } from "../../custom-hooks/useUniverseCandles";
-import { latestPatterns, MIN_CHECKS } from "../../utils/patternList";
+import { latestPatterns, MIN_CHECKS, viewTfFor } from "../../utils/patternList";
 import { loadWatchlist, saveWatchlist } from "../../utils/watchlistStorage";
 import { price } from "../../utils/format";
 import {
@@ -202,10 +202,9 @@ const ChartPage: React.FC = () => {
       candles.length
         ? recent
             .filter((f) => f !== selected)
-            .slice(0, overlays.patternTags)
             .map((f) => toViewPattern(f.occ, f.tf, candles, viewTf))
         : [],
-    [recent, selected, candles, viewTf, overlays.patternTags],
+    [recent, selected, candles, viewTf],
   );
   const levelTf = (selAnalysis?.zoneTf ?? selZoneTf) as CandleInterval;
   // Only the key levels are drawn (Overlays → Display settings); every level still
@@ -435,6 +434,9 @@ const ChartPage: React.FC = () => {
           idOf={foundId}
           openId={selected ? foundId(selected) : null}
           onOpen={(f) => {
+            // A pattern from a lower timeframe than the chart's: show it on its own timeframe
+            // (once, on this click; the user can switch back).
+            setViewTf(viewTfFor(f.tf, viewTf, TF_MS));
             setOpenId(foundId(f));
             setFocus((p) => ({ id: foundId(f), n: (p?.n ?? 0) + 1 }));
           }}

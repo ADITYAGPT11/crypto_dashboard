@@ -1,7 +1,8 @@
 /**
- * Draws the selected pattern the way charting tools do: shaded formation, neckline or
- * trendlines, labelled key points and the breakout marker, with the setup checklist score
- * ("4/6") faint beside the name. No trade plan is drawn.
+ * Draws a pattern the way charting tools do: shaded formation, neckline or trendlines, labelled
+ * key points, the breakout marker and its name. The selected pattern is drawn in full; the other
+ * listed patterns in view are drawn `faint` (shape and name only). No score and no trade plan:
+ * the checklist lives in the list under the chart.
  * Geometry comes from `utils/patternGeometry.ts`; this file only paints it.
  */
 import type { Candle } from "../../types/marketData";
@@ -46,10 +47,10 @@ export function drawPattern(
   x: XFn,
   y: YFn,
   barW: number,
+  faint = false,
 ) {
   const long = vp.direction === "long";
   const rgb = long ? UP : DOWN;
-  const score = `${vp.score}/${vp.checks.length}`;
   const solid = `rgb(${rgb})`;
   const map = (p: Pt): [number, number] | null => {
     const px = x(p.x);
@@ -70,6 +71,7 @@ export function drawPattern(
   };
 
   g.save();
+  if (faint) g.globalAlpha = 0.4;
   g.lineJoin = "round";
   g.lineCap = "round";
 
@@ -99,7 +101,7 @@ export function drawPattern(
       g.fill();
     }
     // 3. Pattern height inside the formation.
-    if (fig.height) {
+    if (fig.height && !faint) {
       const a = map(fig.height.from);
       const b = map(fig.height.to);
       if (a && b) {
@@ -114,7 +116,7 @@ export function drawPattern(
       }
     }
     // 5. Key-point tags.
-    for (const l of fig.labels) {
+    for (const l of faint ? [] : fig.labels) {
       const m = map(l.at);
       if (m) softPill(g, m[0], m[1] + (l.side === "below" ? 14 : -14), l.text, rgb);
     }
@@ -122,14 +124,7 @@ export function drawPattern(
     const sx = x(fig.span.x);
     const sy = y(long ? fig.span.high : fig.span.low);
     if (sx !== null && sy !== null) {
-      softPill(
-        g,
-        sx,
-        sy + (long ? -14 : 14),
-        `${long ? "▲" : "▼"} ${name} · ${score} checks`,
-        rgb,
-        "left",
-      );
+      softPill(g, sx, sy + (long ? -14 : 14), `${long ? "▲" : "▼"} ${name}`, rgb, "left");
     }
     // 7. Breakout marker on the confirmation close.
     const bm = map(fig.breakout);
@@ -153,41 +148,15 @@ export function drawPattern(
     const yHigh = span.length ? y(Math.max(...span.map((c) => c.high))) : null;
     const yLow = span.length ? y(Math.min(...span.map((c) => c.low))) : null;
     if (x1 !== null && x2 !== null && yHigh !== null && yLow !== null) {
-      // The checklist score sits faintly in a band above the candles inside the box; the box
-      // never widens for it (that would cover other candles), so on narrow boxes it sits above.
       const pad = Math.max(0, (barW * 1.4 - (x2 - x1)) / 2);
-      const boxW = x2 - x1 + pad * 2;
-      const sub = "checks";
-      g.font = "600 14px Inter, system-ui, sans-serif";
-      const valueW = g.measureText(score).width + 6;
-      g.font = "9px Inter, system-ui, sans-serif";
-      const subW = g.measureText(sub).width + 6;
-      const inside = boxW >= valueW;
-      const head = !inside ? 0 : boxW >= subW ? 30 : 18;
-      const top = yHigh - 6 - head;
+      const top = yHigh - 6;
       g.fillStyle = `rgba(${rgb},0.14)`;
-      g.fillRect(x1 - pad, top, boxW, yLow - top + 6);
+      g.fillRect(x1 - pad, top, x2 - x1 + pad * 2, yLow - top + 6);
       g.strokeStyle = solid;
-      g.lineWidth = 1.5;
-      g.strokeRect(x1 - pad, top, boxW, yLow - top + 6);
+      g.lineWidth = faint ? 1 : 1.5;
+      g.strokeRect(x1 - pad, top, x2 - x1 + pad * 2, yLow - top + 6);
       const cx = (x1 + x2) / 2;
-      {
-        g.save();
-        g.textAlign = "center";
-        g.textBaseline = "alphabetic";
-        g.fillStyle = "rgba(230,237,243,0.45)";
-        g.font = "600 14px Inter, system-ui, sans-serif";
-        const vy = inside ? top + 17 : top - 6;
-        g.fillText(score, cx, vy);
-        if (head === 30) {
-          g.font = "9px Inter, system-ui, sans-serif";
-          g.fillStyle = "rgba(230,237,243,0.38)";
-          g.fillText(sub, cx, top + 27);
-        }
-        g.restore();
-      }
-      const above = inside ? top : top - 20;
-      softPill(g, cx, long ? yLow + 20 : above - 14, `${long ? "▲" : "▼"} ${name}`, rgb);
+      softPill(g, cx, long ? yLow + 20 : top - 14, `${long ? "▲" : "▼"} ${name}`, rgb);
     }
   }
   g.restore();

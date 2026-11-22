@@ -20,7 +20,7 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
 ## Setup checklist (`analysis/checklist.py`, since r10)
 
 Every pattern gets six yes/no checks read at its **confirmation candle** (only candles up to it),
-shown as "4/6 checks" on the chart, in the pattern rows, the Dashboard scanner and alerts. It
+shown as "4/6 checks" in the pattern rows under the chart (chart labels carry the name only), the Dashboard scanner and alerts. It
 describes the context the pattern formed in. It is **not** a probability and has not been
 measured against outcomes (the owner removed the trade plan and all win-rate statistics on
 2026-11-22, `DECISIONS.md`). Bullish form; bearish setups use the mirror.

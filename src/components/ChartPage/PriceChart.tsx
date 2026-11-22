@@ -19,7 +19,7 @@ import {
 import { DrawingManager, type DrawingKind } from "lightweight-charts-drawing";
 import type { Candle, CandleInterval } from "../../types/marketData";
 import type { ViewLevel, ViewPattern } from "../../utils/timeframeMapping";
-import { patternLabel, patternShort } from "../../utils/patternLabels";
+import { patternLabel } from "../../utils/patternLabels";
 import { drawPattern } from "./drawPattern";
 import type { BookSample } from "../../utils/liquidityHeatmap";
 import type { HeatContrast } from "../../utils/heatmapRender";
@@ -47,6 +47,8 @@ export interface Layers {
   fvg: boolean;
   vp: boolean;
   pattern: boolean;
+  /** Also draw the other listed patterns in view, faintly. */
+  otherPatterns: boolean;
   heatmap: boolean;
   /** How hard the heatmap's colour saturates (share of visible cells below full brightness). */
   heatContrast: HeatContrast;
@@ -88,7 +90,7 @@ interface Props {
   selected: ViewPattern | null;
   /** Changes when the user picks a pattern: the chart scrolls to it then, and only then. */
   focusKey?: string | null;
-  /** Other recent patterns, drawn as small timeframe tags. */
+  /** The other listed patterns, drawn faintly where they are in view. */
   others: ViewPattern[];
   layers: Layers;
   tool: DrawingKind | null;
@@ -683,36 +685,17 @@ const PriceChart: React.FC<Props> = ({
       }
     }
 
-    const tag = (px: number, py: number, text: string, color: string) => {
-      const tw = g.measureText(text).width + 10;
-      g.fillStyle = color;
-      g.beginPath();
-      g.roundRect(px - tw / 2, py - 8, tw, 16, 4);
-      g.fill();
-      g.fillStyle = "#0B0F14";
-      g.fillText(text, px - tw / 2 + 5, py);
-    };
-
-    if (ly.pattern) {
-      // Other recent patterns: a small tag where each one's signal closed.
-      for (const o of oth) {
-        if (o === sel || o.entryX < range.from - 2 || o.entryX > range.to + 2) continue;
-        const px = x(o.entryX);
-        const py = y(o.extreme);
-        if (px === null || py === null) continue;
-        const arrow = o.direction === "long" ? "▲" : "▼";
-        tag(
-          px,
-          py + (o.direction === "long" ? 16 : -16),
-          `${o.tf} ${arrow}${patternShort(o.pattern)}`,
-          TF_COLOR[o.tf] ?? C.muted,
-        );
-      }
-    }
-
     g.globalAlpha = 1;
+    const barW = ts.options().barSpacing;
+    if (ly.pattern && ly.otherPatterns) {
+      // The other listed patterns whose candles are on screen: drawn faintly, under the selected.
+      for (const o of oth) {
+        if (o === sel || o.entryX < range.from - 1 || o.startX > range.to + 1) continue;
+        drawPattern(g, o, `${patternLabel(o.pattern)} · ${o.tf}`, cs, x, y, barW, true);
+      }
+      g.lineWidth = 1;
+    }
     if (ly.pattern && sel) {
-      const barW = ts.options().barSpacing;
       // The tag ("Bear flag · 1d") names the source timeframe; its candles are not shaded.
       drawPattern(g, sel, `${patternLabel(sel.pattern)} · ${sel.tf}`, cs, x, y, barW);
       g.lineWidth = 1;

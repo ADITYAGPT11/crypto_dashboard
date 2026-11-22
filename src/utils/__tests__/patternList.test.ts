@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { LIST_SIZE, latestPatterns, MIN_CHECKS } from "../patternList";
+import { LIST_SIZE, latestPatterns, MIN_CHECKS, viewTfFor } from "../patternList";
 
 const d = (closeTime: number, score: number) => ({ closeTime, occ: { score } });
 
@@ -20,5 +20,15 @@ describe("latestPatterns", () => {
 
   it("is empty when nothing meets the minimum", () => {
     expect(latestPatterns([d(1, 0), d(2, 2)])).toEqual([]);
+  });
+});
+
+describe("viewTfFor", () => {
+  const ms = { "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400 };
+  it("switches down to a lower-timeframe pattern only", () => {
+    expect(viewTfFor("15m", "4h", ms)).toBe("15m");
+    expect(viewTfFor("1h", "1d", ms)).toBe("1h");
+    expect(viewTfFor("4h", "1h", ms)).toBe("1h");
+    expect(viewTfFor("4h", "4h", ms)).toBe("4h");
   });
 });

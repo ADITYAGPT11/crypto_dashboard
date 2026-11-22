@@ -37,8 +37,8 @@ export interface OverlaySettings {
   mergeOverlaps: boolean;
   /** Also draw the most recently broken levels (faint). */
   showBroken: boolean;
-  /** Tags for other recent patterns besides the selected one. */
-  patternTags: number;
+  /** Also draw, faintly, the other listed patterns that are in view. */
+  otherPatterns: boolean;
 }
 
 export const DEFAULT_OVERLAYS: OverlaySettings = {
@@ -57,12 +57,11 @@ export const DEFAULT_OVERLAYS: OverlaySettings = {
   freshOnly: false,
   mergeOverlaps: true,
   showBroken: false,
-  patternTags: 3,
+  otherPatterns: true,
 };
 
 export const PER_KIND_CHOICES = [1, 2, 3, 5, 10] as const;
 export const ZONE_ATR_CHOICES = [1.5, 2, 3, 4] as const;
-export const PATTERN_TAG_CHOICES = [0, 3, 5, 12] as const;
 export const OVERLAYS_STORAGE_KEY = "chart:overlays";
 
 const pick = <T extends number>(choices: readonly T[], v: unknown, fallback: T): T =>
@@ -88,7 +87,7 @@ export function parseOverlays(value: unknown): OverlaySettings {
     freshOnly: flag("freshOnly"),
     mergeOverlaps: flag("mergeOverlaps"),
     showBroken: flag("showBroken"),
-    patternTags: pick(PATTERN_TAG_CHOICES, v.patternTags, 3),
+    otherPatterns: flag("otherPatterns"),
   };
 }
 
