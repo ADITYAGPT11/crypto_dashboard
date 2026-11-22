@@ -64,6 +64,7 @@ describe("detection config", () => {
 
   it("toggles one timeframe for every pattern, keeping 1h · 4h · 1d order", () => {
     expect(toggleTf(DEFAULT_DETECTION, "1h").tfs).toEqual(["1h", "4h", "1d"]);
+    expect(toggleTf(DEFAULT_DETECTION, "15m").tfs).toEqual(["15m", "4h", "1d"]);
     expect(toggleTf(DEFAULT_DETECTION, "4h").tfs).toEqual(["1d"]);
   });
 

@@ -132,7 +132,7 @@ renders/s), `useLiveCandle` (forming candle: Binance, OKX when Binance is silent
 helpers: `volumeProfile` (visible-range histogram, POC / value area), `timeframeMapping` (times
 → view positions for patterns, zones, blocks, gaps), `patternGeometry` (how a selected pattern is
 drawn: shaded formation, necklines/trendlines, key-point tags, breakout), `setupKeys` (`pattern|direction|location`,
-labels, legacy-key upgrade), `patternLabels` (catalogue names), `patternGroups` (chart detections → one row per pattern and direction), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`, Delta
+labels, legacy-key upgrade), `patternLabels` (catalogue names), `patternList` (chart detections → the 10 newest with 3+ of 6 checks), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`, Delta
 `l2_orderbook`), `liquidityHeatmap`
 (buckets, samples, pools, recorded columns → samples, history + live merge), `heatmapRender`
 (thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar

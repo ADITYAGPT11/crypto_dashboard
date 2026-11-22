@@ -32,7 +32,7 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                           |
 | `npm test`                                                       | ✅ 367 tests, 37 files                                                                                                                                                                       |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                               |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 147 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 148 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
 | `npm run api`                                                    | ✅ :8000                                                                                                                                                                                     |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing   |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -57,12 +57,13 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
   overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options.
   Full-width chart; the Dashboard's **watchlist** as chips above it (24 h change, add / remove the
   current coin). **Patterns** button in the chart toolbar: a popover with two multi-select
-  dropdowns, the timeframes (1h / 4h / 1d) and the patterns per direction (chart and candlestick
+  dropdowns, the timeframes (15m / 1h / 4h / 1d) and the patterns per direction (chart and candlestick
   sections, bullish / bearish, trend icons); chart patterns on and candlesticks off by default;
   saved per browser and applied on every page. Zones and order blocks come from the pattern's own
-  timeframe. **Patterns on this chart** under it: one row per pattern and direction (newest
-  first, its checklist score); the open row is drawn and lists the six checks (✓ / ✗ with what
-  was observed) plus Alert me.
+  timeframe. **Last 10 patterns** under it: the 10 newest detections on the picked timeframes
+  meeting at least 3 of 6 checks (`utils/patternList.ts`), one row each with its score; only
+  these are drawn. The open row is drawn and lists the six checks (✓ / ✗ with what was
+  observed) plus Alert me.
 - **Pattern choice is display only.** The backend detects every pattern whatever is picked.
 - **Dashboard** (`/`): market overview (unchanged), scanner from the service (last 3 closed
   candles, picked patterns, most checks met first, which checks passed), watchlist.
@@ -100,6 +101,11 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 
 ## History
 
+- 2026-11-22: **Last 10 patterns with 3+ checks; 15m timeframe** (owner). The chart's pattern
+  list shows the 10 newest detections with at least 3 of 6 checks, one row per detection (was
+  one row per pattern and direction, every score); `utils/patternGroups.ts` replaced by
+  `utils/patternList.ts`. 15m added to the pattern timeframes (`PATTERN_TFS`, `DETECTION_TFS`)
+  and alert intervals; teal badge. Rules unchanged (still r10).
 - 2026-11-22: **Trade plan and statistics removed; setup checklist (rule set r10)** (owner).
   Gone: outcome resolution and the trade plan (`outcomes.py`, `plan.py`, `costs.py`), the
   statistics (`stats.py`, `jobs/stats_job.py`, `/stats*` routes, stats tables and funding

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import type { CandleInterval } from "../../types/marketData";
 import type { SetupOccurrence } from "../../types/analysis";
 import { Explain } from "../../common-components/Evidence";
-import type { PatternGroup } from "../../utils/patternGroups";
+import { LIST_SIZE, MIN_CHECKS } from "../../utils/patternList";
 import { patternLabel } from "../../utils/patternLabels";
 import { setupKey } from "../../utils/setupKeys";
 import { shortDate } from "../../utils/format";
@@ -22,10 +22,12 @@ export interface Found {
 
 interface Props {
   symbol: string;
-  groups: PatternGroup<Found>[];
-  /** Open row (`pattern|direction`); its newest detection is the one drawn. */
+  /** The listed detections, newest first. */
+  items: Found[];
+  idOf: (f: Found) => string;
+  /** Open row; its detection is the one drawn. */
   openId: string | null;
-  onOpen: (g: PatternGroup<Found>) => void;
+  onOpen: (f: Found) => void;
   isNow: (f: Found) => boolean;
   ruleset: string | null;
   loading: boolean;
@@ -37,7 +39,7 @@ function whenText(f: Found, now: boolean) {
   return now ? "Now" : shortDate(f.closeTime - 1);
 }
 
-/** The setup checklist of the newest detection: what passed, what was observed. */
+/** The setup checklist of one detection: what passed, what was observed. */
 function Checklist({ f, now }: { f: Found; now: boolean }) {
   const o = f.occ;
   const key = setupKey(o.pattern, o.direction, "*");
@@ -70,13 +72,15 @@ function Checklist({ f, now }: { f: Found; now: boolean }) {
   );
 }
 
-/** Patterns on this chart: one row each with its checklist score; the open one lists the checks. */
+/** The last patterns on this chart meeting the minimum checks; the open row lists the checks. */
 const PatternRows: React.FC<Props> = (p) => (
   <section className={styles.card} aria-labelledby="rows-title">
     <div className={styles.rowsHead}>
-      <h2 id="rows-title">Patterns on this chart · {p.symbol}</h2>
+      <h2 id="rows-title">
+        Last {LIST_SIZE} patterns · {p.symbol}
+      </h2>
       <span className={styles.lbl}>
-        Checks met at the confirmation candle · open a row for the list{" "}
+        {MIN_CHECKS}+ of 6 checks met at the confirmation candle · open a row for the list{" "}
         <Explain title="How the checklist works">
           Six yes/no checks on where and how each pattern formed, read at its confirmation candle:
           at a bullish order block or demand zone (bearish block or supply zone for shorts); RSI(14)
@@ -89,20 +93,20 @@ const PatternRows: React.FC<Props> = (p) => (
       </span>
     </div>
     <ul className={styles.rows}>
-      {p.groups.map((g) => {
-        const open = g.id === p.openId;
-        const f = g.latest;
+      {p.items.map((f) => {
+        const id = p.idOf(f);
+        const open = id === p.openId;
         const now = p.isNow(f);
-        const long = g.direction === "long";
-        const panel = `row-${g.id.replace(/[^a-z0-9]/gi, "-")}`;
+        const long = f.direction === "long";
+        const panel = `row-${id.replace(/[^a-z0-9]/gi, "-")}`;
         return (
-          <li key={g.id} className={open ? styles.rowOpen : undefined}>
+          <li key={id} className={open ? styles.rowOpen : undefined}>
             <button
               type="button"
               className={styles.rowBtn}
               aria-expanded={open}
               aria-controls={panel}
-              onClick={() => p.onOpen(g)}
+              onClick={() => p.onOpen(f)}
             >
               <span className={styles.caret} aria-hidden="true">
                 {open ? "▾" : "▸"}
@@ -112,7 +116,7 @@ const PatternRows: React.FC<Props> = (p) => (
                   {long ? "▲" : "▼"}
                   <span className="sr-only">{long ? " Long" : " Short"}</span>
                 </span>{" "}
-                {patternLabel(g.pattern)}
+                {patternLabel(f.pattern)}
               </b>
               <span className={styles.rowWhere}>
                 <TfBadge tf={f.tf} /> {whenText(f, now)}
@@ -132,8 +136,8 @@ const PatternRows: React.FC<Props> = (p) => (
           </li>
         );
       })}
-      {!p.loading && p.groups.length === 0 && <li className={styles.rowEmpty}>{p.empty}</li>}
-      {p.loading && p.groups.length === 0 && (
+      {!p.loading && p.items.length === 0 && <li className={styles.rowEmpty}>{p.empty}</li>}
+      {p.loading && p.items.length === 0 && (
         <li className={styles.rowEmpty}>Detecting patterns…</li>
       )}
     </ul>

@@ -10,7 +10,7 @@
 import type { CatalogOut, PatternOut } from "../api/schema";
 import type { CandleInterval } from "../types/marketData";
 
-export const DETECTION_TFS: readonly CandleInterval[] = ["1h", "4h", "1d"];
+export const DETECTION_TFS: readonly CandleInterval[] = ["15m", "1h", "4h", "1d"];
 
 export type PickDirection = "long" | "short";
 

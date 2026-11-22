@@ -29,7 +29,7 @@ from tcs.store.sqlite import Store
 LEVEL_WARMUP = 300
 CACHE_SIZE = 128
 #: Timeframes patterns are looked for on (the chart's Patterns menu).
-PATTERN_TFS: tuple[Timeframe, ...] = ("1h", "4h", "1d")
+PATTERN_TFS: tuple[Timeframe, ...] = ("15m", "1h", "4h", "1d")
 
 
 def now_ms() -> int:

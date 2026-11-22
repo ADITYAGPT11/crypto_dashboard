@@ -20,9 +20,14 @@ export interface CurrentSetup {
 /** Rule symbol meaning "any coin on my watchlist". */
 export const WATCHLIST = "WATCHLIST";
 
-export const ALERT_INTERVALS: readonly CandleInterval[] = ["1h", "4h", "1d"];
+export const ALERT_INTERVALS: readonly CandleInterval[] = ["15m", "1h", "4h", "1d"];
 
-const INTERVAL_MS: Record<string, number> = { "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000 };
+const INTERVAL_MS: Record<string, number> = {
+  "15m": 900_000,
+  "1h": 3_600_000,
+  "4h": 14_400_000,
+  "1d": 86_400_000,
+};
 
 export interface SetupAlertRule {
   id: string;

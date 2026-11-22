@@ -12,7 +12,12 @@ import {
 import { TfBadge } from "./TfBadge";
 import styles from "./ChartPage.module.scss";
 
-const TF_NAME: Record<string, string> = { "1h": "1 hour", "4h": "4 hours", "1d": "1 day" };
+const TF_NAME: Record<string, string> = {
+  "15m": "15 minutes",
+  "1h": "1 hour",
+  "4h": "4 hours",
+  "1d": "1 day",
+};
 const KINDS = [
   { kind: "chart" as const, title: "Chart patterns" },
   { kind: "candlestick" as const, title: "Candlestick patterns" },

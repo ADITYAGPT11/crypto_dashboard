@@ -7,11 +7,10 @@ import { useHistories } from "../../custom-hooks/useHistories";
 import { researchUniverse } from "../../custom-hooks/useUniverseCandles";
 import { useAnalysis, useCatalog } from "../../custom-hooks/useAnalysisApi";
 import { useUniverseCandles } from "../../custom-hooks/useUniverseCandles";
-import { groupDetections } from "../../utils/patternGroups";
+import { latestPatterns, MIN_CHECKS } from "../../utils/patternList";
 import { loadWatchlist, saveWatchlist } from "../../utils/watchlistStorage";
 import { price } from "../../utils/format";
 import {
-  DETECTION_TFS,
   loadDetection,
   saveDetection,
   pickedKeys,
@@ -144,18 +143,20 @@ const ChartPage: React.FC = () => {
   const catalog = useCatalog().data;
   const patternTfs = config.tfs;
   // Zones and order blocks come from the pattern's own timeframe.
+  const a15m = useAnalysis(patternTfs.includes("15m") ? symbol : null, "15m", "15m");
   const a1h = useAnalysis(patternTfs.includes("1h") ? symbol : null, "1h", "1h");
   const a4h = useAnalysis(patternTfs.includes("4h") ? symbol : null, "4h", "4h");
   const a1d = useAnalysis(patternTfs.includes("1d") ? symbol : null, "1d", "1d");
   const analyses = useMemo(() => {
     const out = new Map<CandleInterval, AnalysisOut>();
+    if (a15m.data) out.set("15m", a15m.data);
     if (a1h.data) out.set("1h", a1h.data);
     if (a4h.data) out.set("4h", a4h.data);
     if (a1d.data) out.set("1d", a1d.data);
     return out;
-  }, [a1h.data, a4h.data, a1d.data]);
-  const analysisError = [a1h, a4h, a1d].find((a) => a.error)?.error ?? null;
-  const analysisLoading = [a1h, a4h, a1d].some((a) => a.loading && !a.data);
+  }, [a15m.data, a1h.data, a4h.data, a1d.data]);
+  const analysisError = [a15m, a1h, a4h, a1d].find((a) => a.error)?.error ?? null;
+  const analysisLoading = [a15m, a1h, a4h, a1d].some((a) => a.loading && !a.data);
 
   const found: Found[] = useMemo(() => {
     const out: Found[] = [];
@@ -176,10 +177,9 @@ const ChartPage: React.FC = () => {
     return out.sort((x, y) => y.closeTime - x.closeTime);
   }, [analyses, catalog, config, symbol]);
 
-  const recent = useMemo(() => found.slice(0, 12), [found]);
-  const groups = useMemo(() => groupDetections(found, DETECTION_TFS), [found]);
-  const openGroup = groups.find((g) => g.id === openId) ?? groups[0] ?? null;
-  const selected = openGroup?.latest ?? null;
+  // The list and the chart: the last 10 detections meeting at least 3 of 6 checks.
+  const recent = useMemo(() => latestPatterns(found), [found]);
+  const selected = recent.find((f) => foundId(f) === openId) ?? recent[0] ?? null;
   const selTf = selected?.tf ?? patternTfs[0] ?? "4h";
   const selZoneTf = selected?.zoneTf ?? selTf;
   const selAnalysis = analyses.get(selTf) ?? analyses.values().next().value ?? null;
@@ -431,11 +431,12 @@ const ChartPage: React.FC = () => {
 
         <PatternRows
           symbol={symbol}
-          groups={groups}
-          openId={openGroup?.id ?? null}
-          onOpen={(g) => {
-            setOpenId(g.id);
-            setFocus((p) => ({ id: foundId(g.latest), n: (p?.n ?? 0) + 1 }));
+          items={recent}
+          idOf={foundId}
+          openId={selected ? foundId(selected) : null}
+          onOpen={(f) => {
+            setOpenId(foundId(f));
+            setFocus((p) => ({ id: foundId(f), n: (p?.n ?? 0) + 1 }));
           }}
           isNow={isNow}
           ruleset={catalog?.ruleset ?? null}
@@ -443,7 +444,7 @@ const ChartPage: React.FC = () => {
           empty={
             catalog && patternTfs.length === 0
               ? "No timeframe picked: open Patterns in the chart toolbar."
-              : "No patterns found on the picked timeframes in this history."
+              : `No pattern with ${MIN_CHECKS} or more of 6 checks on the picked timeframes in this history.`
           }
         />
       </div>
