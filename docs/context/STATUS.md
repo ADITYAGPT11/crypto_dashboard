@@ -30,7 +30,7 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 | Check                                                            | State                                                                                                                                                                                        |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                           |
-| `npm test`                                                       | ✅ 367 tests, 37 files                                                                                                                                                                       |
+| `npm test`                                                       | ✅ 368 tests, 38 files                                                                                                                                                                       |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                               |
 | `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 148 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
 | `npm run api`                                                    | ✅ :8000                                                                                                                                                                                     |
@@ -61,9 +61,10 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
   sections, bullish / bearish, trend icons); chart patterns on and candlesticks off by default;
   saved per browser and applied on every page. Zones and order blocks come from the pattern's own
   timeframe. **Last 10 patterns** under it: the 10 newest detections on the picked timeframes
-  meeting at least 3 of 6 checks (`utils/patternList.ts`), one row each with its score; only
-  these are drawn. The open row is drawn and lists the six checks (✓ / ✗ with what was
-  observed) plus Alert me.
+  meeting at least 3 of 6 checks (`utils/patternList.ts`), in two columns of compact rows, each
+  with its six checks as inline tags (OB · RSI · VOL · VWAP · ATR · ST; hover for what was
+  observed) and its score; only these are drawn. Clicking a row draws it; a footer line names it
+  with Alert me.
 - **Pattern choice is display only.** The backend detects every pattern whatever is picked.
 - **Dashboard** (`/`): market overview (unchanged), scanner from the service (last 3 closed
   candles, picked patterns, most checks met first, which checks passed), watchlist.
@@ -105,7 +106,9 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
   list shows the 10 newest detections with at least 3 of 6 checks, one row per detection (was
   one row per pattern and direction, every score); `utils/patternGroups.ts` replaced by
   `utils/patternList.ts`. 15m added to the pattern timeframes (`PATTERN_TFS`, `DETECTION_TFS`)
-  and alert intervals; teal badge. Rules unchanged (still r10).
+  and alert intervals; teal badge. List layout C (owner, of four mock-ups): two columns, checks
+  inline, no expanding rows; a leftover rule that dimmed every row is gone. Rules unchanged
+  (still r10).
 - 2026-11-22: **Trade plan and statistics removed; setup checklist (rule set r10)** (owner).
   Gone: outcome resolution and the trade plan (`outcomes.py`, `plan.py`, `costs.py`), the
   statistics (`stats.py`, `jobs/stats_job.py`, `/stats*` routes, stats tables and funding

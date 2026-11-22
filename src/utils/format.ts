@@ -27,3 +27,15 @@ export function price(value: number): string {
 export function shortDate(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Compact UTC date ("Nov 22"), with the time ("Nov 22 14:15") when `withTime`. */
+export function monthDay(ms: number, withTime = false): string {
+  const d = new Date(ms);
+  const day = `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+  if (!withTime) return day;
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${day} ${hh}:${mm}`;
+}
