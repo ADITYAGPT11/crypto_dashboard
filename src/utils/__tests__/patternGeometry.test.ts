@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { isChartPattern, patternFigure, positionBox } from "../patternGeometry";
+import { candleSpan, isChartPattern, patternFigure, positionBox } from "../patternGeometry";
 import type { ViewPattern } from "../timeframeMapping";
 
 function view(partial: Partial<ViewPattern>): ViewPattern {
@@ -12,11 +12,13 @@ function view(partial: Partial<ViewPattern>): ViewPattern {
     entryX: 30.5,
     startX: 9.5,
     lines: [],
+    confidence: null,
+    passes: true,
     extreme: 90,
     entry: 106,
     stop: 89,
     target: 115,
-    outcome: { result: "open", r: 0 },
+    outcome: { result: "open", r: 0, exitPrice: null },
     exitX: null,
     windowEndX: 60.5,
     trail: { result: "open", r: 0, exitX: null, exitPrice: null, activatedX: null, stops: [] },
@@ -147,7 +149,11 @@ describe("patternFigure", () => {
 
 describe("positionBox", () => {
   it("spans the outcome window and marks where a loss stopped out", () => {
-    const b = positionBox({ ...doubleBottom, outcome: { result: "loss", r: -1 }, exitX: 34.5 });
+    const b = positionBox({
+      ...doubleBottom,
+      outcome: { result: "loss", r: -1, exitPrice: 89 },
+      exitX: 34.5,
+    });
     expect(b.x1).toBe(30.5);
     expect(b.x2).toBe(60.5);
     expect(b.rr).toBeCloseTo(9 / 17);
@@ -162,7 +168,7 @@ describe("positionBox", () => {
         entry: 100,
         stop: 105,
         target: 101,
-        outcome: { result: "win", r: -0.2 },
+        outcome: { result: "win", r: -0.2, exitPrice: 101 },
         exitX: 31.5,
       }),
     );
@@ -172,7 +178,44 @@ describe("positionBox", () => {
 
   it("has no exit marker while the trade is open or expired", () => {
     expect(
-      positionBox(view({ outcome: { result: "expired", r: 0.3 }, exitX: 60.5 })).exit,
+      positionBox(view({ outcome: { result: "expired", r: 0.3, exitPrice: 103 }, exitX: 60.5 }))
+        .exit,
     ).toBeNull();
+  });
+});
+
+describe("candleSpan", () => {
+  const engulfing = view({
+    pattern: "bullishEngulfing",
+    points: [
+      { x: 10, price: 95, label: "" },
+      { x: 11, price: 94, label: "" },
+    ],
+    // the two pattern candles, then the confirmation candle
+    blocks: [
+      { from: 9.5, to: 10.5 },
+      { from: 10.5, to: 11.5 },
+      { from: 11.5, to: 12.5 },
+    ],
+    startX: 9.5,
+    entryX: 12.5,
+  });
+
+  it("boxes the pattern's own candles and leaves the confirmation candle out", () => {
+    expect(candleSpan(engulfing)).toEqual({ from: 9.5, to: 11.5 });
+  });
+
+  it("keeps a self-confirming pattern's last candle (morning star) in the box", () => {
+    const star = view({
+      pattern: "morningStar",
+      points: [10, 11, 12].map((x) => ({ x, price: 95, label: "" })),
+      blocks: [
+        { from: 9.5, to: 10.5 },
+        { from: 10.5, to: 11.5 },
+        { from: 11.5, to: 12.5 },
+      ],
+      startX: 9.5,
+    });
+    expect(candleSpan(star)).toEqual({ from: 9.5, to: 12.5 });
   });
 });

@@ -39,6 +39,7 @@ export interface CaseOut {
   deltaRatio?: number | null;
   flow?: "confirms" | "against" | "neutral" | null;
   cvdDivergence?: boolean | null;
+  score?: number | null;
   trailResult?: "win" | "loss" | "expired" | "open" | null;
   trailR?: number | null;
   trailBars?: number | null;
@@ -52,6 +53,7 @@ export interface CatalogOut {
   ruleset: string;
   patterns: PatternOut[];
   maxHoldBars: number;
+  trailAtr?: number;
   minSample: number;
   timeframes: string[];
   universe: string[];
@@ -60,6 +62,17 @@ export interface CatalogOut {
 export interface CoinSummaryOut {
   symbol: string;
   summary: SummaryOut;
+}
+
+export interface ConfidenceOut {
+  winRate: number;
+  ciLow: number;
+  ciHigh: number;
+  n: number;
+  basis: "score" | "pattern";
+  breakEven?: number;
+  expectancyNetR?: number;
+  verdict?: "edge" | "noEdge" | "tooFew";
 }
 
 export interface ContextSummaryOut {
@@ -151,6 +164,9 @@ export interface OccurrenceOut {
   outcome: OutcomeOut;
   flow: FlowOut;
   trail: TrailOut;
+  score: number;
+  confidence?: ConfidenceOut | null;
+  passes?: boolean;
 }
 
 export interface OrderBlockOut {
@@ -170,6 +186,7 @@ export interface OutcomeOut {
   movePct: number;
   r: number;
   bars: number;
+  exitPrice?: number | null;
 }
 
 export interface PatternOut {

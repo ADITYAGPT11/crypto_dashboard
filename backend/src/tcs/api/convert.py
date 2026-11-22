@@ -64,6 +64,7 @@ def occurrence(s: Series, o: Occurrence) -> OccurrenceOut:
             move_pct=o.outcome.move_pct,
             r=o.outcome.r,
             bars=o.outcome.bars,
+            exit_price=o.outcome.exit_price,
         ),
         flow=FlowOut(
             delta_ratio=o.flow.delta_ratio,
@@ -79,6 +80,7 @@ def occurrence(s: Series, o: Occurrence) -> OccurrenceOut:
             activated_time=_t(s, o.trail.activated),
             stops=[StopOut(time=_at(s, i), price=p) for i, p in o.trail.stops],
         ),
+        score=o.score.total,
     )
 
 

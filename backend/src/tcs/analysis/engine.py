@@ -13,10 +13,12 @@ from dataclasses import dataclass
 
 from tcs.analysis.candlesticks import detect_candlesticks
 from tcs.analysis.chart_patterns import detect_chart_patterns
+from tcs.analysis.confidence import Score, score_of
 from tcs.analysis.flow import FlowContext, flow_at
 from tcs.analysis.indicators import atr
 from tcs.analysis.location import locate
-from tcs.analysis.outcomes import Outcome, Trail, evaluate, evaluate_trailing
+from tcs.analysis.outcomes import Outcome, Trail, evaluate_trailing, to_outcome
+from tcs.analysis.plan import apply_plan
 from tcs.analysis.smc import detect_fvgs, detect_structure
 from tcs.analysis.trendlines import detect_trendline_patterns
 from tcs.analysis.types import Levels, Location, PatternHit
@@ -31,8 +33,10 @@ class Occurrence:
     outcome: Outcome
     #: Order flow when the pattern confirmed (context the statistics are split by).
     flow: FlowContext
-    #: The same setup exited with the trailing take-profit (outcomes.py).
+    #: The plan's path: TP1 touch and every move of the trailing stop (outcomes.py).
     trail: Trail
+    #: Confidence checks passed at confirmation (confidence.py); statistics split by its total.
+    score: Score
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +55,7 @@ def detect_patterns(s: Series) -> list[PatternHit]:
         *detect_trendline_patterns(s, a),
         *detect_candlesticks(s, a),
     ]
-    return sorted(hits, key=lambda h: (h.index, h.pattern))
+    return sorted(apply_plan(hits, s, a), key=lambda h: (h.index, h.pattern))
 
 
 def detect_levels(s: Series) -> Levels:
@@ -67,26 +71,32 @@ def analyze(
     level_series: Series | None = None,
     levels: Levels | None = None,
     hits: list[PatternHit] | None = None,
+    fine: Series | None = None,
 ) -> Analysis:
     """Detect, place and resolve every pattern on ``s``.
 
     ``level_series`` gives zones/order blocks from another (equal or higher)
     timeframe; ``levels`` and ``hits`` may be passed when already computed (the
-    statistics job reuses one detection pass across zone timeframes).
+    statistics job reuses one detection pass across zone timeframes). ``fine`` = 5-minute
+    candles over the same period: trades are then walked on them (``outcomes.py``).
     """
     lv_series = level_series if level_series is not None else s
     lv = levels if levels is not None else detect_levels(lv_series)
     a = atr(s)
     found = hits if hits is not None else detect_patterns(s)
     mirrored = mirror(s) if any(h.direction == "short" for h in found) else None
-    occurrences = [
-        Occurrence(
-            hit,
-            locate(hit, s, float(a[hit.index]), lv_series, lv.zones, lv.order_blocks),
-            evaluate(s, hit),
-            flow_at(s, hit, mirrored),
-            evaluate_trailing(s, hit, a),
+    occurrences: list[Occurrence] = []
+    for hit in found:
+        flow = flow_at(s, hit, mirrored)
+        path = evaluate_trailing(s, hit, a, fine=fine)
+        occurrences.append(
+            Occurrence(
+                hit,
+                locate(hit, s, float(a[hit.index]), lv_series, lv.zones, lv.order_blocks),
+                to_outcome(hit, path),
+                flow,
+                path,
+                score_of(flow),
+            )
         )
-        for hit in found
-    ]
     return Analysis(s, lv_series, occurrences, lv)

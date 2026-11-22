@@ -124,6 +124,20 @@
   background: var(--t-raised);
   box-shadow: inset 2px 0 0 var(--t-signal);
 }
+/* Setups the confidence filter leaves out: still listed, visibly greyed. */
+.rowFiltered > .rowBtn {
+  opacity: 0.55;
+}
+.filtered {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border: 1px solid var(--t-line);
+  border-radius: 99px;
+  color: var(--t-muted);
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
 .rowBtn {
   width: 100%;
   display: grid;

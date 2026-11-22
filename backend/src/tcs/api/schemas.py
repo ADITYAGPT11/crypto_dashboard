@@ -26,11 +26,14 @@ class LineOut(Out):
 
 
 class OutcomeOut(Out):
+    #: The trade plan's result (outcomes.py): win = closed in profit.
     result: Literal["win", "loss", "expired", "open"]
     exit_time: int | None
     move_pct: float
     r: float
     bars: int
+    #: Fill price of the exit (stop, trailed stop, a gap's open, or the market at the limit).
+    exit_price: float | None = None
 
 
 class StopOut(Out):
@@ -62,6 +65,26 @@ class FlowOut(Out):
     cvd_divergence: bool | None
 
 
+class ConfidenceOut(Out):
+    """Measured win rate of past setups like this one (same pattern, direction, timeframe and
+    confidence score, pooled across coins; the pattern's whole record when that score has too
+    few cases)."""
+
+    win_rate: float
+    #: Wilson 95% range of the win rate.
+    ci_low: float
+    ci_high: float
+    n: int
+    #: "score" = same score; "pattern" = every case of the pattern (score bucket too small).
+    basis: Literal["score", "pattern"]
+    #: Win rate needed to break even after fees, slippage and funding.
+    break_even: float = 0.5
+    #: Mean result per trade in R after costs.
+    expectancy_net_r: float = 0.0
+    #: "edge" = the Wilson low clears the break-even (the confidence filter passes).
+    verdict: Literal["edge", "noEdge", "tooFew"] = "tooFew"
+
+
 class OccurrenceOut(Out):
     pattern: str
     direction: Literal["long", "short"]
@@ -78,6 +101,12 @@ class OccurrenceOut(Out):
     outcome: OutcomeOut
     flow: FlowOut
     trail: TrailOut
+    #: Confidence checks passed at confirmation, 0-4 (``analysis/confidence.py``).
+    score: int
+    #: Filled from the latest statistics run; None until it has at least ``MIN_SAMPLE`` cases.
+    confidence: ConfidenceOut | None = None
+    #: The confidence filter: True only when ``confidence.verdict`` is "edge" (else drawn grey).
+    passes: bool = False
 
 
 class ZoneOut(Out):
@@ -254,6 +283,8 @@ class CaseOut(Out):
     delta_ratio: float | None = None
     flow: Literal["confirms", "against", "neutral"] | None = None
     cvd_divergence: bool | None = None
+    #: Confidence checks passed (0-4); None for cases stored before rule set r7.
+    score: int | None = None
     trail_result: Literal["win", "loss", "expired", "open"] | None = None
     trail_r: float | None = None
     trail_bars: int | None = None
@@ -319,6 +350,8 @@ class CatalogOut(Out):
     ruleset: str
     patterns: list[PatternOut]
     max_hold_bars: int
+    #: ATRs the stop trails the best price by after TP1 (outcomes.TRAIL_ATR).
+    trail_atr: float = 2.0
     min_sample: int
     timeframes: list[str]
     universe: list[str]

@@ -24,12 +24,14 @@ def snapshot() -> dict[str, object]:
     flows = Counter(
         f"{o.hit.direction}|{o.flow.flow}|div={o.flow.divergence}" for o in a.occurrences
     )
+    scores = Counter(f"{o.hit.direction}|score={o.score.total}" for o in a.occurrences)
     lv = a.levels
     return {
         "ruleset": RULESET_VERSION,
         "candles": len(a.series),
         "hits": dict(sorted(hits.items())),
         "flows": dict(sorted(flows.items())),
+        "scores": dict(sorted(scores.items())),
         "zones": len(lv.zones),
         "orderBlocks": len(lv.order_blocks),
         "fvgs": len(lv.fvgs),

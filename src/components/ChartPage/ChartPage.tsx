@@ -504,7 +504,8 @@ const ChartPage: React.FC = () => {
           run={selStats.data?.run ?? null}
           statsError={selStats.error}
           ruleset={catalog?.ruleset ?? null}
-          maxHoldBars={catalog?.maxHoldBars ?? 30}
+          maxHoldBars={catalog?.maxHoldBars ?? 120}
+          trailAtr={catalog?.trailAtr ?? 2}
           minSample={catalog?.minSample ?? 30}
           loading={analysisLoading && analyses.size === 0}
           empty={

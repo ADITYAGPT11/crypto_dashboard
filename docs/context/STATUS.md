@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-22 · branch `claude/chart-layout-c`_
+_Last verified: 2026-11-22 · branch `claude/dazzling-cerf-jzip1j`_
 
 ## Phase
 
@@ -17,7 +17,7 @@ confirmations yet (by design).
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
    r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
    the estimated liquidation map (`COMPETITORS.md` §4).
-1. Owner: run `npm start` on a machine that reaches Binance, let the first r5
+1. Owner: run `npm start` on a machine that reaches Binance, let the first r9
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
 2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
@@ -32,9 +32,9 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 379 tests, 38 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 386 tests, 39 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 174 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 184 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -51,7 +51,8 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 - **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
   live forming candle) plus the service's patterns, the selected one drawn after the industry
   convention (shaded W / M, H&S, triangle, wedge or flag box, key-point tags, breakout ring,
-  measured move, position box over the outcome window; other overlays fade), demand/supply zones, order blocks, fair value gaps, volume profile and a
+  measured move, position box over the outcome window; a candlestick pattern's box covers its own
+  candles, not the confirmation candle; other overlays fade), demand/supply zones, order blocks, fair value gaps, volume profile and a
   **liquidity heatmap** layer with a pools table. Only **key levels** are drawn (Overlays →
   Display settings, saved per browser): intact, nearest 2 of each kind, zones ≥ 2 ATR departure,
   overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options.
@@ -126,6 +127,30 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
   Pattern stats, Dashboard and Alerts. Drawing: the name and key-point tags are 10 px see-through
   pills, the entry / stop / target zones 6% (were 14%), no text inside the box, and the price axis
   shows only the three prices (no Entry / Stop / Target words). The win-rates status line is gone.
+- 2026-11-22: **Confidence filter (rule set r9)** (owner). Score 0-3 from order flow and CVD
+  divergence (re-picked on year 1, confirmed on year 2 under the r8 plan); each setup passes only
+  when its record at that score clears break-even after costs (`OccurrenceOut.passes`). Filtered
+  setups are drawn grey ("filtered") on the chart, in the timeframe tags and in the pattern list.
+  Trade plan unchanged. On the preview run only a few groups pass, all shorts (`DECISIONS.md`).
+- 2026-11-22: **Trade plan B with strict 5-minute fills (rule set r8)** (owner). Every trade:
+  entry at the confirmation close; pattern stop (on 1h 0.5 ATR beyond the invalidation price);
+  TP1 = the target, then a stop trailing 2 ATR behind the best price, moved at candle closes;
+  120-candle limit; win = closed in profit; setups costing over 0.1R skipped (`analysis/plan.py`).
+  Trades are walked on 5-minute candles (new `5m` timeframe; stats job and chart load them) and a
+  stop already passed fills at the candle's open. The check showed earlier trailing results were
+  too optimistic; the plan is still negative after costs (`DECISIONS.md`). Chart: plan text
+  "TP1 · trail starts", exit marker at the real fill, 120-candle window.
+- 2026-11-22: **Confidence % on every pattern (rule set r7)** (owner). `analysis/confidence.py`
+  counts four checks (trend, flow, calm volume, RSI not stretched; each kept for lifting the win
+  rate in both years of 2 × 10 coins); the stats job adds `score:0..4` contexts and
+  `/api/v1/analysis` gives each occurrence `score` + `confidence` (that score's measured win rate
+  and Wilson range, or the pattern's record when under 30 cases). Drawn faintly in the
+  candlestick box (above it when too narrow) and on chart-pattern tags.
+  Verified in headless Chromium on real BTC 4h stats (bullish engulfing 28% ±6).
+- 2026-11-22: **Candlesticks: no trend filter (rule set r6)** (owner). A/B on 2 years × 10 coins:
+  the prior-decline filter did not raise win rates and kept a third of the cases; a "big body"
+  engulfing rule did not help either (not adopted). Chart box covers only the pattern's own
+  candles, not the confirmation candle. Statistics must be re-run. `DECISIONS.md`.
 - 2026-11-21: **Simpler pattern UI** (owner). The app shows chart patterns only; one setting picks
   the timeframes they are looked for on (was a dropdown per pattern, a level-source selector and
   a statistics table); setups are no longer split by location (zone / order block / confluence)

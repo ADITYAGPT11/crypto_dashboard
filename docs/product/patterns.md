@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r5`)
+# Pattern, zone and order-block rules (rule set `2026.11-r9`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -19,12 +19,23 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
 
 ## Outcome and statistics (one rule for every setup)
 
-- **Entry** = confirmation close. **Win** = target touched before stop within the **holding
-  limit**: 30 candles, or the formation's own length when longer (since r5; a 60-candle pattern
-  gets 60 candles). A candle touching both counts as a **loss**. Neither = **expired**: closed at
-  the market (the last candle's close) and counted at that result, never as a win (since r5;
-  before, expiries were left out of the win rate and expectancy). Data ran out = open (not
-  counted).
+- **Trade plan** (since r8, `analysis/outcomes.py` + `analysis/plan.py`; owner's "plan B"):
+  **entry** at the confirmation close; **stop** at the detector's invalidation price, on **1h**
+  0.5 ATR beyond it in total (detectors use 0.2 ATR, candlesticks 0.1; 4h and 1d keep that);
+  **TP1** = the pattern's target, which does not close the trade: from the close of the candle
+  that touched it, the stop trails the best price since entry by **2 ATR** and only tightens;
+  the stop moves only at candle closes (a resting order). **Holding limit** 120 candles or the
+  formation's length; then closed at the market (**expired**, counted at its R, never a win).
+  **Win** = closed in profit. Setups whose fees + slippage would cost more than **0.1R** (stop
+  under about 1.5% of price) are skipped.
+- **Strict fills** (since r8): every trade is walked on **5-minute candles** where they are
+  stored (`stats_job.FINE_TF`; the chart loads up to 730 days). A stop the market has already
+  passed when it is set or when a candle opens fills at that candle's **open**, not at the stop
+  price; a candle touching the stop counts as the stop even if it also touched TP1. Because the
+  stop only moves at candle closes, the fill does not depend on the order of prices inside a
+  candle; the 5-minute candles add gap fills inside it. Measured (2026-11-22, 10 coins × 2 years):
+  moving the stop every 5 minutes instead was not better, and the earlier "fill at the stop
+  price" simulation overstated trailing exits by about 0.06–0.10R (see `DECISIONS.md`).
 - **Costs** (since r4; `analysis/costs.py`), per case in R (percent of notional ÷ risk in
   percent, so tight stops pay more): taker **fee 0.05% a side** (Binance USDⓈ-M regular tier) +
   **slippage 0.025% a side** (`TCS_FEE_PCT`, `TCS_SLIPPAGE_PCT`), and the **funding actually
@@ -40,14 +51,8 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
 - **Expectancy** = mean R per resolved case after costs (gross alongside).
 - **Verdict**: fewer than 30 resolved cases → too few; Wilson low above the break-even after
   costs → edge candidate; else no edge. In-sample.
-- **Trailing take-profit** (second exit, since r3; `outcomes.py::evaluate_trailing`): the same
-  entry and stop; when a candle touches the target the trade stays open and, from that candle's
-  close, the stop follows the best price since entry by **0.5 ATR(14)**, only ever tightening.
-  Exit where a candle trades through the stop (stop first, as above); after **120 candles**
-  closed at the market. Profit = exit above entry (below for shorts). Statistics: every closed
-  case counts; expectancy with a 95% range of the mean; verdict "edge" only when that range
-  clears 0 R. After costs (wins = closed in profit after them). Chosen in a walk-forward study
-  (below).
+- **Trailing record** (`summary.trail`): since r8 the same trades as the main record (the plan
+  is the trailing exit), kept for the API; expectancy with a 95% range of the mean.
 - **Setup** = pattern × direction × location × pattern timeframe × level timeframe. Pooled across
   the research coins; each coin also on its own; "any location" is the pattern's baseline.
   Pooled records are also split by order-flow context (below).
@@ -65,6 +70,8 @@ stop and target distance. Picked on year 1, checked on year 2.
 | Chart patterns 1h              |   −0.091 |              +0.001 |                    −0.012 | −0.089 / +0.024         |
 | Candlesticks (all)             |   −0.227 |              −0.142 |                    −0.105 | −0.229 / −0.133         |
 
+**Superseded (2026-11-22):** this study filled trailed stops at the stop price even when the candle
+opened beyond it, which overstated trailing exits; with strict fills (r8) their gain mostly goes.
 The trailing exit roughly doubles the daily chart patterns' result and wins out of sample, but
 random entries gain from it too: it improves the exit, not the pattern's edge over chance. It does
 not make 1h, 4h or candlestick setups profitable after costs. The study ran on the r3 rules (before
@@ -102,6 +109,29 @@ it so a setup can be compared with and without flow agreeing; it never creates a
 The 0.02 cut comes from the feature's own spread (median |ratio| 0.023 on real ETH 4h), not from
 outcomes. Unknown (no taker volume in the window) falls in no bucket. Context records are pooled
 across coins only (per-coin buckets would be too small).
+
+## Confidence filter (`analysis/confidence.py`, since r9; score since r7)
+
+Three yes/no order-flow checks at the confirmation candle, counted **0-3**: delta **not against**
+the trade, delta **agrees** (so flow scores 0 against / 1 neutral / 2 agrees), and a **CVD
+divergence** in the trade's favour (`flow.py`). The statistics are split by score (`score:<n>`).
+Each setup shows the win rate of past setups of the same pattern, direction, timeframe and score
+(the pattern's whole record when that score has under 30 cases), and it **passes the filter** only
+when that record's verdict is **edge**: at least 30 cases and the Wilson low of the win rate above
+the break-even after costs. Setups that do not pass are **drawn grey** ("filtered") on the chart
+and in the pattern list; the trade plan itself is the same for every setup.
+
+Chosen on the r8 plan with strict 5-minute fills: candidates picked on **year 1 only** (net R,
+|t| ≥ 2) and kept only when **year 2** agreed. Kept: order flow (4h: +0.12 / +0.13R agrees,
++0.17 / +0.21R not against) and CVD divergence (1h +0.10 / +0.10R, 4h +0.24 / +0.25R). Dropped:
+Bitcoin's trend (flipped in year 2), daily trend (year 2 only), EMA-200 trend, calm volume and RSI
+not stretched (the r7 checks). Score 3 on 4h: +0.22R (year 1) / +0.15R (year 2) after costs;
+score 0: −0.13 / −0.28R. On 1d the samples are too small to sort.
+
+**Caveats.** In-sample records; about 330 groups (pattern × direction × timeframe × score) are
+tested, so a few "edges" are expected by chance, and in the 2024-11 → 2026-11 sample every passing
+group was a **short** (a falling market). Treat a pass as "worth a look", confirmed only by the
+forward record.
 
 ## Chart patterns (in-house)
 
@@ -141,8 +171,9 @@ candle settings, the common quantification); doji = body ≤ 10% of the range.
 
 The same for every pattern:
 
-- **Trend** (a reversal needs a trend to reverse): the close before the pattern is below its
-  EMA(20) (StockCharts' first guideline) and at least 0.5 ATR below the close 5 candles earlier.
+- **No trend filter** (since r6): Nison and StockCharts ask for a prior trend, but requiring
+  one (close below EMA(20) and 0.5 ATR down in 5 candles) did not raise the measured win rate
+  on 2 years × 10 coins and kept only a third of the cases (`DECISIONS.md`, 2026-11-22).
 - **Size**: the pattern's range ≥ 0.8 ATR ("large relative to the last 10–20 days").
 - **Confirmation** (Nison; Bulkowski's breakout): within 3 candles a close above the pattern's
   high; a close below its low first cancels it. The morning / evening star confirms itself on

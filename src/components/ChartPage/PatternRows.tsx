@@ -36,6 +36,8 @@ interface Props {
   statsError: string | null;
   ruleset: string | null;
   maxHoldBars: number;
+  /** ATRs the stop trails behind the best price after TP1 (`outcomes.py` TRAIL_ATR). */
+  trailAtr: number;
   minSample: number;
   loading: boolean;
   /** Empty-state text when nothing is listed and nothing is loading. */
@@ -142,7 +144,17 @@ function TfTable({
 }
 
 /** Trade plan of the newest detection, with links to size it or set an alert. */
-function Plan({ f, now, maxHoldBars }: { f: Found; now: boolean; maxHoldBars: number }) {
+function Plan({
+  f,
+  now,
+  maxHoldBars,
+  trailAtr,
+}: {
+  f: Found;
+  now: boolean;
+  maxHoldBars: number;
+  trailAtr: number;
+}) {
   const o = f.occ;
   const rr = Math.abs(o.target - o.entry) / Math.abs(o.entry - o.stop);
   const key = setupKey(o.pattern, o.direction, "*");
@@ -167,17 +179,19 @@ function Plan({ f, now, maxHoldBars }: { f: Found; now: boolean; maxHoldBars: nu
           <dd className={styles.down}>{price(o.stop)}</dd>
         </div>
         <div>
-          <dt>Target</dt>
+          <dt>TP1 · trail starts</dt>
           <dd className={styles.up}>{price(o.target)}</dd>
         </div>
         <div>
-          <dt>Reward : risk</dt>
+          <dt>Reward : risk to TP1</dt>
           <dd>{rr.toFixed(2)}R</dd>
         </div>
       </dl>
       <p className={styles.note}>
         {now ? "Found on a recent candle" : `Found ${shortDate(f.closeTime - 1)}: ${result}`} ·
-        holds up to {maxHoldBars} candles or the pattern&apos;s length.
+        enter at the candle close; at TP1 the stop starts trailing {trailAtr} ATR behind the best
+        price, moved at each candle close; holds up to {maxHoldBars} candles or the pattern&apos;s
+        length.
       </p>
       <div className={styles.actions}>
         <Link
@@ -216,11 +230,13 @@ const PatternRows: React.FC<Props> = (p) => {
           Win rate on the timeframe it was found · open a row for every timeframe{" "}
           <Explain title="How these records are measured">
             Every past case of the pattern and direction on {p.symbol} alone, counted by the same
-            rules that drew it here. A case wins when the target is hit before the stop within{" "}
-            {p.maxHoldBars} candles or the pattern&apos;s own length; otherwise it closes at the
-            market then and counts at its result. The range is the 95% Wilson interval; break-even
-            is the win rate needed after fees, slippage and funding. With fewer than {p.minSample}{" "}
-            cases only the count is shown. In-sample history, not a prediction
+            rules that drew it here, each trade managed by the app&apos;s plan: entry at the
+            confirmation close, the pattern stop, and from TP1 a stop trailing {p.trailAtr} ATR
+            behind the best price, moved at each candle close and filled on 5-minute candles. A case
+            wins when it closes in profit; after {p.maxHoldBars} candles (or the pattern&apos;s own
+            length) it closes at the market and counts at its result. The range is the 95% Wilson
+            interval; break-even is the win rate needed after fees, slippage and funding. With fewer
+            than {p.minSample} cases only the count is shown. In-sample history, not a prediction
             {p.ruleset ? ` (rules ${p.ruleset})` : ""}.
           </Explain>
         </span>
@@ -235,7 +251,12 @@ const PatternRows: React.FC<Props> = (p) => {
           const long = g.direction === "long";
           const panel = `row-${g.id.replace(/[^a-z0-9]/gi, "-")}`;
           return (
-            <li key={g.id} className={open ? styles.rowOpen : undefined}>
+            <li
+              key={g.id}
+              className={[open ? styles.rowOpen : "", f.occ.passes ? "" : styles.rowFiltered]
+                .filter(Boolean)
+                .join(" ")}
+            >
               <button
                 type="button"
                 className={styles.rowBtn}
@@ -252,6 +273,14 @@ const PatternRows: React.FC<Props> = (p) => {
                     <span className="sr-only">{long ? " Long" : " Short"}</span>
                   </span>{" "}
                   {patternLabel(g.pattern)}
+                  {!f.occ.passes && (
+                    <span
+                      className={styles.filtered}
+                      title="Filtered out: past setups like this one (same pattern, direction, timeframe and order-flow score) did not clear break-even after costs, or there are too few of them."
+                    >
+                      Filtered
+                    </span>
+                  )}
                 </b>
                 <span className={styles.rowWhere}>
                   <TfBadge tf={f.tf} /> {whenText(f, now)}
@@ -264,7 +293,7 @@ const PatternRows: React.FC<Props> = (p) => {
               {open && (
                 <div id={panel} className={styles.rowBody}>
                   <TfTable group={g} tfs={p.tfs} stats={p.stats} minSample={p.minSample} />
-                  <Plan f={f} now={now} maxHoldBars={p.maxHoldBars} />
+                  <Plan f={f} now={now} maxHoldBars={p.maxHoldBars} trailAtr={p.trailAtr} />
                 </div>
               )}
             </li>

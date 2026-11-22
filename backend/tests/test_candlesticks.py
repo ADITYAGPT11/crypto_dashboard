@@ -104,20 +104,13 @@ class TestEngulfing:
         rows = confirm_up(rows)
         assert not any(k == "bullishEngulfing" for k, _ in found(rows))
 
-    def test_needs_a_downtrend(self) -> None:
-        rows = confirm_up(engulfing(rise()))
-        assert not any(k == "bullishEngulfing" for k, _ in found(rows))
-
-    def test_trend_needs_a_recent_drop_not_only_a_close_below_the_ema(self) -> None:
-        rows = decline()
-        p = rows[-1][3]
-        rows += [(p, p + 0.4, p - 0.4, p)] * 6  # flat: still below the EMA, no drop in 5 candles
-        assert not any(k == "bullishEngulfing" for k, _ in found(confirm_up(engulfing(rows))))
-
-    def test_trend_needs_a_close_below_the_ema_not_only_a_drop(self) -> None:
+    def test_needs_no_prior_downtrend(self) -> None:
         rows = rise(30)
-        rows += decline(5, start=rows[-1][3])  # a 5-candle dip that stays above the EMA(20)
-        assert not any(k == "bullishEngulfing" for k, _ in found(confirm_up(engulfing(rows))))
+        p = rows[-1][3]
+        # a down candle in a rise, then an up candle engulfing it, then the confirmation
+        rows += [(p, p + 0.3, p - 1.5, p - 1.2), (p - 1.2, p + 1.2, p - 1.4, p + 0.9)]
+        rows = confirm_up(rows)
+        assert ("bullishEngulfing", len(rows) - 1) in found(rows)
 
     def test_a_doji_is_not_engulfed(self) -> None:
         rows = decline()
@@ -155,9 +148,9 @@ class TestHammerFamily:
         rows = flip(confirm_up(inverted_hammer(decline())))
         assert ("hangingMan", len(rows) - 1) in found(rows)
 
-    def test_no_hammer_without_a_downtrend(self) -> None:
-        rows = confirm_up(hammer(rise()))
-        assert not any(k == "hammer" for k, _ in found(rows))
+    def test_hammer_needs_no_prior_downtrend(self) -> None:
+        rows = confirm_up(hammer(rise(30)))
+        assert ("hammer", len(rows) - 1) in found(rows)
 
 
 class TestMorningStar:

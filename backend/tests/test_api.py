@@ -207,3 +207,44 @@ def test_stats_can_be_restricted_to_one_context(client: TestClient) -> None:
         assert s["summary"]["n"] <= n_all[(s["pattern"], s["direction"], s["location"])]
     bad = client.get("/api/v1/stats", params={"tf": "4h", "context": "nope"})
     assert bad.status_code == 422
+
+
+def test_score_buckets_split_every_case(client: TestClient) -> None:
+    every = client.get("/api/v1/stats", params={"tf": "4h", "zoneTf": "4h"}).json()["setups"]
+    total = {
+        (s["pattern"], s["direction"]): s["summary"]["n"] for s in every if s["location"] == "*"
+    }
+    split: dict[tuple[str, str], int] = {}
+    for n in range(4):
+        rows = client.get(
+            "/api/v1/stats", params={"tf": "4h", "zoneTf": "4h", "context": f"score:{n}"}
+        ).json()["setups"]
+        for s in rows:
+            if s["location"] == "*":
+                k = (s["pattern"], s["direction"])
+                split[k] = split.get(k, 0) + s["summary"]["n"]
+    assert split == total  # every resolved case has exactly one score
+
+
+def test_chart_occurrences_carry_their_measured_confidence(client: TestClient) -> None:
+    a = client.get("/api/v1/analysis/AAA-USDT", params={"tf": "4h", "limit": 400}).json()
+    with_conf = [o for o in a["occurrences"] if o["confidence"] is not None]
+    assert with_conf, "no occurrence got a confidence"
+    for o in a["occurrences"]:
+        assert 0 <= o["score"] <= 3
+        c = o["confidence"]
+        assert o["passes"] == (c is not None and c["verdict"] == "edge")
+    for o in with_conf:
+        c = o["confidence"]
+        assert c["n"] >= 30
+        assert 0 <= c["ciLow"] <= c["winRate"] <= c["ciHigh"] <= 1
+        ctx = f"score:{o['score']}" if c["basis"] == "score" else "*"
+        rows = client.get(
+            "/api/v1/stats", params={"tf": "4h", "zoneTf": "4h", "context": ctx}
+        ).json()["setups"]
+        rec = next(
+            s["summary"]
+            for s in rows
+            if (s["pattern"], s["direction"], s["location"]) == (o["pattern"], o["direction"], "*")
+        )
+        assert (rec["n"], rec["winRate"]) == (c["n"], c["winRate"])

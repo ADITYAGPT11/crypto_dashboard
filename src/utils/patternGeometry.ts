@@ -63,7 +63,7 @@ export interface PositionBox {
   rr: number;
   targetPct: number;
   stopPct: number;
-  /** Where the trade resolved: the target (win) or the stop (loss); null otherwise. */
+  /** Where the trade was closed by its stop (trailed or not): the fill; null otherwise. */
   exit: Pt | null;
 }
 
@@ -203,6 +203,20 @@ export function patternFigure(vp: ViewPattern): PatternFigure {
   return fig;
 }
 
+/**
+ * View range of a candlestick pattern's own candles: its first candle to its last key point.
+ * The confirmation candle that follows is left out (the position box starts at its close),
+ * so a two-candle engulfing is boxed as two candles, not three.
+ */
+export function candleSpan(vp: ViewPattern): { from: number; to: number } {
+  const first = vp.blocks[0];
+  const lastX = vp.points.length ? Math.max(...vp.points.map((p) => p.x)) : null;
+  const last =
+    (lastX !== null && vp.blocks.find((b) => b.from <= lastX && lastX <= b.to)) ||
+    vp.blocks[vp.blocks.length - 1];
+  return { from: Math.min(first.from, vp.startX), to: last.to };
+}
+
 /** The trade the pattern proposes, from entry until it resolved (or the outcome window ends). */
 export function positionBox(vp: ViewPattern): PositionBox {
   const risk = Math.abs(vp.entry - vp.stop);
@@ -218,8 +232,10 @@ export function positionBox(vp: ViewPattern): PositionBox {
     targetPct: ((vp.target - vp.entry) / vp.entry) * 100,
     stopPct: ((vp.stop - vp.entry) / vp.entry) * 100,
     exit:
-      vp.exitX !== null && (vp.outcome.result === "win" || vp.outcome.result === "loss")
-        ? { x: vp.exitX, price: vp.outcome.result === "win" ? vp.target : vp.stop }
+      vp.exitX !== null &&
+      vp.outcome.exitPrice !== null &&
+      (vp.outcome.result === "win" || vp.outcome.result === "loss")
+        ? { x: vp.exitX, price: vp.outcome.exitPrice }
         : null,
   };
 }

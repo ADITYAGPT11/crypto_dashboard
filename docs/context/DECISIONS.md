@@ -453,3 +453,63 @@ the rule set itself would be a new rule-set version; not done until the owner as
 Same day, second pass: candlesticks came back as an opt-in choice in a pattern dropdown (per
 pattern and direction, off by default), so the owner picks what to watch without a per-pattern
 timeframe matrix.
+
+### 2026-11-22 · Engulfing: no "big body" rule; the downtrend filter is not earning its place
+
+Why: the owner asked why a sliver-bodied engulfing was tagged while a large one right after was
+not (the second failed the downtrend filter: price had bounced in the 5 candles before it). A
+throwaway A/B on 2 years × 10 coins (Binance archive, same `outcomes.evaluate`, gross of costs)
+answered both questions. **Requiring a big green body (above the 10-candle mean) did not help**
+(4h long 27.4% → 26.3% wins, n 416 → 323; 1h 29.2% → 28.5%), so it was not adopted.
+**Dropping the downtrend filter** gave about 3× the cases at a similar or slightly higher win
+rate on most candlestick patterns (4h bullish engulfing 27.4% → 31.8%, n 416 → 1,273; 1h 29.2% →
+32.0%); it helped a few (4h bearish engulfing 36.8% vs 33.8%), so it is mixed, mostly inside the
+Wilson ranges. No variant made a bullish candlestick setup profitable. Same day the owner chose
+to drop the filter for the ten candlestick patterns (r6); chart reversals keep theirs. Display fix shipped with this: the
+candlestick box no longer includes the confirmation candle.
+
+### 2026-11-22 · Confidence = measured win rate of the same score, not a weighted score (r7)
+
+Why: the owner asked for one confidence % on the chart from volume, momentum, zones and similar.
+A weighted 0-100 score would need invented weights (guardrail 3), so the score is a count of
+yes/no checks and the % is the measured win rate of past setups with the same pattern, direction,
+timeframe and count. Six candidate checks were tested on 2 years × 10 coins, year 1 vs year 2
+(pooled over patterns): with the trend (EMA200) +2 to +7 points, order flow confirms +2 to +4,
+**no** volume spike +7 to +8, RSI **not** below 35 +6 to +8; at a zone −1 to +4 (dropped), strong
+zone ≈ 0 (dropped). The textbook signs (volume spike, oversold) hurt. Score 0 → 4 on 4h: about 15%
+→ 38% wins in both years; 1d is too small to tell. Shown in the box (or above it when the box is
+too narrow) with ± half the Wilson range, on the chart only (owner: no extra panel).
+
+### 2026-11-22 · Trade plan B with strict 5-minute fills (r8): target, then trail 2 ATR
+
+Why: the owner asked how trades are planned vs how experts trade, chose "plan B" from the
+trade-plan research (`reports/Pattern trade entry exit planning.pdf`: TP1 then trail, wider stop on
+1h, cost filter) and asked for entries and exits to be checked strictly on 5-minute candles.
+That check found the research simulation (and the r3 "Trailing TP" record) filled a trailed stop
+at the stop price when the next candle already opened beyond it; filling at the open instead
+erased most of the trailing exit's advantage. Strict results, same setups, after 0.15% costs, R
+per trade (today's stops / plan stops + cost filter):
+fixed target -0.091/-0.057 (1h),
+-0.070/-0.058 (4h), -0.070/-0.067 (1d);
+trail 0.5 ATR -0.078/-0.054, -0.068/-0.057, -0.086/-0.083;
+trail 2 ATR -0.065/-0.044, -0.050/-0.036, -0.027/-0.024.
+So the plan keeps B's shape (entry at close, TP1 then trail, 1h stop 0.5 ATR beyond the
+invalidation price, skip setups costing over 0.1R) with the trail at 2 ATR, the best of 0.5 / 1 /
+2 on every timeframe (picked on both years: optimistic). Moving the stop every 5 minutes was not
+better. Every plan is still negative after costs; random entries were not re-run under strict
+fills. The stop moves only at candle closes (a resting order), so fills do not depend on prices'
+order inside a candle; 5-minute candles add gap fills (≈0.01% of trades changed).
+
+### 2026-11-22 · Confidence becomes a filter on order flow (r9); setups without an edge drawn grey
+
+Why: the owner kept the trade plan fixed and asked for a confidence layer as a filter, greying
+out filtered setups. The r7 checks raised win rates, not profit, so the checks were re-picked on
+the r8 plan with strict fills: year-1 selection (net R, |t| ≥ 2), year-2 confirmation. Order flow
+and CVD divergence held on 1h/4h; Bitcoin trend (flipped), daily trend (year 2 only) and the r7
+checks did not. Score = flow (0 against / 1 neutral / 2 agrees) + CVD divergence (1). Pass =
+the record at that score (or the pattern's when under 30 cases) has verdict "edge" (Wilson low
+above the after-cost break-even). On the preview run (10 coins, 2 years) only a handful of
+groups pass, all shorts (1h rising wedge / symmetrical triangle / double top at score 3; 4h
+bearish harami, double top, hanging man, symmetrical and descending triangles, bearish engulfing
+at score 3; 1d bear flag). With ~330 groups tested and a falling market, chance and regime can
+explain them; the forward record decides.
