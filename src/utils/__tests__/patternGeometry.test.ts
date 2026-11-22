@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { isChartPattern, patternFigure, positionBox } from "../patternGeometry";
+import { candleSpan, isChartPattern, patternFigure, positionBox } from "../patternGeometry";
 import type { ViewPattern } from "../timeframeMapping";
 
 function view(partial: Partial<ViewPattern>): ViewPattern {
@@ -174,5 +174,41 @@ describe("positionBox", () => {
     expect(
       positionBox(view({ outcome: { result: "expired", r: 0.3 }, exitX: 60.5 })).exit,
     ).toBeNull();
+  });
+});
+
+describe("candleSpan", () => {
+  const engulfing = view({
+    pattern: "bullishEngulfing",
+    points: [
+      { x: 10, price: 95, label: "" },
+      { x: 11, price: 94, label: "" },
+    ],
+    // the two pattern candles, then the confirmation candle
+    blocks: [
+      { from: 9.5, to: 10.5 },
+      { from: 10.5, to: 11.5 },
+      { from: 11.5, to: 12.5 },
+    ],
+    startX: 9.5,
+    entryX: 12.5,
+  });
+
+  it("boxes the pattern's own candles and leaves the confirmation candle out", () => {
+    expect(candleSpan(engulfing)).toEqual({ from: 9.5, to: 11.5 });
+  });
+
+  it("keeps a self-confirming pattern's last candle (morning star) in the box", () => {
+    const star = view({
+      pattern: "morningStar",
+      points: [10, 11, 12].map((x) => ({ x, price: 95, label: "" })),
+      blocks: [
+        { from: 9.5, to: 10.5 },
+        { from: 10.5, to: 11.5 },
+        { from: 11.5, to: 12.5 },
+      ],
+      startX: 9.5,
+    });
+    expect(candleSpan(star)).toEqual({ from: 9.5, to: 12.5 });
   });
 });

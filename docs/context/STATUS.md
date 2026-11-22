@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-21 · branch `claude/amazing-bell-x2yip9`_
+_Last verified: 2026-11-22 · branch `claude/dazzling-cerf-jzip1j`_
 
 ## Phase
 
@@ -32,7 +32,7 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 379 tests, 38 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 378 tests, 37 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
 | `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 173 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
@@ -51,7 +51,8 @@ Verified 2026-11-11 (checks and test counts 2026-11-21):
 - **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
   live forming candle) plus the service's patterns, the selected one drawn after the industry
   convention (shaded W / M, H&S, triangle, wedge or flag box, key-point tags, breakout ring,
-  measured move, position box over the outcome window; other overlays fade), demand/supply zones, order blocks, fair value gaps, volume profile and a
+  measured move, position box over the outcome window; a candlestick pattern's box covers its own
+  candles, not the confirmation candle; other overlays fade), demand/supply zones, order blocks, fair value gaps, volume profile and a
   **liquidity heatmap** layer with a pools table. Only **key levels** are drawn (Overlays →
   Display settings, saved per browser): intact, nearest 2 of each kind, zones ≥ 2 ATR departure,
   overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options.

@@ -5,7 +5,13 @@
  */
 import type { Candle } from "../../types/marketData";
 import { formatPrice } from "../../utils/priceUtils";
-import { isChartPattern, patternFigure, positionBox, type Pt } from "../../utils/patternGeometry";
+import {
+  candleSpan,
+  isChartPattern,
+  patternFigure,
+  positionBox,
+  type Pt,
+} from "../../utils/patternGeometry";
 import type { ViewPattern } from "../../utils/timeframeMapping";
 
 const UP = "86,211,100";
@@ -299,14 +305,12 @@ export function drawPattern(
       g.stroke();
     }
   } else {
-    // Candlestick patterns: a box around their candles and the name above / below it.
-    const first = vp.blocks[0];
-    const last = vp.blocks[vp.blocks.length - 1];
-    const from = Math.min(first.from, vp.startX);
+    // Candlestick patterns: a box around their own candles (not the confirmation) and the name.
+    const { from, to } = candleSpan(vp);
     const x1 = x(from);
-    const x2 = x(last.to);
+    const x2 = x(to);
     const i0 = Math.max(0, Math.round(from + 0.5));
-    const i1 = Math.min(candles.length - 1, Math.round(last.to - 0.5));
+    const i1 = Math.min(candles.length - 1, Math.round(to - 0.5));
     const span = candles.slice(i0, i1 + 1);
     const yHigh = span.length ? y(Math.max(...span.map((c) => c.high))) : null;
     const yLow = span.length ? y(Math.min(...span.map((c) => c.low))) : null;

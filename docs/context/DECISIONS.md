@@ -453,3 +453,17 @@ the rule set itself would be a new rule-set version; not done until the owner as
 Same day, second pass: candlesticks came back as an opt-in choice in a pattern dropdown (per
 pattern and direction, off by default), so the owner picks what to watch without a per-pattern
 timeframe matrix.
+
+### 2026-11-22 · Engulfing: no "big body" rule; the downtrend filter is not earning its place
+
+Why: the owner asked why a sliver-bodied engulfing was tagged while a large one right after was
+not (the second failed the downtrend filter: price had bounced in the 5 candles before it). A
+throwaway A/B on 2 years × 10 coins (Binance archive, same `outcomes.evaluate`, gross of costs)
+answered both questions. **Requiring a big green body (above the 10-candle mean) did not help**
+(4h long 27.4% → 26.3% wins, n 416 → 323; 1h 29.2% → 28.5%), so it was not adopted.
+**Dropping the downtrend filter** gave about 3× the cases at a similar or slightly higher win
+rate on most candlestick patterns (4h bullish engulfing 27.4% → 31.8%, n 416 → 1,273; 1h 29.2% →
+32.0%); it helped a few (4h bearish engulfing 36.8% vs 33.8%), so it is mixed, mostly inside the
+Wilson ranges. No variant made a bullish candlestick setup profitable. The filter stays until the
+owner decides (it would be a new `RULESET_VERSION`). Display fix shipped with this: the
+candlestick box no longer includes the confirmation candle.
