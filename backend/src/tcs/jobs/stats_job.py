@@ -39,6 +39,8 @@ DAY_MS = 86_400_000
 #: Detection timeframes the job measures, and the zone timeframes allowed for each.
 STATS_TFS: tuple[Timeframe, ...] = ("1h", "4h", "1d")
 ZONE_TFS: tuple[Timeframe, ...] = ("1h", "4h", "1d")
+#: Candles every trade is walked on (outcomes.py: strict entry / stop / TP1 / trailing fills).
+FINE_TF: Timeframe = "5m"
 
 
 def zone_tfs_for(tf: Timeframe) -> list[Timeframe]:
@@ -105,6 +107,8 @@ def run_stats(settings: Settings, tf: Timeframe, now: int | None = None) -> dict
                 if len(series) < 100:
                     raise ValueError(f"only {len(series)} candles")
                 hits = detect_patterns(series)
+                # 5-minute candles: trades are walked on them (outcomes.py, strict fills)
+                fine = _load(history, symbol, FINE_TF, since, now)
                 rows = history.ensure_funding(symbol, since, now)
                 funding = Funding(rows)
                 meta["costs"]["fundingUntil"][symbol] = rows[-1][0] if rows else None
@@ -112,7 +116,9 @@ def run_stats(settings: Settings, tf: Timeframe, now: int | None = None) -> dict
                     level_series = (
                         series if zone_tf == tf else _load(history, symbol, zone_tf, since, now)
                     )
-                    a = analyze(series, level_series, detect_levels(level_series), hits=hits)
+                    a = analyze(
+                        series, level_series, detect_levels(level_series), hits=hits, fine=fine
+                    )
                     for o in a.occurrences:
                         h = o.hit
                         c = _costed(series, o, model, funding, tf)

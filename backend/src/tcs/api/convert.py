@@ -64,6 +64,7 @@ def occurrence(s: Series, o: Occurrence) -> OccurrenceOut:
             move_pct=o.outcome.move_pct,
             r=o.outcome.r,
             bars=o.outcome.bars,
+            exit_price=o.outcome.exit_price,
         ),
         flow=FlowOut(
             delta_ratio=o.flow.delta_ratio,

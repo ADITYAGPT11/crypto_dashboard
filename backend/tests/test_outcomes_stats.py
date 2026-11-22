@@ -20,19 +20,26 @@ def hit(direction: str, entry: float, stop: float, target: float, index: int = 0
     )
 
 
-def test_long_win_loss_and_conservative_tie() -> None:
-    s = candles([(100, 100, 100, 100), (100, 104, 99, 103), (103, 112, 102, 111)])
-    assert evaluate(s, hit("long", 100, 95, 110)).result == "win"
-    assert evaluate(s, hit("long", 100, 99.5, 110)).result == "loss"
+def test_stop_before_tp1_is_a_loss_and_a_candle_touching_both_counts_as_the_stop() -> None:
+    s = candles([(100, 100, 100, 100), (100, 104, 94, 96)])
+    o = evaluate(s, hit("long", 100, 95, 110))
+    assert (o.result, o.r, o.exit_price) == ("loss", -1.0, 95)
     both = candles([(100, 100, 100, 100), (100, 111, 94, 100)])
     assert evaluate(both, hit("long", 100, 95, 110)).result == "loss"  # stop assumed first
 
 
+def test_tp1_starts_the_trail_instead_of_closing() -> None:
+    s = candles([(100, 100, 100, 100), (100, 112, 104, 111), (111, 113, 109, 112)])
+    o = evaluate(s, hit("long", 100, 95, 110))
+    assert o.result == "open"  # TP1 touched: still running, the stop now trails
+
+
 def test_short_is_mirrored() -> None:
-    s = candles([(100, 100, 100, 100), (100, 101, 89, 90)])
-    o = evaluate(s, hit("short", 100, 105, 90))
-    assert (o.result, o.r) == ("win", pytest.approx(2.0))
-    assert o.move_pct == pytest.approx(10.0)
+    s = candles([(100, 100, 100, 100), (100, 101, 89, 90), (90, 94, 88, 92)])
+    t = evaluate_trailing(s, hit("short", 100, 105, 90), np.full(len(s), 2.0), k=2.0)
+    # TP1 90 touched; at the close the stop trails the best low 89 by 2 x 2 = 93; hit next candle
+    assert (t.result, t.activated, t.exit_price) == ("win", 1, 93)
+    assert t.r == pytest.approx(7 / 5)
 
 
 def test_open_and_expired_closes_at_the_market() -> None:
@@ -48,9 +55,30 @@ def test_open_and_expired_closes_at_the_market() -> None:
 
 def test_holding_limit_grows_with_the_formation() -> None:
     small = PatternHit("test", "long", 50, 100, 90, 120, 40, 90)
-    big = PatternHit("test", "long", 120, 100, 90, 120, 40, 90)
+    big = PatternHit("test", "long", 200, 100, 90, 120, 0, 90)
     assert hold_bars(small) == MAX_HOLD_BARS
-    assert hold_bars(big) == 80
+    assert hold_bars(big) == 200
+
+
+def test_a_stop_already_passed_fills_at_the_next_open() -> None:
+    # TP1 touched on a candle that closes far below its high: the trailed stop (112 - 1 = 111)
+    # sits above the close 105, so the next candle opens through it and fills at its open.
+    s = candles([(100, 100, 100, 100), (100, 112, 100, 105), (105, 106, 104, 105)])
+    t = evaluate_trailing(s, hit("long", 100, 95, 110), np.full(len(s), 2.0), k=0.5)
+    assert (t.exit_index, t.exit_price) == (2, 105)
+    assert t.r == pytest.approx(1.0)
+
+
+def test_five_minute_candles_fill_a_gap_inside_the_candle_at_its_open() -> None:
+    s = candles([(100, 100, 100, 100), (100, 101, 90, 92)], tf="1h")
+    rows = [(100.0, 101.0, 99.0, 100.0)] * 12  # the confirmation hour
+    rows += [(100.0, 101.0, 99.0, 100.0)] * 5 + [(93.0, 93.5, 90.0, 92.0)] * 7  # gap to 93
+    fine = candles(rows, tf="5m")
+    coarse = evaluate_trailing(s, hit("long", 100, 95, 120), np.full(2, 2.0))
+    strict = evaluate_trailing(s, hit("long", 100, 95, 120), np.full(2, 2.0), fine=fine)
+    assert coarse.exit_price == 95  # one hour candle: the order of prices inside is unknown
+    assert (strict.exit_price, strict.fine) == (93, True)  # the 5-minute candle opened at 93
+    assert strict.r == pytest.approx(-1.4)
 
 
 def test_wilson_matches_reference_values() -> None:
@@ -97,7 +125,7 @@ def test_trailing_tp_follows_the_best_price_after_the_target() -> None:
             (114, 114.5, 113, 113.5),  # trades through 114: out at 114
         ]
     )
-    t = evaluate_trailing(s, hit("long", 100, 95, 110), np.full(len(s), 2.0))
+    t = evaluate_trailing(s, hit("long", 100, 95, 110), np.full(len(s), 2.0), k=0.5)
     assert (t.result, t.exit_index, t.activated) == ("win", 4, 2)
     assert t.exit_price == pytest.approx(114)
     assert t.r == pytest.approx(14 / 5)  # the fixed target would have paid 2R
@@ -108,7 +136,7 @@ def test_trailing_short_mirrors_long_and_stop_first_before_target() -> None:
     s = candles(
         [(100, 100, 100, 100), (100, 101, 89, 90), (90, 89.8, 86, 87), (87, 88, 86.5, 87.5)]
     )
-    t = evaluate_trailing(s, hit("short", 100, 105, 90), np.full(len(s), 2.0))
+    t = evaluate_trailing(s, hit("short", 100, 105, 90), np.full(len(s), 2.0), k=0.5)
     assert (t.result, t.activated) == ("win", 1)
     assert t.exit_price == pytest.approx(87)  # best 86 + 0.5 x 2
     both = candles([(100, 100, 100, 100), (100, 111, 94, 100)])

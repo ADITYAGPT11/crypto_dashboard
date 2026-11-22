@@ -17,7 +17,7 @@ function view(partial: Partial<ViewPattern>): ViewPattern {
     entry: 106,
     stop: 89,
     target: 115,
-    outcome: { result: "open", r: 0 },
+    outcome: { result: "open", r: 0, exitPrice: null },
     exitX: null,
     windowEndX: 60.5,
     trail: { result: "open", r: 0, exitX: null, exitPrice: null, activatedX: null, stops: [] },
@@ -148,7 +148,11 @@ describe("patternFigure", () => {
 
 describe("positionBox", () => {
   it("spans the outcome window and marks where a loss stopped out", () => {
-    const b = positionBox({ ...doubleBottom, outcome: { result: "loss", r: -1 }, exitX: 34.5 });
+    const b = positionBox({
+      ...doubleBottom,
+      outcome: { result: "loss", r: -1, exitPrice: 89 },
+      exitX: 34.5,
+    });
     expect(b.x1).toBe(30.5);
     expect(b.x2).toBe(60.5);
     expect(b.rr).toBeCloseTo(9 / 17);
@@ -163,7 +167,7 @@ describe("positionBox", () => {
         entry: 100,
         stop: 105,
         target: 101,
-        outcome: { result: "win", r: -0.2 },
+        outcome: { result: "win", r: -0.2, exitPrice: 101 },
         exitX: 31.5,
       }),
     );
@@ -173,7 +177,8 @@ describe("positionBox", () => {
 
   it("has no exit marker while the trade is open or expired", () => {
     expect(
-      positionBox(view({ outcome: { result: "expired", r: 0.3 }, exitX: 60.5 })).exit,
+      positionBox(view({ outcome: { result: "expired", r: 0.3, exitPrice: 103 }, exitX: 60.5 }))
+        .exit,
     ).toBeNull();
   });
 });

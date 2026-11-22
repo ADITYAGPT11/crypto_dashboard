@@ -1689,10 +1689,10 @@ const analysisEngine: ArchMap = {
       lane: "measure",
       y: 90,
       title: "outcomes.py",
-      sub: "fixed target + trailing exit",
+      sub: "trade plan · strict 5m fills",
       kind: "py",
-      desc: "Win = target before stop within 30 candles or the pattern's length; expiries close at the market and count. Trailing take-profit measured beside the fixed target.",
-      files: ["backend/src/tcs/analysis/outcomes.py"],
+      desc: "The app's trade plan: entry at the confirmation close, pattern stop (wider on 1h, plan.py), TP1 then a 2 ATR trailing stop moved at candle closes; walked on 5-minute candles, gaps fill at the open. Win = closed in profit; 120-candle limit.",
+      files: ["backend/src/tcs/analysis/outcomes.py", "backend/src/tcs/analysis/plan.py"],
     },
     {
       id: "costs",

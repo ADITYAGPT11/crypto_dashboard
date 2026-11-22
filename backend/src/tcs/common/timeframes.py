@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Literal, get_args
 
-Timeframe = Literal["15m", "1h", "4h", "1d"]
+Timeframe = Literal["5m", "15m", "1h", "4h", "1d"]
 TIMEFRAMES: tuple[Timeframe, ...] = get_args(Timeframe)
 
 TF_MS: dict[Timeframe, int] = {
+    "5m": 5 * 60_000,
     "15m": 15 * 60_000,
     "1h": 3_600_000,
     "4h": 4 * 3_600_000,

@@ -53,6 +53,7 @@ export interface CatalogOut {
   ruleset: string;
   patterns: PatternOut[];
   maxHoldBars: number;
+  trailAtr?: number;
   minSample: number;
   timeframes: string[];
   universe: string[];
@@ -181,6 +182,7 @@ export interface OutcomeOut {
   movePct: number;
   r: number;
   bars: number;
+  exitPrice?: number | null;
 }
 
 export interface PatternOut {

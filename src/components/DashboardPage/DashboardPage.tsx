@@ -247,8 +247,9 @@ const DashboardPage: React.FC = () => {
             <Explain title="What counts as a setup">
               A pattern you picked on the chart (double bottom, flag, triangle…) in a direction,
               confirmed on one of the last 3 closed {INTERVAL} candles. The win rate is the same
-              setup across every coin's history: target hit before stop within{" "}
-              {catalog?.maxHoldBars ?? 30} candles (or the pattern&apos;s length).
+              setup across every coin's history, each trade managed by the app&apos;s plan (pattern
+              stop, then a trailing stop from the target) and counted as a win when it closes in
+              profit within {catalog?.maxHoldBars ?? 120} candles (or the pattern&apos;s length).
             </Explain>
             <p>
               Picked patterns on a recent closed candle. Statistics pool every past case across all

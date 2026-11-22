@@ -147,7 +147,7 @@ export function drawPattern(
     }
   }
 
-  // 1b. Trailing take-profit: once the target is touched the stop follows the best price; drawn
+  // 1b. The plan's trailing stop: once TP1 is touched the stop follows the best price; drawn
   // as a step line from then until it closed (or the last candle while it is still running).
   const tr = vp.trail;
   const moved = tr.stops.slice(1);
@@ -191,8 +191,7 @@ export function drawPattern(
       g.fill();
       g.font = "bold 10px JetBrains Mono, monospace";
       const sign = tr.r >= 0 ? "+" : "−";
-      const what =
-        tr.result === "expired" ? "Trailing TP: closed at 120 candles" : "Trailing TP exit";
+      const what = tr.result === "expired" ? "Closed at the holding limit" : "Exit";
       pill(
         g,
         px + 9,

@@ -26,11 +26,14 @@ class LineOut(Out):
 
 
 class OutcomeOut(Out):
+    #: The trade plan's result (outcomes.py): win = closed in profit.
     result: Literal["win", "loss", "expired", "open"]
     exit_time: int | None
     move_pct: float
     r: float
     bars: int
+    #: Fill price of the exit (stop, trailed stop, a gap's open, or the market at the limit).
+    exit_price: float | None = None
 
 
 class StopOut(Out):
@@ -339,6 +342,8 @@ class CatalogOut(Out):
     ruleset: str
     patterns: list[PatternOut]
     max_hold_bars: int
+    #: ATRs the stop trails the best price by after TP1 (outcomes.TRAIL_ATR).
+    trail_atr: float = 2.0
     min_sample: int
     timeframes: list[str]
     universe: list[str]

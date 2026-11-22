@@ -17,7 +17,7 @@ confirmations yet (by design).
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
    r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
    the estimated liquidation map (`COMPETITORS.md` §4).
-1. Owner: run `npm start` on a machine that reaches Binance, let the first r7
+1. Owner: run `npm start` on a machine that reaches Binance, let the first r8
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
 2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
@@ -127,6 +127,14 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
   Pattern stats, Dashboard and Alerts. Drawing: the name and key-point tags are 10 px see-through
   pills, the entry / stop / target zones 6% (were 14%), no text inside the box, and the price axis
   shows only the three prices (no Entry / Stop / Target words). The win-rates status line is gone.
+- 2026-11-22: **Trade plan B with strict 5-minute fills (rule set r8)** (owner). Every trade:
+  entry at the confirmation close; pattern stop (on 1h 0.5 ATR beyond the invalidation price);
+  TP1 = the target, then a stop trailing 2 ATR behind the best price, moved at candle closes;
+  120-candle limit; win = closed in profit; setups costing over 0.1R skipped (`analysis/plan.py`).
+  Trades are walked on 5-minute candles (new `5m` timeframe; stats job and chart load them) and a
+  stop already passed fills at the candle's open. The check showed earlier trailing results were
+  too optimistic; the plan is still negative after costs (`DECISIONS.md`). Chart: plan text
+  "TP1 · trail starts", exit marker at the real fill, 120-candle window.
 - 2026-11-22: **Confidence % on every pattern (rule set r7)** (owner). `analysis/confidence.py`
   counts four checks (trend, flow, calm volume, RSI not stretched; each kept for lifting the win
   rate in both years of 2 × 10 coins); the stats job adds `score:0..4` contexts and

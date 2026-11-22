@@ -12,7 +12,7 @@ from tcs.analysis.catalog import CATALOG, RULESET_VERSION
 from tcs.analysis.confidence import SCORE_CONTEXTS
 from tcs.analysis.engine import analyze
 from tcs.analysis.flow import CONTEXTS
-from tcs.analysis.outcomes import MAX_HOLD_BARS
+from tcs.analysis.outcomes import MAX_HOLD_BARS, TRAIL_ATR
 from tcs.analysis.stats import MIN_SAMPLE
 from tcs.analysis.types import Direction
 from tcs.api import convert
@@ -33,15 +33,18 @@ from tcs.api.schemas import (
     StatsOut,
     SummaryOut,
 )
+from tcs.common.series import Series
 from tcs.common.timeframes import TF_MS, Timeframe, is_at_least, last_closed_open
 from tcs.config import Settings
-from tcs.jobs.stats_job import STATS_TFS
+from tcs.jobs.stats_job import DAY_MS, FINE_TF, STATS_TFS
 from tcs.marketdata.history import History
 from tcs.store.sqlite import Store
 
 #: Higher-timeframe candles loaded before the chart window, so its levels exist from the start.
 LEVEL_WARMUP = 300
 CACHE_SIZE = 128
+#: 5-minute candles kept for walking trades on the chart (the statistics period).
+FINE_DAYS = 730
 
 
 def now_ms() -> int:
@@ -84,6 +87,7 @@ class Service:
                 for p in CATALOG
             ],
             max_hold_bars=MAX_HOLD_BARS,
+            trail_atr=TRAIL_ATR,
             min_sample=MIN_SAMPLE,
             timeframes=list(STATS_TFS),
             universe=list(self.settings.universe),
@@ -140,7 +144,7 @@ class Service:
             return self._with_confidence(hit, tf)
         s = self.history.load(symbol, tf, since, now)
         zs = s if zone_tf == tf else self.history.load(symbol, zone_tf, zone_since, now)
-        a = analyze(s, zs)
+        a = analyze(s, zs, fine=self._fine(symbol, since, now))
         out = AnalysisOut(
             symbol=symbol,
             tf=tf,
@@ -195,6 +199,20 @@ class Service:
                 ]
             }
         )
+
+    def _fine(self, symbol: str, since: int, now: int) -> Series | None:
+        """5-minute candles for walking trades (``outcomes.py``), at most ``FINE_DAYS`` back.
+
+        Fails soft: without them trades are walked on the pattern's own candles.
+        """
+        start = max(since, now - FINE_DAYS * DAY_MS)
+        try:
+            with self._symbol_lock(f"{symbol}|{FINE_TF}"):
+                self.history.ensure(symbol, FINE_TF, start, now)
+            fine = self.history.load(symbol, FINE_TF, start, now)
+        except Exception:
+            return None
+        return fine if len(fine) else None
 
     # Statistics --------------------------------------------------------------
 

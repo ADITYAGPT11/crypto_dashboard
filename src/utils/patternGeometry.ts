@@ -63,7 +63,7 @@ export interface PositionBox {
   rr: number;
   targetPct: number;
   stopPct: number;
-  /** Where the trade resolved: the target (win) or the stop (loss); null otherwise. */
+  /** Where the trade was closed by its stop (trailed or not): the fill; null otherwise. */
   exit: Pt | null;
 }
 
@@ -232,8 +232,10 @@ export function positionBox(vp: ViewPattern): PositionBox {
     targetPct: ((vp.target - vp.entry) / vp.entry) * 100,
     stopPct: ((vp.stop - vp.entry) / vp.entry) * 100,
     exit:
-      vp.exitX !== null && (vp.outcome.result === "win" || vp.outcome.result === "loss")
-        ? { x: vp.exitX, price: vp.outcome.result === "win" ? vp.target : vp.stop }
+      vp.exitX !== null &&
+      vp.outcome.exitPrice !== null &&
+      (vp.outcome.result === "win" || vp.outcome.result === "loss")
+        ? { x: vp.exitX, price: vp.outcome.exitPrice }
         : null,
   };
 }

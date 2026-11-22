@@ -479,3 +479,23 @@ timeframe and count. Six candidate checks were tested on 2 years × 10 coins, ye
 zone ≈ 0 (dropped). The textbook signs (volume spike, oversold) hurt. Score 0 → 4 on 4h: about 15%
 → 38% wins in both years; 1d is too small to tell. Shown in the box (or above it when the box is
 too narrow) with ± half the Wilson range, on the chart only (owner: no extra panel).
+
+### 2026-11-22 · Trade plan B with strict 5-minute fills (r8): target, then trail 2 ATR
+
+Why: the owner asked how trades are planned vs how experts trade, chose "plan B" from the
+trade-plan research (`reports/Pattern trade entry exit planning.pdf`: TP1 then trail, wider stop on
+1h, cost filter) and asked for entries and exits to be checked strictly on 5-minute candles.
+That check found the research simulation (and the r3 "Trailing TP" record) filled a trailed stop
+at the stop price when the next candle already opened beyond it; filling at the open instead
+erased most of the trailing exit's advantage. Strict results, same setups, after 0.15% costs, R
+per trade (today's stops / plan stops + cost filter):
+fixed target -0.091/-0.057 (1h),
+-0.070/-0.058 (4h), -0.070/-0.067 (1d);
+trail 0.5 ATR -0.078/-0.054, -0.068/-0.057, -0.086/-0.083;
+trail 2 ATR -0.065/-0.044, -0.050/-0.036, -0.027/-0.024.
+So the plan keeps B's shape (entry at close, TP1 then trail, 1h stop 0.5 ATR beyond the
+invalidation price, skip setups costing over 0.1R) with the trail at 2 ATR, the best of 0.5 / 1 /
+2 on every timeframe (picked on both years: optimistic). Moving the stop every 5 minutes was not
+better. Every plan is still negative after costs; random entries were not re-run under strict
+fills. The stop moves only at candle closes (a resting order), so fills do not depend on prices'
+order inside a candle; 5-minute candles add gap fills (≈0.01% of trades changed).

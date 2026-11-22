@@ -119,7 +119,7 @@ const StatsPage: React.FC = () => {
   const res = useStats(interval, zoneTf);
   const run = res.data?.run ?? null;
   const loading = !res.data && !res.error;
-  const maxHold = catalog?.maxHoldBars ?? 30;
+  const maxHold = catalog?.maxHoldBars ?? 120;
   const minSample = catalog?.minSample ?? 30;
 
   const all = useMemo(() => {
@@ -148,9 +148,11 @@ const StatsPage: React.FC = () => {
           <p>
             Every pattern you picked on the chart, measured in the background on closed {interval}{" "}
             candles across {coins || "the research"} coins
-            {years ? ` over ${years} years` : ""}. Win = target hit before stop within {maxHold}{" "}
-            candles (or the pattern&apos;s length); trades that reach neither close at the market
-            and count. After costs: fees, slippage and funding.
+            {years ? ` over ${years} years` : ""}. Each trade follows the app&apos;s plan: entry at
+            the confirmation close, the pattern stop, and from the target a trailing stop (filled on
+            5-minute candles). Win = closed in profit; trades still open after {maxHold} candles (or
+            the pattern&apos;s length) close at the market and count. After costs: fees, slippage
+            and funding.
             {run?.finishedAt ? ` Updated ${shortDate(run.finishedAt)}.` : ""}
           </p>
         </div>

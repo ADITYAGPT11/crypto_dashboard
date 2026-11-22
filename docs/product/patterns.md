@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r7`)
+# Pattern, zone and order-block rules (rule set `2026.11-r8`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -19,12 +19,23 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
 
 ## Outcome and statistics (one rule for every setup)
 
-- **Entry** = confirmation close. **Win** = target touched before stop within the **holding
-  limit**: 30 candles, or the formation's own length when longer (since r5; a 60-candle pattern
-  gets 60 candles). A candle touching both counts as a **loss**. Neither = **expired**: closed at
-  the market (the last candle's close) and counted at that result, never as a win (since r5;
-  before, expiries were left out of the win rate and expectancy). Data ran out = open (not
-  counted).
+- **Trade plan** (since r8, `analysis/outcomes.py` + `analysis/plan.py`; owner's "plan B"):
+  **entry** at the confirmation close; **stop** at the detector's invalidation price, on **1h**
+  0.5 ATR beyond it in total (detectors use 0.2 ATR, candlesticks 0.1; 4h and 1d keep that);
+  **TP1** = the pattern's target, which does not close the trade: from the close of the candle
+  that touched it, the stop trails the best price since entry by **2 ATR** and only tightens;
+  the stop moves only at candle closes (a resting order). **Holding limit** 120 candles or the
+  formation's length; then closed at the market (**expired**, counted at its R, never a win).
+  **Win** = closed in profit. Setups whose fees + slippage would cost more than **0.1R** (stop
+  under about 1.5% of price) are skipped.
+- **Strict fills** (since r8): every trade is walked on **5-minute candles** where they are
+  stored (`stats_job.FINE_TF`; the chart loads up to 730 days). A stop the market has already
+  passed when it is set or when a candle opens fills at that candle's **open**, not at the stop
+  price; a candle touching the stop counts as the stop even if it also touched TP1. Because the
+  stop only moves at candle closes, the fill does not depend on the order of prices inside a
+  candle; the 5-minute candles add gap fills inside it. Measured (2026-11-22, 10 coins × 2 years):
+  moving the stop every 5 minutes instead was not better, and the earlier "fill at the stop
+  price" simulation overstated trailing exits by about 0.06–0.10R (see `DECISIONS.md`).
 - **Costs** (since r4; `analysis/costs.py`), per case in R (percent of notional ÷ risk in
   percent, so tight stops pay more): taker **fee 0.05% a side** (Binance USDⓈ-M regular tier) +
   **slippage 0.025% a side** (`TCS_FEE_PCT`, `TCS_SLIPPAGE_PCT`), and the **funding actually
@@ -40,14 +51,8 @@ is a **new rule-set version** (`RULESET_VERSION`), measured from scratch.
 - **Expectancy** = mean R per resolved case after costs (gross alongside).
 - **Verdict**: fewer than 30 resolved cases → too few; Wilson low above the break-even after
   costs → edge candidate; else no edge. In-sample.
-- **Trailing take-profit** (second exit, since r3; `outcomes.py::evaluate_trailing`): the same
-  entry and stop; when a candle touches the target the trade stays open and, from that candle's
-  close, the stop follows the best price since entry by **0.5 ATR(14)**, only ever tightening.
-  Exit where a candle trades through the stop (stop first, as above); after **120 candles**
-  closed at the market. Profit = exit above entry (below for shorts). Statistics: every closed
-  case counts; expectancy with a 95% range of the mean; verdict "edge" only when that range
-  clears 0 R. After costs (wins = closed in profit after them). Chosen in a walk-forward study
-  (below).
+- **Trailing record** (`summary.trail`): since r8 the same trades as the main record (the plan
+  is the trailing exit), kept for the API; expectancy with a 95% range of the mean.
 - **Setup** = pattern × direction × location × pattern timeframe × level timeframe. Pooled across
   the research coins; each coin also on its own; "any location" is the pattern's baseline.
   Pooled records are also split by order-flow context (below).
@@ -65,6 +70,8 @@ stop and target distance. Picked on year 1, checked on year 2.
 | Chart patterns 1h              |   −0.091 |              +0.001 |                    −0.012 | −0.089 / +0.024         |
 | Candlesticks (all)             |   −0.227 |              −0.142 |                    −0.105 | −0.229 / −0.133         |
 
+**Superseded (2026-11-22):** this study filled trailed stops at the stop price even when the candle
+opened beyond it, which overstated trailing exits; with strict fills (r8) their gain mostly goes.
 The trailing exit roughly doubles the daily chart patterns' result and wins out of sample, but
 random entries gain from it too: it improves the exit, not the pattern's edge over chance. It does
 not make 1h, 4h or candlestick setups profitable after costs. The study ran on the r3 rules (before

@@ -21,7 +21,7 @@ One rule set; both the chart and the background statistics call `analysis/engine
   flag; prior trend; twins by mirroring),
   `mirroring.py` (bearish twins back to real prices, labels flipped: Bottom ↔ Top, Upper ↔ Lower),
   `trendlines.py` (triangles, wedges), `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
-  `location.py`, `outcomes.py` (fixed target + trailing take-profit), `costs.py` (fees, slippage,
+  `location.py`, `outcomes.py` (trade plan: TP1 then a trailing stop, strict 5-minute fills), `plan.py` (1h stop buffer, cost filter), `costs.py` (fees, slippage,
   funding → R per case), `flow.py` (order-flow context: delta, CVD divergence), `confidence.py` (score 0-4 → the
   chart's confidence %), `stats.py`
   (Wilson, after-cost break-even, expectancy, verdict), `engine.py`, `types.py`.
