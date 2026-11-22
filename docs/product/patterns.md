@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r5`)
+# Pattern, zone and order-block rules (rule set `2026.11-r6`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -141,8 +141,9 @@ candle settings, the common quantification); doji = body ≤ 10% of the range.
 
 The same for every pattern:
 
-- **Trend** (a reversal needs a trend to reverse): the close before the pattern is below its
-  EMA(20) (StockCharts' first guideline) and at least 0.5 ATR below the close 5 candles earlier.
+- **No trend filter** (since r6): Nison and StockCharts ask for a prior trend, but requiring
+  one (close below EMA(20) and 0.5 ATR down in 5 candles) did not raise the measured win rate
+  on 2 years × 10 coins and kept only a third of the cases (`DECISIONS.md`, 2026-11-22).
 - **Size**: the pattern's range ≥ 0.8 ATR ("large relative to the last 10–20 days").
 - **Confirmation** (Nison; Bulkowski's breakout): within 3 candles a close above the pattern's
   high; a close below its low first cancels it. The morning / evening star confirms itself on

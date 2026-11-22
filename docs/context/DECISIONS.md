@@ -464,6 +464,6 @@ answered both questions. **Requiring a big green body (above the 10-candle mean)
 **Dropping the downtrend filter** gave about 3× the cases at a similar or slightly higher win
 rate on most candlestick patterns (4h bullish engulfing 27.4% → 31.8%, n 416 → 1,273; 1h 29.2% →
 32.0%); it helped a few (4h bearish engulfing 36.8% vs 33.8%), so it is mixed, mostly inside the
-Wilson ranges. No variant made a bullish candlestick setup profitable. The filter stays until the
-owner decides (it would be a new `RULESET_VERSION`). Display fix shipped with this: the
+Wilson ranges. No variant made a bullish candlestick setup profitable. Same day the owner chose
+to drop the filter for the ten candlestick patterns (r6); chart reversals keep theirs. Display fix shipped with this: the
 candlestick box no longer includes the confirmation candle.

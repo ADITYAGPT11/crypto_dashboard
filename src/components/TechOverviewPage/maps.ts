@@ -1611,7 +1611,7 @@ const analysisEngine: ArchMap = {
       title: "candlesticks.py",
       sub: "in-house shapes · trend · confirmation",
       kind: "py",
-      desc: "Candlestick patterns to Nison / StockCharts: shape, a real trend, a confirmation close. Bearish versions come from mirroring.",
+      desc: "Candlestick patterns to Nison / StockCharts: shape, a minimum size, a confirmation close (no trend filter since r6). Bearish versions come from mirroring.",
       files: ["backend/src/tcs/analysis/candlesticks.py"],
     },
     {

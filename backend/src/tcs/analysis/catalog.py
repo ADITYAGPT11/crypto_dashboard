@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 #: Bump when ANY rule, threshold or outcome rule changes. Statistics are stored per version.
-RULESET_VERSION = "2026.11-r5"
+RULESET_VERSION = "2026.11-r6"
 
 Kind = Literal["chart", "candlestick"]
 Bias = Literal["long", "short", "either"]
@@ -144,7 +144,7 @@ CATALOG: tuple[PatternSpec, ...] = (
         "candlestick",
         "long",
         "Nison ch. 4; StockCharts",
-        "Lower shadow at least twice the body, almost no upper shadow, after a decline.",
+        "Lower shadow at least twice the body, almost no upper shadow.",
     ),
     PatternSpec(
         "hangingMan",
@@ -152,7 +152,7 @@ CATALOG: tuple[PatternSpec, ...] = (
         "candlestick",
         "short",
         "Nison ch. 4; StockCharts",
-        "Lower shadow at least twice the body after a rise.",
+        "Lower shadow at least twice the body, almost no upper shadow.",
     ),
     PatternSpec(
         "invertedHammer",
@@ -160,7 +160,7 @@ CATALOG: tuple[PatternSpec, ...] = (
         "candlestick",
         "long",
         "Nison ch. 5; StockCharts",
-        "Upper shadow at least twice the body, almost no lower shadow, after a decline.",
+        "Upper shadow at least twice the body, almost no lower shadow.",
     ),
     PatternSpec(
         "shootingStar",
@@ -168,7 +168,7 @@ CATALOG: tuple[PatternSpec, ...] = (
         "candlestick",
         "short",
         "Nison ch. 5; StockCharts",
-        "Upper shadow at least twice the body after a rise.",
+        "Upper shadow at least twice the body, almost no lower shadow.",
     ),
     PatternSpec(
         "morningStar",
@@ -192,7 +192,7 @@ CATALOG: tuple[PatternSpec, ...] = (
         "candlestick",
         "long",
         "Nison ch. 6; StockCharts",
-        "A small body inside the prior long down body, after a decline.",
+        "A small body inside the prior long down body.",
     ),
     PatternSpec(
         "bearishHarami",
@@ -200,7 +200,7 @@ CATALOG: tuple[PatternSpec, ...] = (
         "candlestick",
         "short",
         "Nison ch. 6; StockCharts",
-        "A small body inside the prior long up body, after a rise.",
+        "A small body inside the prior long up body.",
     ),
 )
 
