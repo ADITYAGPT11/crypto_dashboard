@@ -122,6 +122,28 @@ def test_setup_detail_has_per_coin_rows_and_recent_cases(client: TestClient) -> 
     )  # r5: expiries count
 
 
+def test_stats_for_one_coin_match_the_setup_detail(client: TestClient) -> None:
+    pooled = client.get("/api/v1/stats", params={"tf": "4h"}).json()["setups"]
+    top = max((s for s in pooled if s["location"] == "*"), key=lambda s: int(s["summary"]["n"]))
+    detail = client.get(
+        "/api/v1/stats/setup",
+        params={"tf": "4h", "pattern": top["pattern"], "direction": top["direction"]},
+    ).json()
+    coin = detail["perCoin"][0]
+    body = client.get("/api/v1/stats", params={"tf": "4h", "symbol": coin["symbol"]}).json()
+    assert body["symbol"] == coin["symbol"]
+    mine = next(
+        s
+        for s in body["setups"]
+        if (s["pattern"], s["direction"], s["location"]) == (top["pattern"], top["direction"], "*")
+    )
+    assert mine["summary"]["n"] == coin["summary"]["n"]
+    bad = client.get(
+        "/api/v1/stats", params={"tf": "4h", "symbol": coin["symbol"], "context": "cvdDiv:yes"}
+    )
+    assert bad.status_code == 422
+
+
 def test_chart_analysis_uses_the_same_rules_as_the_job(client: TestClient) -> None:
     a = client.get("/api/v1/analysis/AAA-USDT", params={"tf": "4h", "limit": 400}).json()
     assert a["ruleset"] == client.get("/api/v1/patterns").json()["ruleset"]

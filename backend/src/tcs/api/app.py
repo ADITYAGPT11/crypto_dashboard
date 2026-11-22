@@ -194,10 +194,12 @@ def create_app(
         tf: str = "4h",
         zone_tf: Annotated[str | None, Query(alias="zoneTf")] = None,
         context: str = "*",
+        symbol: str = "*",
     ) -> StatsOut:
         t = _tf(tf)
+        coin = "*" if symbol == "*" else _symbol(symbol)
         try:
-            return svc.stats(t, _tf(zone_tf) if zone_tf else t, context)
+            return svc.stats(t, _tf(zone_tf) if zone_tf else t, context, coin)
         except BadRequest as err:
             raise HTTPException(422, str(err)) from err
 

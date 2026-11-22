@@ -1916,11 +1916,15 @@ const statistics: ArchMap = {
       lane: "use",
       y: 300,
       title: "Chart",
-      sub: "patterns · zones · setup card",
+      sub: "patterns · zones · pattern rows",
       kind: "page",
       detail: "screens",
-      desc: "Draws what the engine found; SetupCard shows its record.",
-      files: ["src/components/ChartPage/SetupCard.tsx", "src/utils/patternGeometry.ts"],
+      desc: "Draws what the engine found; PatternRows shows this coin's record per timeframe.",
+      files: [
+        "src/components/ChartPage/PatternRows.tsx",
+        "src/utils/patternGroups.ts",
+        "src/utils/patternGeometry.ts",
+      ],
     },
     {
       id: "statsPage",
@@ -2439,7 +2443,7 @@ const screens: ArchMap = {
       sub: "/chart/:symbol",
       kind: "page",
       detail: "liquidity",
-      desc: "PriceChart (Lightweight Charts + overlay canvas), toolbars, indicators, detection settings, setup card, liquidity panel.",
+      desc: "PriceChart (Lightweight Charts + overlay canvas), toolbars, indicators, Patterns settings popover, watchlist strip, pattern rows, liquidity panel.",
       files: [
         "src/components/ChartPage/PriceChart.tsx",
         "src/components/ChartPage/drawPattern.ts",

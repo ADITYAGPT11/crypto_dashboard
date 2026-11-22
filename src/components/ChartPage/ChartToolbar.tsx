@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { CandleInterval } from "../../types/marketData";
 import {
   CHART_TYPES,
@@ -70,6 +70,9 @@ interface Props {
   layers: Layers;
   onLayer: (k: LayerFlag) => void;
   onDisplaySettings: () => void;
+  /** Patterns button text (e.g. "Patterns · 2 TF · 14 on") and its popover's content. */
+  patternsLabel: string;
+  patterns: ReactNode;
   scale: ScaleMode;
   onScale: (m: ScaleMode) => void;
   onScreenshot: () => void;
@@ -104,6 +107,7 @@ const ChartToolbar: React.FC<Props> = (p) => {
   const { open: tfOpen, setOpen: setTfOpen, ref: tfRef } = usePopover();
   const { open: typeOpen, setOpen: setTypeOpen, ref: typeRef } = usePopover();
   const { open: layerOpen, setOpen: setLayerOpen, ref: layerRef } = usePopover();
+  const { open: patOpen, setOpen: setPatOpen, ref: patRef } = usePopover();
   const favs = p.favorites.includes(p.viewTf) ? p.favorites : [...p.favorites, p.viewTf];
   const ordered = TF_GROUPS.flatMap((g) => g.tfs).filter((tf) => favs.includes(tf));
 
@@ -262,6 +266,23 @@ const ChartToolbar: React.FC<Props> = (p) => {
               <span className={styles.check} aria-hidden="true" />
               Display settings…
             </button>
+          </div>
+        )}
+      </div>
+
+      <div className={styles.dd} ref={patRef}>
+        <button
+          type="button"
+          className={`${styles.tbBtn} ${styles.patBtn}`}
+          aria-expanded={patOpen}
+          aria-haspopup="dialog"
+          onClick={() => setPatOpen((o) => !o)}
+        >
+          <Icon name="sliders" size={16} /> {p.patternsLabel} <Icon name="chevron" size={14} />
+        </button>
+        {patOpen && (
+          <div className={styles.patPop} role="dialog" aria-label="Pattern settings">
+            {p.patterns}
           </div>
         )}
       </div>

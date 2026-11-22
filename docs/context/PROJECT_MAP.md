@@ -126,7 +126,7 @@ price table, spread (arbitrage), order book, alerts.
   service's scanner, outcome tracking via its analysis, Telegram via the Node prototype
   `/api/alerts/send` (injectable deps for tests)
 
-**Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useSetupDetail`,
+**Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useCoinStats` (`/stats?symbol=`), `useSetupDetail`,
 `useScanner`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
 `useDepthHistory` (recorded heatmap minutes from `/api/v1/depth`, once per enable),
@@ -140,7 +140,7 @@ helpers: `volumeProfile` (visible-range histogram, POC / value area), `timeframe
 → view positions for patterns, zones, blocks, gaps), `patternGeometry` (how a selected pattern is
 drawn: shaded formation, necklines/trendlines, key-point tags, measured move, position box), `setupKeys` (`pattern|direction|location`,
 labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
-sort, totals), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`, Delta
+sort, totals), `patternGroups` (chart detections → one row per pattern and direction), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`, Delta
 `l2_orderbook`), `liquidityHeatmap`
 (buckets, samples, pools, recorded columns → samples, history + live merge), `heatmapRender`
 (thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
@@ -178,8 +178,8 @@ Layout, edge routing, highlight sets and `validateMaps` are pure in `src/utils/a
 `Connections`, `BubbleMap`, `Sentiment`, `MarketMonitor`, `Correlation`, `Liquidations`,
 `Regime`, `Movers`, `DataHealth`), `StatsPage/`, `RiskPage/`, `AlertsPage/`,
 `AlertToast/`, `ChartPage/` (`PriceChart` with panes/legend/drawings, `ChartToolbar`,
-`DrawingToolbar`, `IndicatorsDialog`, `IndicatorSettings`, `Modal`, `icons`, `DetectionSettings`,
-`TfBadge`, `SetupCard`, `LiquidityPanel`, `drawPattern`, `drawHeatmap`, `drawBigTrades`, `drawFootprint`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
+`DrawingToolbar`, `IndicatorsDialog`, `IndicatorSettings`, `Modal`, `icons`, `DetectionSettings`
+(Patterns popover in the toolbar), `TfBadge`, `PatternRows` (rows under the chart), `WatchlistStrip`, `LiquidityPanel`, `drawPattern`, `drawHeatmap`, `drawBigTrades`, `drawFootprint`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
 overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
 `AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
