@@ -1,19 +1,16 @@
 import { useEffect, useId, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useStats } from "../../custom-hooks/useAnalysisApi";
-import { locationLabel, parseSetupKey, setupKey as keyOf } from "../../utils/setupKeys";
+import { locationLabel, parseSetupKey } from "../../utils/setupKeys";
 import { patternLabel } from "../../utils/patternLabels";
-import { statsByKey } from "../../utils/setupLibrary";
 import {
   computePosition,
-  expectedValue,
   loadRiskPrefs,
   saveRiskPrefs,
   type RiskInput,
 } from "../../utils/riskCalc";
 import { pct } from "../../utils/format";
 import type { CandleInterval } from "../../types/marketData";
-import { Chip, Explain, VerdictChip } from "../../common-components/Evidence";
+import { Chip, Explain } from "../../common-components/Evidence";
 import { BRAND } from "../../brand";
 import styles from "./RiskPage.module.scss";
 
@@ -39,10 +36,6 @@ function money(v: number, digits = 2): string {
   });
 }
 
-function signedMoney(v: number): string {
-  return `${v >= 0 ? "+" : "−"}${money(Math.abs(v))}`;
-}
-
 /** Up to 6 significant digits, enough for small-cap coin quantities. */
 function qty(v: number): string {
   return v.toLocaleString("en-US", { maximumSignificantDigits: 6 });
@@ -64,9 +57,7 @@ const RiskPage: React.FC = () => {
   const [params] = useSearchParams();
   const symbol = params.get("symbol") ?? "";
   const setup = parseSetupKey(params.get("setup"));
-  const setupKey = setup ? keyOf(setup.pattern, setup.direction, setup.location) : null;
   const tf = INTERVALS.find((i) => i === params.get("tf")) ?? "4h";
-  const zoneTf = INTERVALS.find((i) => i === params.get("zoneTf")) ?? tf;
   const base = symbol.split("-")[0] || "units";
 
   const [draft, setDraft] = useState<Draft>(() => {
@@ -92,9 +83,6 @@ const RiskPage: React.FC = () => {
     }
   }, [account, riskPct, feePct]);
 
-  const statsRes = useStats(tf, zoneTf);
-  const loading = statsRes.data === null && statsRes.error === null;
-  const pooled = setupKey ? (statsByKey(statsRes.data).get(setupKey) ?? null) : null;
   const ids = useId();
 
   return (
@@ -118,17 +106,6 @@ const RiskPage: React.FC = () => {
               {patternLabel(setup.pattern)} {locationLabel(setup.location, setup.direction)}
             </b>
           </div>
-          <div>
-            <span className={styles.lbl}>Pooled record</span>
-            <span className={styles.num}>
-              {pooled
-                ? `${pooled.wins} of ${pooled.n} · ${pct(pooled.winRate)} (${pct(pooled.ci[0])}–${pct(pooled.ci[1])})`
-                : loading
-                  ? "Loading…"
-                  : (statsRes.error ?? "Not found on this timeframe")}
-            </span>
-          </div>
-          {pooled && <VerdictChip verdict={pooled.verdict} />}
           {symbol && (
             <Link className={styles.link} to={`/chart/${symbol}`}>
               Back to chart
@@ -137,8 +114,8 @@ const RiskPage: React.FC = () => {
         </section>
       ) : (
         <p className={styles.hint}>
-          Tip: open a setup on the <Link to="/chart">Chart</Link> and choose “Size this trade” to
-          pre-fill entry, stop and target and see the setup's record here.
+          Enter your own entry, stop and target: the app detects patterns but does not plan the
+          trade.
         </p>
       )}
 
@@ -240,31 +217,6 @@ const RiskPage: React.FC = () => {
                   price is beyond your stop.
                 </p>
               )}
-              <div className={styles.ev}>
-                <b>Expected value per trade, after fees</b>
-                {pooled && pooled.n > 0 ? (
-                  <>
-                    <span
-                      className={`${styles.evNum} ${expectedValue(result.position, pooled.winRate) >= 0 ? styles.up : styles.down}`}
-                    >
-                      {signedMoney(expectedValue(result.position, pooled.winRate))} USDT
-                    </span>
-                    <span className={`${styles.mute} ${styles.num}`}>
-                      range {signedMoney(expectedValue(result.position, pooled.ci[0]))} to{" "}
-                      {signedMoney(expectedValue(result.position, pooled.ci[1]))} USDT (at{" "}
-                      {pct(pooled.ci[0])} and {pct(pooled.ci[1])})
-                    </span>
-                    <span className={styles.mute}>
-                      From {pooled.n} past cases with their own targets; your plan's target may
-                      differ. An estimate, not a prediction. Any single trade can lose.
-                    </span>
-                  </>
-                ) : (
-                  <span className={styles.mute}>
-                    Needs a setup's measured win rate. Open one from the Chart or Pattern stats.
-                  </span>
-                )}
-              </div>
             </>
           ) : (
             <p className={styles.mute}>Enter a valid plan to see the position.</p>

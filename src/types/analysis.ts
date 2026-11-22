@@ -1,17 +1,14 @@
 /**
- * Analysis results as the frontend uses them. Detection, locations, outcomes and
- * statistics are computed by the Python backend (`backend/src/tcs/analysis`), the
- * one rule set behind both the chart and the background statistics; these types
- * wrap the generated API types in `src/api/schema.ts`.
+ * Analysis results as the frontend uses them. Detection, locations and the setup checklist
+ * are computed by the Python backend (`backend/src/tcs/analysis`); these types wrap the
+ * generated API types in `src/api/schema.ts`.
  */
 import type {
-  CaseOut,
+  CheckOut,
   FvgOut,
   OccurrenceOut,
   OrderBlockOut,
   StructureOut,
-  SummaryOut,
-  TrailSummaryOut,
   ZoneOut,
 } from "../api/schema";
 
@@ -21,49 +18,17 @@ export type Direction = OccurrenceOut["direction"];
 export type SetupLocation = OccurrenceOut["location"];
 /** A location, or "*" for every location together (the pattern's baseline). */
 export type LocationFilter = SetupLocation | "*";
-export type OutcomeResult = OccurrenceOut["outcome"]["result"];
-export type Verdict = SummaryOut["verdict"];
+/** One item of a setup's checklist (location, RSI, volume, VWAP, ATR, Supertrend). */
+export type SetupCheck = CheckOut;
 
 export type Zone = ZoneOut;
 export type OrderBlock = OrderBlockOut;
 export type FairValueGap = FvgOut;
 export type StructureBreak = StructureOut;
-export type SetupCase = CaseOut;
 
 /** A detected setup on one coin (times are candle open times, ms). */
 export interface SetupOccurrence extends OccurrenceOut {
   symbol: string;
-}
-
-/** Statistics of one setup (pattern × direction × location), pooled or for one coin. */
-export interface SetupStats {
-  key: string;
-  pattern: PatternId;
-  direction: Direction;
-  location: LocationFilter;
-  n: number;
-  wins: number;
-  losses: number;
-  expired: number;
-  winRate: number;
-  /** Wilson 95% interval on the win rate. */
-  ci: [number, number];
-  /** Win rate needed to break even given the average win size, after costs. */
-  breakEven: number;
-  /** The same before costs. */
-  breakEvenGross: number;
-  avgWinPct: number;
-  avgLossPct: number;
-  /** Mean result per resolved case in R after fees, slippage and funding. */
-  expectancyR: number;
-  /** The same before costs. */
-  expectancyGrossR: number;
-  /** Mean cost per case in R (fees + slippage + funding). */
-  avgCostR: number;
-  medianBars: number;
-  verdict: Verdict;
-  /** The same cases exited with the trailing take-profit (null in older runs). */
-  trail: TrailSummaryOut | null;
 }
 
 export interface VolumeProfile {

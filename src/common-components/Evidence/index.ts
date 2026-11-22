@@ -1,1 +1,1 @@
-export { Chip, CiBar, Explain, VerdictChip } from "./Evidence";
+export { Chip, Explain } from "./Evidence";

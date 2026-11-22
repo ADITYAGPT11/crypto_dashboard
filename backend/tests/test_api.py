@@ -1,9 +1,8 @@
-"""The API and the statistics job end to end, on synthetic candles (no network)."""
+"""The API end to end, on synthetic candles (no network)."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,7 +12,6 @@ from tcs.api.service import Service
 from tcs.common.series import Candle
 from tcs.common.timeframes import TF_MS, Timeframe
 from tcs.config import Settings
-from tcs.jobs import stats_job
 from tcs.marketdata.binance import SourceUnavailable
 from tcs.marketdata.history import History
 from tcs.store.sqlite import Store
@@ -51,22 +49,13 @@ class FakeSource:
     def archive_day(self, *_: object) -> list[Candle] | None:
         raise SourceUnavailable("offline")
 
-    def archive_funding_month(self, *_: object) -> list[tuple[int, float]] | None:
-        raise SourceUnavailable("offline")
-
-    def rest_funding(self, symbol: str, start: int, end: int) -> list[tuple[int, float]]:
-        h8 = 8 * 3_600_000
-        first = (start // h8 + 1) * h8
-        return [(t, 0.01) for t in range(first, end + 1, h8)]
-
 
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
     return Settings(
         db_path=tmp_path / "t.sqlite3",
-        stats_days=120,
         universe=("AAA-USDT", "BBB-USDT"),
-        schedule=False,
+        record_depth=False,
     )
 
 
@@ -74,9 +63,7 @@ def settings(tmp_path: Path) -> Settings:
 def client(settings: Settings, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     store = Store(settings.db_path)
     history = History(store, FakeSource())  # type: ignore[arg-type]
-    monkeypatch.setattr(stats_job, "History", lambda s: History(s, FakeSource()))  # type: ignore[arg-type]
     monkeypatch.setattr("tcs.api.service.now_ms", lambda: NOW)
-    stats_job.run_stats(settings, "4h", now=NOW)
     return TestClient(create_app(settings, Service(settings, store, history)))
 
 
@@ -89,76 +76,43 @@ def test_candles_carry_taker_buy_volume(client: TestClient) -> None:
         assert 0.3 * row[5] <= row[6] <= 0.7 * row[5]
 
 
-def test_stats_job_pools_every_coin_and_location(client: TestClient) -> None:
-    body = client.get("/api/v1/stats", params={"tf": "4h", "zoneTf": "1d"}).json()
-    assert body["run"]["status"] == "done"
-    assert body["run"]["done"] == 2 and body["run"]["failed"] == []
-    setups = body["setups"]
-    assert setups, "no setups measured"
-    locations = {s["location"] for s in setups}
-    assert "*" in locations
-    for s in setups:
-        m = s["summary"]
-        assert m["wins"] + m["losses"] + m["expired"] == m["n"]
-        assert 0 <= m["ciLow"] <= m["winRate"] <= m["ciHigh"] <= 1
-    # Pooled "any location" equals the sum over locations.
-    by = {(s["pattern"], s["direction"], s["location"]): s["summary"]["n"] for s in setups}
-    for (p, d, loc), n in by.items():
-        if loc == "*":
-            assert n == sum(v for (p2, d2, l2), v in by.items() if (p2, d2) == (p, d) and l2 != "*")
-
-
-def test_setup_detail_has_per_coin_rows_and_recent_cases(client: TestClient) -> None:
-    stats: list[dict[str, Any]] = client.get("/api/v1/stats", params={"tf": "4h"}).json()["setups"]
-    top = max((s for s in stats if s["location"] == "*"), key=lambda s: int(s["summary"]["n"]))
-    body = client.get(
-        "/api/v1/stats/setup",
-        params={"tf": "4h", "pattern": top["pattern"], "direction": top["direction"]},
-    ).json()
-    assert body["pooled"]["n"] == top["summary"]["n"]
-    assert sum(c["summary"]["n"] for c in body["perCoin"]) == top["summary"]["n"]
-    assert all(
-        c["result"] in ("win", "loss", "expired") for c in body["recent"]
-    )  # r5: expiries count
-
-
-def test_stats_for_one_coin_match_the_setup_detail(client: TestClient) -> None:
-    pooled = client.get("/api/v1/stats", params={"tf": "4h"}).json()["setups"]
-    top = max((s for s in pooled if s["location"] == "*"), key=lambda s: int(s["summary"]["n"]))
-    detail = client.get(
-        "/api/v1/stats/setup",
-        params={"tf": "4h", "pattern": top["pattern"], "direction": top["direction"]},
-    ).json()
-    coin = detail["perCoin"][0]
-    body = client.get("/api/v1/stats", params={"tf": "4h", "symbol": coin["symbol"]}).json()
-    assert body["symbol"] == coin["symbol"]
-    mine = next(
-        s
-        for s in body["setups"]
-        if (s["pattern"], s["direction"], s["location"]) == (top["pattern"], top["direction"], "*")
-    )
-    assert mine["summary"]["n"] == coin["summary"]["n"]
-    bad = client.get(
-        "/api/v1/stats", params={"tf": "4h", "symbol": coin["symbol"], "context": "cvdDiv:yes"}
-    )
-    assert bad.status_code == 422
-
-
-def test_chart_analysis_uses_the_same_rules_as_the_job(client: TestClient) -> None:
+def test_chart_analysis_carries_each_patterns_checklist(client: TestClient) -> None:
     a = client.get("/api/v1/analysis/AAA-USDT", params={"tf": "4h", "limit": 400}).json()
     assert a["ruleset"] == client.get("/api/v1/patterns").json()["ruleset"]
     assert a["coverage"]["behind"] == 0
     assert a["occurrences"]
     o = a["occurrences"][0]
-    assert {"pattern", "direction", "location", "entry", "stop", "target", "outcome"} <= o.keys()
+    assert {"pattern", "direction", "location", "close", "score", "checks"} <= o.keys()
+    assert not {"entry", "stop", "target", "outcome", "trail", "confidence"} & o.keys()
     assert o["startTime"] <= o["time"]
+    max_score = client.get("/api/v1/patterns").json()["maxScore"]
+    for occ in a["occurrences"]:
+        assert [c["id"] for c in occ["checks"]] == [
+            "location",
+            "rsi",
+            "volume",
+            "vwap",
+            "atr",
+            "supertrend",
+        ]
+        assert occ["score"] == sum(c["passed"] for c in occ["checks"]) <= max_score
 
 
-def test_scanner_attaches_pooled_record(client: TestClient) -> None:
+def test_scanner_lists_recent_setups_best_checklist_first(client: TestClient) -> None:
     body = client.get("/api/v1/scanner", params={"tf": "4h", "bars": 20}).json()
     assert body["failed"] == []
-    for item in body["items"]:
+    items = body["items"]
+    for item in items:
         assert item["symbol"] in ("AAA-USDT", "BBB-USDT")
+        assert set(item) == {"symbol", "occurrence"}
+    scores = [i["occurrence"]["score"] for i in items]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_no_statistics_endpoints_remain(client: TestClient) -> None:
+    for path in ("/api/v1/stats", "/api/v1/stats/setup"):
+        assert client.get(path).status_code == 404
+    assert "runs" not in client.get("/api/v1/health").json()
 
 
 def test_rejects_bad_input(client: TestClient) -> None:
@@ -166,85 +120,3 @@ def test_rejects_bad_input(client: TestClient) -> None:
     assert client.get("/api/v1/analysis/BTC-USDT", params={"tf": "3h"}).status_code == 422
     r = client.get("/api/v1/analysis/BTC-USDT", params={"tf": "1d", "zoneTf": "4h"})
     assert r.status_code == 422
-    assert (
-        client.get("/api/v1/stats/setup", params={"pattern": "x", "direction": "long"}).status_code
-        == 422
-    )
-
-
-def test_setup_detail_splits_the_record_by_order_flow(client: TestClient) -> None:
-    body = client.get("/api/v1/stats", params={"tf": "4h", "zoneTf": "4h"}).json()
-    top = max((s for s in body["setups"] if s["location"] == "*"), key=lambda s: s["summary"]["n"])
-    detail = client.get(
-        "/api/v1/stats/setup",
-        params={
-            "tf": "4h",
-            "zoneTf": "4h",
-            "pattern": top["pattern"],
-            "direction": top["direction"],
-            "location": "*",
-        },
-    ).json()
-    by = {c["context"]: c["summary"]["n"] for c in detail["contexts"]}
-    assert by, "no order-flow contexts measured"
-    total = top["summary"]["n"]
-    delta = sum(n for c, n in by.items() if c.startswith("delta:"))
-    assert 0 < delta <= total  # unknown flow (no taker volume) falls outside every bucket
-    assert by.get("cvdDiv:yes", 0) + by.get("cvdDiv:no", 0) <= total
-    assert all(c["flow"] in ("confirms", "against", "neutral", None) for c in detail["recent"])
-
-
-def test_stats_can_be_restricted_to_one_context(client: TestClient) -> None:
-    every = client.get("/api/v1/stats", params={"tf": "4h", "zoneTf": "4h"}).json()
-    some = client.get(
-        "/api/v1/stats", params={"tf": "4h", "zoneTf": "4h", "context": "delta:confirms"}
-    ).json()
-    assert some["context"] == "delta:confirms"
-    n_all = {
-        (s["pattern"], s["direction"], s["location"]): s["summary"]["n"] for s in every["setups"]
-    }
-    for s in some["setups"]:
-        assert s["summary"]["n"] <= n_all[(s["pattern"], s["direction"], s["location"])]
-    bad = client.get("/api/v1/stats", params={"tf": "4h", "context": "nope"})
-    assert bad.status_code == 422
-
-
-def test_score_buckets_split_every_case(client: TestClient) -> None:
-    every = client.get("/api/v1/stats", params={"tf": "4h", "zoneTf": "4h"}).json()["setups"]
-    total = {
-        (s["pattern"], s["direction"]): s["summary"]["n"] for s in every if s["location"] == "*"
-    }
-    split: dict[tuple[str, str], int] = {}
-    for n in range(4):
-        rows = client.get(
-            "/api/v1/stats", params={"tf": "4h", "zoneTf": "4h", "context": f"score:{n}"}
-        ).json()["setups"]
-        for s in rows:
-            if s["location"] == "*":
-                k = (s["pattern"], s["direction"])
-                split[k] = split.get(k, 0) + s["summary"]["n"]
-    assert split == total  # every resolved case has exactly one score
-
-
-def test_chart_occurrences_carry_their_measured_confidence(client: TestClient) -> None:
-    a = client.get("/api/v1/analysis/AAA-USDT", params={"tf": "4h", "limit": 400}).json()
-    with_conf = [o for o in a["occurrences"] if o["confidence"] is not None]
-    assert with_conf, "no occurrence got a confidence"
-    for o in a["occurrences"]:
-        assert 0 <= o["score"] <= 3
-        c = o["confidence"]
-        assert o["passes"] == (c is not None and c["verdict"] == "edge")
-    for o in with_conf:
-        c = o["confidence"]
-        assert c["n"] >= 30
-        assert 0 <= c["ciLow"] <= c["winRate"] <= c["ciHigh"] <= 1
-        ctx = f"score:{o['score']}" if c["basis"] == "score" else "*"
-        rows = client.get(
-            "/api/v1/stats", params={"tf": "4h", "zoneTf": "4h", "context": ctx}
-        ).json()["setups"]
-        rec = next(
-            s["summary"]
-            for s in rows
-            if (s["pattern"], s["direction"], s["location"]) == (o["pattern"], o["direction"], "*")
-        )
-        assert (rec["n"], rec["winRate"]) == (c["n"], c["winRate"])

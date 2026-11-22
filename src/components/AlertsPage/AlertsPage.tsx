@@ -1,24 +1,17 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useCatalog, useStats } from "../../custom-hooks/useAnalysisApi";
+import { useCatalog } from "../../custom-hooks/useAnalysisApi";
 import { useSetupAlerts } from "../../custom-hooks/useSetupAlerts";
 import { SetupAlertService, type TelegramStatus } from "../../services/SetupAlertService";
 import { parseSetupKey, setupKey as keyOf } from "../../utils/setupKeys";
 import { isPicked, loadDetection, patternOptions } from "../../utils/detectionConfig";
 import { patternLabel } from "../../utils/patternLabels";
-import { statsByKey } from "../../utils/setupLibrary";
-import {
-  ALERT_INTERVALS,
-  setupName,
-  WATCHLIST,
-  type Delivery,
-  type SetupAlertFiring,
-} from "../../utils/setupAlerts";
+import { ALERT_INTERVALS, setupName, WATCHLIST, type Delivery } from "../../utils/setupAlerts";
 import { loadWatchlist } from "../../utils/watchlistStorage";
-import { pct, price } from "../../utils/format";
+import { price } from "../../utils/format";
 import type { Direction } from "../../types/analysis";
 import type { CandleInterval } from "../../types/marketData";
-import { Chip, CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
+import { Chip } from "../../common-components/Evidence";
 import { BRAND } from "../../brand";
 import styles from "./AlertsPage.module.scss";
 
@@ -37,14 +30,6 @@ const DELIVERY: Record<Delivery, { tone: "up" | "down" | "warn" | "lock"; text: 
   offline: { tone: "warn", text: "Backend offline" },
   off: { tone: "lock", text: "In-app only" },
 };
-
-const OUTCOME: Record<SetupAlertFiring["outcome"], { tone: "up" | "down" | "lock"; text: string }> =
-  {
-    win: { tone: "up", text: "Target hit" },
-    loss: { tone: "down", text: "Stopped" },
-    expired: { tone: "lock", text: "Expired" },
-    open: { tone: "lock", text: "Open" },
-  };
 
 function when(ms: number): string {
   return new Date(ms).toLocaleString("en-GB", {
@@ -90,18 +75,13 @@ const AlertsPage: React.FC = () => {
   );
   const [telegram, setTelegram] = useState(true);
   const [inApp, setInApp] = useState(true);
-  const [edgeOnly, setEdgeOnly] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [test, setTest] = useState<Delivery | "sending" | null>(null);
 
   const coins = useMemo(() => [...new Set([symbol, ...watchlist])], [symbol, watchlist]);
-  const statsRes = useStats(interval, interval);
-  const loading = statsRes.data === null && statsRes.error === null;
-  const pooledMap = useMemo(() => statsByKey(statsRes.data), [statsRes.data]);
-  const record = pooledMap.get(setup) ?? null;
 
   const save = () => {
-    const rule = svc.addRule({ symbol, setupKey: setup, interval, telegram, inApp, edgeOnly });
+    const rule = svc.addRule({ symbol, setupKey: setup, interval, telegram, inApp });
     setSaved(
       rule
         ? `Saved. You'll be told the next time ${symbol === WATCHLIST ? "a watchlist coin" : symbol} prints this setup on ${interval}.`
@@ -121,8 +101,8 @@ const AlertsPage: React.FC = () => {
         <div>
           <h1>Alerts</h1>
           <p>
-            Get told when a setup prints, with its track record attached, so you decide on evidence
-            instead of a bare signal.
+            Get told when a setup prints, with its checklist (order block or zone, RSI, volume,
+            VWAP, ATR, Supertrend) attached. You decide the trade.
           </p>
         </div>
       </div>
@@ -213,42 +193,6 @@ const AlertsPage: React.FC = () => {
             </div>
           </fieldset>
 
-          <div className={styles.record} aria-live="polite">
-            <b>
-              The record you'd be alerted on{" "}
-              <Explain title="Why show the record">
-                Every alert carries the setup's pooled history across coins on this timeframe, so a
-                "no edge" or "too few cases" setup is labelled as such in the message itself.
-              </Explain>
-            </b>
-            {record && record.n > 0 ? (
-              <>
-                <div className={styles.recordTop}>
-                  <span className={styles.big}>{pct(record.winRate)}</span>
-                  <span className={`${styles.mute} ${styles.num}`}>
-                    {record.wins} of {record.n} · range {pct(record.ci[0])}–{pct(record.ci[1])} ·
-                    break-even {pct(record.breakEven)}
-                  </span>
-                  <VerdictChip verdict={record.verdict} />
-                </div>
-                <CiBar stats={record} />
-                <span className={styles.mute}>
-                  {record.verdict === "edge"
-                    ? "Whole range sits above break-even after costs. Still in-sample: not yet tested out of sample."
-                    : record.verdict === "noEdge"
-                      ? "The range overlaps break-even: this setup hasn't shown an edge. The alert will say so."
-                      : "Fewer than 30 resolved cases: the true win rate could be anywhere in that wide range."}
-                </span>
-              </>
-            ) : (
-              <span className={styles.mute}>
-                {loading
-                  ? `Loading the record of ${patternLabel(setupInfo.pattern).toLowerCase()} on ${interval}…`
-                  : `No resolved cases of this setup on ${interval} yet, so the alert would arrive without a track record.`}
-              </span>
-            )}
-          </div>
-
           <fieldset className={styles.group}>
             <legend>Deliver to</legend>
             <div className={styles.checks}>
@@ -267,14 +211,6 @@ const AlertsPage: React.FC = () => {
                   onChange={(e) => setInApp(e.target.checked)}
                 />{" "}
                 In-app banner
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={edgeOnly}
-                  onChange={(e) => setEdgeOnly(e.target.checked)}
-                />{" "}
-                Only while the verdict is edge candidate
               </label>
             </div>
           </fieldset>
@@ -325,7 +261,6 @@ const AlertsPage: React.FC = () => {
             ) : (
               <ul className={styles.list}>
                 {alerts.rules.map((r) => {
-                  const rec = r.interval === interval ? pooledMap.get(r.setupKey) : undefined;
                   return (
                     <li key={r.id}>
                       <div className={styles.grow}>
@@ -337,10 +272,6 @@ const AlertsPage: React.FC = () => {
                           {[r.telegram && "Telegram", r.inApp && "in-app"]
                             .filter(Boolean)
                             .join(" + ")}
-                          {r.edgeOnly ? " · edge only" : ""}
-                          {rec
-                            ? ` · ${pct(rec.ci[0])}–${pct(rec.ci[1])} vs BE ${pct(rec.breakEven)}`
-                            : ""}
                           {r.paused ? " · paused" : ""}
                         </span>
                       </div>
@@ -369,7 +300,7 @@ const AlertsPage: React.FC = () => {
 
           <section className={styles.card} aria-labelledby="fired-title">
             <div className={styles.cardHead}>
-              <h2 id="fired-title">Recent firings and what happened</h2>
+              <h2 id="fired-title">Recent firings</h2>
               <p>
                 {alerts.lastCheckAt
                   ? `Last checked ${when(alerts.lastCheckAt)}.`
@@ -390,20 +321,15 @@ const AlertsPage: React.FC = () => {
                         {f.symbol} · {setupName(f.setupKey)}
                       </Link>
                       <span className={`${styles.mute} ${styles.num}`}>
-                        {f.interval} · entry {price(f.entry)} · stop {price(f.stop)} · target{" "}
-                        {price(f.target)}
+                        {f.interval} · close {price(f.close)} · {f.score}/{f.of} checks
+                        {f.met.length ? `: ${f.met.join("; ")}` : ""}
                       </span>
                     </div>
-                    <Chip tone={OUTCOME[f.outcome].tone}>{OUTCOME[f.outcome].text}</Chip>
                     <Chip tone={DELIVERY[f.telegram].tone}>{DELIVERY[f.telegram].text}</Chip>
                   </li>
                 ))}
               </ul>
             )}
-            <p className={styles.note}>
-              Every fired alert is tracked to its outcome, so your own alerts become forward-test
-              data.
-            </p>
           </section>
         </div>
       </div>

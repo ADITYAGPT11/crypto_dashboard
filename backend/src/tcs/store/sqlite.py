@@ -1,7 +1,7 @@
-"""SQLite storage: candles, funding rates and setup statistics.
+"""SQLite storage: candles and recorded order-book depth.
 
 Interim store until the QuestDB collector lands (DECISIONS 2026-11-11): zero setup,
-one file, WAL mode so the API reads while the statistics job writes.
+one file, WAL mode so the API reads while the depth recorder writes.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import json
 import math
 import sqlite3
 import threading
-from collections.abc import Generator, Iterable, Sequence
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -29,66 +29,31 @@ CREATE TABLE IF NOT EXISTS candles (
   PRIMARY KEY (symbol, tf, open_time)
 ) WITHOUT ROWID;
 
-CREATE TABLE IF NOT EXISTS funding (
-  symbol TEXT NOT NULL, time INTEGER NOT NULL, rate REAL NOT NULL,  -- rate in percent
-  PRIMARY KEY (symbol, time)
-) WITHOUT ROWID;
-
--- Archive months already fetched (also those with no file: not listed yet), so they are not
--- asked for again.
-CREATE TABLE IF NOT EXISTS funding_months (
-  symbol TEXT NOT NULL, month TEXT NOT NULL,
-  PRIMARY KEY (symbol, month)
-) WITHOUT ROWID;
-
-CREATE TABLE IF NOT EXISTS stats_runs (
-  ruleset TEXT NOT NULL, tf TEXT NOT NULL,
-  status TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER,
-  meta TEXT NOT NULL DEFAULT '{}',
-  PRIMARY KEY (ruleset, tf)
-);
-
-CREATE TABLE IF NOT EXISTS setup_stats (
-  ruleset TEXT NOT NULL, tf TEXT NOT NULL, zone_tf TEXT NOT NULL, symbol TEXT NOT NULL,
-  pattern TEXT NOT NULL, direction TEXT NOT NULL, location TEXT NOT NULL,
-  context TEXT NOT NULL DEFAULT '*',
-  summary TEXT NOT NULL,
-  PRIMARY KEY (ruleset, tf, zone_tf, symbol, pattern, direction, location, context)
-) WITHOUT ROWID;
-
-CREATE TABLE IF NOT EXISTS setup_cases (
-  ruleset TEXT NOT NULL, tf TEXT NOT NULL, zone_tf TEXT NOT NULL, symbol TEXT NOT NULL,
-  pattern TEXT NOT NULL, direction TEXT NOT NULL, location TEXT NOT NULL,
-  time INTEGER NOT NULL, result TEXT NOT NULL, detail TEXT NOT NULL
-);
 CREATE TABLE IF NOT EXISTS depth_columns (
   symbol TEXT NOT NULL, time INTEGER NOT NULL,
   bucket REAL NOT NULL, mid REAL NOT NULL, samples INTEGER NOT NULL,
   bids TEXT NOT NULL, asks TEXT NOT NULL,
   PRIMARY KEY (symbol, time)
 ) WITHOUT ROWID;
-
-CREATE INDEX IF NOT EXISTS setup_cases_key
-  ON setup_cases (ruleset, tf, zone_tf, pattern, direction, location, time);
 """
+
+#: Tables of removed features (funding history, setup statistics; DECISIONS 2026-11-22),
+#: dropped from stores made before.
+OBSOLETE_TABLES = ("funding", "funding_months", "stats_runs", "setup_stats", "setup_cases")
 
 
 def _migrate(db: sqlite3.Connection) -> None:
     """Stores made before taker volume was kept: add the column and drop the cached candles.
 
     Candles are a cache of Binance's public archive, so they are downloaded again (with taker
-    volume) the next time a chart or the statistics job asks for them.
+    volume) the next time a chart asks for them. Tables of removed features are dropped.
     """
     cols = {row[1] for row in db.execute("PRAGMA table_info(candles)")}
     if "taker_buy" not in cols:
         db.execute("ALTER TABLE candles ADD COLUMN taker_buy REAL")
         db.execute("DELETE FROM candles")
-    # Statistics split by order-flow context (ruleset 2026.11-r2): older rows belong to an
-    # older rule set and are recomputed anyway, so the table is rebuilt with the new key.
-    stat_cols = {row[1] for row in db.execute("PRAGMA table_info(setup_stats)")}
-    if "context" not in stat_cols:
-        db.execute("DROP TABLE setup_stats")
-        db.executescript(SCHEMA)
+    for table in OBSOLETE_TABLES:
+        db.execute(f"DROP TABLE IF EXISTS {table}")
 
 
 class Store:
@@ -180,197 +145,6 @@ class Store:
         )
 
     # Funding rates -------------------------------------------------------------
-
-    def put_funding(
-        self, symbol: str, rows: Iterable[tuple[int, float]], month: str | None = None
-    ) -> None:
-        """Store funding events (time ms, rate %); ``month`` (YYYY-MM) marks an archive month done."""
-        with self.tx() as db:
-            db.executemany(
-                "INSERT OR REPLACE INTO funding VALUES (?,?,?)",
-                [(symbol, int(t), float(r)) for t, r in rows],
-            )
-            if month is not None:
-                db.execute("INSERT OR IGNORE INTO funding_months VALUES (?,?)", (symbol, month))
-
-    def funding_months(self, symbol: str) -> set[str]:
-        with self.tx() as db:
-            return {
-                r[0]
-                for r in db.execute("SELECT month FROM funding_months WHERE symbol=?", (symbol,))
-            }
-
-    def funding(self, symbol: str, since: int, until: int) -> list[tuple[int, float]]:
-        """Funding events (time ms, rate %) with time in [since, until], oldest first."""
-        with self.tx() as db:
-            return [
-                (int(t), float(r))
-                for t, r in db.execute(
-                    "SELECT time, rate FROM funding WHERE symbol=? AND time BETWEEN ? AND ?"
-                    " ORDER BY time",
-                    (symbol, since, until),
-                )
-            ]
-
-    # Statistics --------------------------------------------------------------
-
-    def start_run(self, ruleset: str, tf: Timeframe, now: int, meta: dict[str, Any]) -> None:
-        with self.tx() as db:
-            db.execute(
-                "INSERT OR REPLACE INTO stats_runs VALUES (?,?,?,?,?,?)",
-                (ruleset, tf, "running", now, None, json.dumps(meta)),
-            )
-
-    def update_run(self, ruleset: str, tf: Timeframe, meta: dict[str, Any]) -> None:
-        with self.tx() as db:
-            db.execute(
-                "UPDATE stats_runs SET meta=? WHERE ruleset=? AND tf=?",
-                (json.dumps(meta), ruleset, tf),
-            )
-
-    def finish_run(
-        self, ruleset: str, tf: Timeframe, now: int, status: str, meta: dict[str, Any]
-    ) -> None:
-        with self.tx() as db:
-            db.execute(
-                "UPDATE stats_runs SET status=?, finished_at=?, meta=? WHERE ruleset=? AND tf=?",
-                (status, now, json.dumps(meta), ruleset, tf),
-            )
-
-    def run(self, ruleset: str, tf: Timeframe) -> dict[str, Any] | None:
-        row = (
-            self._conn()
-            .execute(
-                "SELECT status, started_at, finished_at, meta FROM stats_runs WHERE ruleset=? AND tf=?",
-                (ruleset, tf),
-            )
-            .fetchone()
-        )
-        if row is None:
-            return None
-        return {
-            "status": row[0],
-            "started_at": row[1],
-            "finished_at": row[2],
-            "meta": json.loads(row[3]),
-        }
-
-    def replace_stats(
-        self,
-        ruleset: str,
-        tf: Timeframe,
-        stats: Sequence[tuple[str, str, str, str, str, str, dict[str, Any]]],
-        cases: Sequence[tuple[str, str, str, str, str, int, str, dict[str, Any]]],
-    ) -> None:
-        """Swap in a finished run's results atomically (readers never see half a run)."""
-        with self.tx() as db:
-            db.execute("DELETE FROM setup_stats WHERE ruleset=? AND tf=?", (ruleset, tf))
-            db.execute("DELETE FROM setup_cases WHERE ruleset=? AND tf=?", (ruleset, tf))
-            db.executemany(
-                "INSERT INTO setup_stats VALUES (?,?,?,?,?,?,?,?,?)",
-                [
-                    (ruleset, tf, z, sym, p, d, loc, ctx, json.dumps(s))
-                    for z, sym, p, d, loc, ctx, s in stats
-                ],
-            )
-            db.executemany(
-                "INSERT INTO setup_cases VALUES (?,?,?,?,?,?,?,?,?,?)",
-                [
-                    (ruleset, tf, z, sym, p, d, loc, t, res, json.dumps(det))
-                    for z, sym, p, d, loc, t, res, det in cases
-                ],
-            )
-
-    def stats(
-        self,
-        ruleset: str,
-        tf: Timeframe,
-        zone_tf: Timeframe,
-        symbol: str = "*",
-        context: str = "*",
-    ) -> list[tuple[str, str, str, dict[str, Any]]]:
-        rows = (
-            self._conn()
-            .execute(
-                "SELECT pattern, direction, location, summary FROM setup_stats "
-                "WHERE ruleset=? AND tf=? AND zone_tf=? AND symbol=? AND context=?",
-                (ruleset, tf, zone_tf, symbol, context),
-            )
-            .fetchall()
-        )
-        return [(r[0], r[1], r[2], json.loads(r[3])) for r in rows]
-
-    def setup_by_symbol(
-        self,
-        ruleset: str,
-        tf: Timeframe,
-        zone_tf: Timeframe,
-        pattern: str,
-        direction: str,
-        location: str,
-    ) -> list[tuple[str, dict[str, Any]]]:
-        rows = (
-            self._conn()
-            .execute(
-                "SELECT symbol, summary FROM setup_stats WHERE ruleset=? AND tf=? AND zone_tf=? "
-                "AND pattern=? AND direction=? AND location=? AND symbol != '*' AND context='*'",
-                (ruleset, tf, zone_tf, pattern, direction, location),
-            )
-            .fetchall()
-        )
-        return [(r[0], json.loads(r[1])) for r in rows]
-
-    def contexts(
-        self,
-        ruleset: str,
-        tf: Timeframe,
-        zone_tf: Timeframe,
-        pattern: str,
-        direction: str,
-        location: str,
-    ) -> list[tuple[str, dict[str, Any]]]:
-        """Pooled record of one setup per order-flow context (``*`` excluded)."""
-        rows = (
-            self._conn()
-            .execute(
-                "SELECT context, summary FROM setup_stats WHERE ruleset=? AND tf=? AND zone_tf=? "
-                "AND pattern=? AND direction=? AND location=? AND symbol='*' AND context != '*'",
-                (ruleset, tf, zone_tf, pattern, direction, location),
-            )
-            .fetchall()
-        )
-        return [(r[0], json.loads(r[1])) for r in rows]
-
-    def cases(
-        self,
-        ruleset: str,
-        tf: Timeframe,
-        zone_tf: Timeframe,
-        pattern: str,
-        direction: str,
-        location: str,
-        symbol: str | None = None,
-        limit: int = 20,
-    ) -> list[dict[str, Any]]:
-        sql = (
-            "SELECT symbol, location, time, result, detail FROM setup_cases WHERE ruleset=? AND tf=? "
-            "AND zone_tf=? AND pattern=? AND direction=? AND result IN ('win','loss','expired')"
-        )
-        args: list[Any] = [ruleset, tf, zone_tf, pattern, direction]
-        if location != "*":
-            sql += " AND location=?"
-            args.append(location)
-        if symbol:
-            sql += " AND symbol=?"
-            args.append(symbol)
-        sql += " ORDER BY time DESC LIMIT ?"
-        args.append(limit)
-        return [
-            {"symbol": r[0], "location": r[1], "time": r[2], "result": r[3], **json.loads(r[4])}
-            for r in self._conn().execute(sql, args).fetchall()
-        ]
-
-    # Order-book depth (heatmap history) ---------------------------------------
 
     def put_depth(self, symbol: str, col: Column, delete_before: int | None = None) -> None:
         """Store one minute column; drop this symbol's columns older than ``delete_before``."""

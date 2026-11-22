@@ -24,67 +24,19 @@ export interface CandlesOut {
   coverage: CoverageOut;
 }
 
-export interface CaseOut {
-  symbol: string;
-  location: string;
-  time: number;
-  result: "win" | "loss" | "expired";
-  entry: number;
-  stop: number;
-  target: number;
-  movePct: number;
-  r: number;
-  bars: number;
-  exitTime: number | null;
-  deltaRatio?: number | null;
-  flow?: "confirms" | "against" | "neutral" | null;
-  cvdDivergence?: boolean | null;
-  score?: number | null;
-  trailResult?: "win" | "loss" | "expired" | "open" | null;
-  trailR?: number | null;
-  trailBars?: number | null;
-  trailExitTime?: number | null;
-  costR?: number | null;
-  netR?: number | null;
-  trailNetR?: number | null;
-}
-
 export interface CatalogOut {
   ruleset: string;
   patterns: PatternOut[];
-  maxHoldBars: number;
-  trailAtr?: number;
-  minSample: number;
+  maxScore: number;
   timeframes: string[];
   universe: string[];
 }
 
-export interface CoinSummaryOut {
-  symbol: string;
-  summary: SummaryOut;
-}
-
-export interface ConfidenceOut {
-  winRate: number;
-  ciLow: number;
-  ciHigh: number;
-  n: number;
-  basis: "score" | "pattern";
-  breakEven?: number;
-  expectancyNetR?: number;
-  verdict?: "edge" | "noEdge" | "tooFew";
-}
-
-export interface ContextSummaryOut {
-  context: string;
-  summary: SummaryOut;
-}
-
-export interface CostsOut {
-  feePct: number;
-  slippagePct: number;
-  roundTripPct: number;
-  fundingUntil: Record<string, number | null>;
+export interface CheckOut {
+  id: "location" | "rsi" | "volume" | "vwap" | "atr" | "supertrend";
+  label: string;
+  passed: boolean;
+  detail: string;
 }
 
 export interface CoverageOut {
@@ -122,12 +74,6 @@ export interface DepthOut {
   columns: DepthColumnOut[];
 }
 
-export interface FlowOut {
-  deltaRatio: number | null;
-  flow: "confirms" | "against" | "neutral" | null;
-  cvdDivergence: boolean | null;
-}
-
 export interface FvgOut {
   kind: "bullish" | "bearish";
   low: number;
@@ -140,7 +86,6 @@ export interface FvgOut {
 export interface HealthOut {
   ok: boolean;
   ruleset: string;
-  runs: Record<string, RunOut | null>;
 }
 
 export interface LineOut {
@@ -155,18 +100,12 @@ export interface OccurrenceOut {
   location: "confluence" | "zone" | "orderBlock" | "openSpace";
   time: number;
   startTime: number;
-  entry: number;
-  stop: number;
-  target: number;
+  close: number;
   extreme: number;
   points: PointOut[];
   lines: LineOut[];
-  outcome: OutcomeOut;
-  flow: FlowOut;
-  trail: TrailOut;
   score: number;
-  confidence?: ConfidenceOut | null;
-  passes?: boolean;
+  checks: CheckOut[];
 }
 
 export interface OrderBlockOut {
@@ -178,15 +117,6 @@ export interface OrderBlockOut {
   endTime: number | null;
   mitigatedTime: number | null;
   broke: number;
-}
-
-export interface OutcomeOut {
-  result: "win" | "loss" | "expired" | "open";
-  exitTime: number | null;
-  movePct: number;
-  r: number;
-  bars: number;
-  exitPrice?: number | null;
 }
 
 export interface PatternOut {
@@ -204,25 +134,9 @@ export interface PointOut {
   label: string;
 }
 
-export interface RunOut {
-  status: "running" | "done" | "failed";
-  startedAt: number;
-  finishedAt: number | null;
-  coins: string[];
-  done: number;
-  failed: string[];
-  since: number;
-  until: number | null;
-  candles: number;
-  days: number;
-  costs?: CostsOut | null;
-}
-
 export interface ScannerItemOut {
   symbol: string;
   occurrence: OccurrenceOut;
-  pooled: SummaryOut | null;
-  own: SummaryOut | null;
 }
 
 export interface ScannerOut {
@@ -232,42 +146,6 @@ export interface ScannerOut {
   bars: number;
   items: ScannerItemOut[];
   failed: string[];
-  run: RunOut | null;
-}
-
-export interface SetupDetailOut {
-  ruleset: string;
-  tf: string;
-  zoneTf: string;
-  pattern: string;
-  direction: "long" | "short";
-  location: string;
-  pooled: SummaryOut | null;
-  perCoin: CoinSummaryOut[];
-  contexts: ContextSummaryOut[];
-  recent: CaseOut[];
-}
-
-export interface SetupStatOut {
-  pattern: string;
-  direction: "long" | "short";
-  location: string;
-  summary: SummaryOut;
-}
-
-export interface StatsOut {
-  ruleset: string;
-  tf: string;
-  zoneTf: string;
-  run: RunOut | null;
-  context?: string;
-  symbol?: string;
-  setups: SetupStatOut[];
-}
-
-export interface StopOut {
-  time: number;
-  price: number;
 }
 
 export interface StructureOut {
@@ -276,53 +154,6 @@ export interface StructureOut {
   level: number;
   swingTime: number;
   time: number;
-}
-
-export interface SummaryOut {
-  n: number;
-  wins: number;
-  losses: number;
-  expired: number;
-  open?: number;
-  winRate: number;
-  ciLow: number;
-  ciHigh: number;
-  breakEven: number;
-  avgWinPct: number;
-  avgLossPct: number;
-  expectancyR: number;
-  medianBars: number;
-  verdict: "edge" | "noEdge" | "tooFew";
-  expectancyNetR?: number;
-  breakEvenNet?: number;
-  avgCostR?: number;
-  trail?: TrailSummaryOut | null;
-}
-
-export interface TrailOut {
-  result: "win" | "loss" | "expired" | "open";
-  exitTime: number | null;
-  exitPrice: number | null;
-  r: number;
-  bars: number;
-  activatedTime: number | null;
-  stops: StopOut[];
-}
-
-export interface TrailSummaryOut {
-  n: number;
-  wins: number;
-  winRate: number;
-  ciLow: number;
-  ciHigh: number;
-  expectancyR: number;
-  expectancyNetR?: number;
-  expLow: number | null;
-  expHigh: number | null;
-  avgWinR: number;
-  avgCostR?: number;
-  medianBars: number;
-  verdict: "edge" | "noEdge" | "tooFew";
 }
 
 export interface ZoneOut {

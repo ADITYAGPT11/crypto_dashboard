@@ -130,22 +130,6 @@
     color: var(--t-fg);
   }
 }
-.record {
-  padding: 16px;
-  border-radius: 12px;
-  background: var(--t-well);
-  border: 1px solid var(--t-inner);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-size: 13px;
-}
-.recordTop {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 20px;
-}
 .big {
   font-family: var(--t-font-data);
   font-size: 22px;

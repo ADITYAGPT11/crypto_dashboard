@@ -9,7 +9,7 @@
  *   lower view the entry sits after the last lower candle of that block.
  */
 import type { Candle, CandleInterval } from "../types/marketData";
-import type { ConfidenceOut, OccurrenceOut } from "../api/schema";
+import type { CheckOut, OccurrenceOut } from "../api/schema";
 import type { Direction, FairValueGap, OrderBlock, PatternId, Zone } from "../types/analysis";
 import { INTERVAL_TO_MS } from "./candleUtils";
 
@@ -69,40 +69,13 @@ export interface ViewPattern {
   startX: number;
   /** Necklines, trendlines and flag lines. */
   lines: ViewLine[];
-  /** Measured win rate of past setups like this one (null until a statistics run has it). */
-  confidence: ConfidenceOut | null;
-  /** The confidence filter: its record clears break-even after costs. False = drawn grey. */
-  passes: boolean;
+  /** The setup checklist (backend `checklist.py`): items passed out of `checks.length`. */
+  score: number;
+  checks: CheckOut[];
   /** The pattern's extreme (low for longs, high for shorts): where its tag sits. */
   extreme: number;
-  entry: number;
-  stop: number;
-  target: number;
-  /** The trade plan's result; `exitPrice` = where it was filled (null while open). */
-  outcome: { result: "win" | "loss" | "expired" | "open"; r: number; exitPrice: number | null };
-  /** Close of the candle that hit the target or stop (null while open). */
-  exitX: number | null;
-  /** End of the outcome window: `holdBars` pattern candles after the entry. */
-  windowEndX: number;
-  /** The same trade exited with the trailing take-profit. */
-  trail: {
-    result: "win" | "loss" | "expired" | "open";
-    r: number;
-    exitX: number | null;
-    exitPrice: number | null;
-    activatedX: number | null;
-    /** The stop in force from `x` on (left edge of the candle it applies to). */
-    stops: { x: number; price: number }[];
-  };
-}
-
-/** Candles a setup may stay open (`backend/src/tcs/analysis/outcomes.py` MAX_HOLD_BARS). */
-export const OUTCOME_BARS = 120;
-
-/** The holding limit of one setup: OUTCOME_BARS, or its formation's length when longer
- * (`outcomes.py::hold_bars`). */
-export function holdBars(time: number, startTime: number, ms: number): number {
-  return Math.max(OUTCOME_BARS, Math.round((time - startTime) / ms));
+  /** Close of the confirmation candle (the breakout). */
+  close: number;
 }
 
 /** Map an occurrence detected on `tf` candles onto the view (everything is by time). */
@@ -138,26 +111,9 @@ export function toViewPattern(
       label: l.label,
     })),
     extreme: occ.extreme,
-    confidence: occ.confidence ?? null,
-    passes: occ.passes ?? false,
-    entry: occ.entry,
-    stop: occ.stop,
-    target: occ.target,
-    outcome: {
-      result: occ.outcome.result,
-      r: occ.outcome.r,
-      exitPrice: occ.outcome.exitPrice ?? null,
-    },
-    exitX: occ.outcome.exitTime === null ? null : span(occ.outcome.exitTime).to,
-    windowEndX: logicalAt(view, vms, occ.time + ms * (1 + holdBars(occ.time, occ.startTime, ms))),
-    trail: {
-      result: occ.trail.result,
-      r: occ.trail.r,
-      exitX: occ.trail.exitTime === null ? null : span(occ.trail.exitTime).to,
-      exitPrice: occ.trail.exitPrice,
-      activatedX: occ.trail.activatedTime === null ? null : span(occ.trail.activatedTime).to,
-      stops: occ.trail.stops.map((st) => ({ x: span(st.time).from, price: st.price })),
-    },
+    score: occ.score,
+    checks: occ.checks,
+    close: occ.close,
   };
 }
 
@@ -220,14 +176,4 @@ export function toViewLevels(
       fresh: true,
     })),
   ];
-}
-
-/** Open time of the view candle in which a source candle closes (for markers). */
-export function viewBarTimeForClose(
-  view: readonly Candle[],
-  sourceOpen: number,
-  sourceMs: number,
-): number | null {
-  const i = barAt(view, sourceOpen + sourceMs - 1);
-  return i < 0 ? null : view[i].openTime;
 }

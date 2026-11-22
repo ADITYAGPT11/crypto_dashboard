@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vite-plus/test";
-import type { SetupOccurrence, SetupStats } from "../../types/analysis";
+import type { SetupOccurrence } from "../../types/analysis";
 import type { CurrentSetup } from "../setupAlerts";
 import { SetupAlertService } from "../../services/SetupAlertService";
 
 const H4 = 14_400_000;
 
-function occurrence(time: number, result: SetupOccurrence["outcome"]["result"]): SetupOccurrence {
+function occurrence(time: number): SetupOccurrence {
   return {
     symbol: "BTC-USDT",
     pattern: "hammer",
@@ -13,31 +13,25 @@ function occurrence(time: number, result: SetupOccurrence["outcome"]["result"]):
     location: "zone",
     time,
     startTime: time,
-    entry: 100,
-    stop: 98,
-    target: 103,
+    close: 100,
     extreme: 98,
     points: [],
     lines: [],
-    outcome: { result, exitTime: null, movePct: 0, r: 0, bars: 0 },
-    flow: { deltaRatio: null, flow: null, cvdDivergence: null },
-    score: 2,
-    trail: {
-      result: "open",
-      exitTime: null,
-      exitPrice: null,
-      r: 0,
-      bars: 0,
-      activatedTime: null,
-      stops: [],
-    },
+    score: 1,
+    checks: [
+      {
+        id: "location",
+        label: "At a bullish order block / demand zone",
+        passed: true,
+        detail: "at a zone",
+      },
+      { id: "rsi", label: "RSI 50-70: healthy momentum", passed: false, detail: "RSI 44" },
+    ],
   };
 }
 
-const pooled = { n: 40, wins: 22, winRate: 0.55, ci: [0.4, 0.69], verdict: "noEdge" } as SetupStats;
-
-function currentWith(time: number, result: SetupOccurrence["outcome"]["result"]): CurrentSetup[] {
-  return result === "open" ? [{ occurrence: occurrence(time, result), pooled }] : [];
+function currentWith(time: number): CurrentSetup[] {
+  return [{ occurrence: occurrence(time) }];
 }
 
 function memoryStorage() {
@@ -49,18 +43,16 @@ function memoryStorage() {
 }
 
 describe("SetupAlertService", () => {
-  it("fires once, delivers to Telegram, then tracks the outcome", async () => {
+  it("fires once and delivers the checklist to Telegram", async () => {
     let now = 100 * H4;
-    let current = currentWith(101 * H4, "open");
-    let later = [occurrence(101 * H4, "open")];
-    let sig = "a";
+    const current = currentWith(101 * H4);
+    const sig = "a";
     const request = vi.fn(async (path: string, _init?: RequestInit) =>
       path === "/alerts/send" ? { success: true } : { configured: true },
     );
     const storage = memoryStorage();
     const svc = new SetupAlertService({
       scanFor: async () => ({ current, sig }),
-      occurrencesFor: async () => later,
       request,
       watchlist: () => [],
       now: () => now,
@@ -73,32 +65,26 @@ describe("SetupAlertService", () => {
       interval: "4h",
       telegram: true,
       inApp: true,
-      edgeOnly: false,
     });
     await svc.check();
     now = 102 * H4;
     await svc.check(); // same history signature: no duplicate
     expect(svc.getSnapshot().firings).toHaveLength(1);
-    expect(svc.getSnapshot().firings[0]).toMatchObject({ telegram: "sent", outcome: "open" });
+    expect(svc.getSnapshot().firings[0]).toMatchObject({ telegram: "sent", score: 1, of: 2 });
     const sends = request.mock.calls.filter(([p]) => p === "/alerts/send");
     expect(sends).toHaveLength(1);
-    expect(sends[0][1]?.body as string).toContain("22 of 40 won");
-
-    current = currentWith(101 * H4, "win");
-    later = [occurrence(101 * H4, "win")];
-    sig = "b";
-    await svc.check();
-    expect(svc.getSnapshot().firings[0].outcome).toBe("win");
+    expect(sends[0][1]?.body as string).toContain("1/2");
+    expect(sends[0][1]?.body as string).toContain("At a bullish order block / demand zone");
 
     // Rules and firings persist for the next session.
     const reloaded = new SetupAlertService({ storage, scanFor: async () => ({ current, sig }) });
     expect(reloaded.getSnapshot().rules).toHaveLength(1);
-    expect(reloaded.getSnapshot().firings[0].outcome).toBe("win");
+    expect(reloaded.getSnapshot().firings[0]).toMatchObject({ score: 1, of: 2 });
   });
 
   it("marks delivery offline when the backend is unreachable", async () => {
     const svc = new SetupAlertService({
-      scanFor: async () => ({ current: currentWith(101 * H4, "open"), sig: "x" }),
+      scanFor: async () => ({ current: currentWith(101 * H4), sig: "x" }),
       request: async () => {
         throw new Error("ECONNREFUSED");
       },
@@ -112,7 +98,6 @@ describe("SetupAlertService", () => {
       interval: "4h",
       telegram: true,
       inApp: false,
-      edgeOnly: false,
     });
     await svc.check();
     expect(svc.getSnapshot().firings[0].telegram).toBe("offline");

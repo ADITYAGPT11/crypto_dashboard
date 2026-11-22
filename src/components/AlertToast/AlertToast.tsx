@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { useSetupAlerts } from "../../custom-hooks/useSetupAlerts";
 import { SetupAlertService } from "../../services/SetupAlertService";
 import { setupName } from "../../utils/setupAlerts";
-import { pct } from "../../utils/format";
 import styles from "./AlertToast.module.scss";
 
 /** In-app banner for setup alerts that fired and haven't been dismissed. */
@@ -18,8 +17,7 @@ const AlertToast: React.FC = () => {
           {f.symbol} printed a {setupName(f.setupKey).toLowerCase()} on {f.interval}
         </b>
         <span>
-          Past record: {f.record.wins} of {f.record.n} ({pct(f.record.winRate)}, range{" "}
-          {pct(f.record.ci[0])}–{pct(f.record.ci[1])}), break-even after costs.
+          {f.of > 0 ? `${f.score}/${f.of} checks met.` : ""}
           {unseen.length > 1 ? ` ${unseen.length - 1} more.` : ""}
         </span>
       </div>

@@ -20,18 +20,16 @@ SNAPSHOT = Path(__file__).parent / "fixtures" / "golden_eth_4h.json"
 
 def snapshot() -> dict[str, object]:
     a = analyze(real_eth_4h())
-    hits = Counter(f"{o.hit.pattern}|{o.location}|{o.outcome.result}" for o in a.occurrences)
-    flows = Counter(
-        f"{o.hit.direction}|{o.flow.flow}|div={o.flow.divergence}" for o in a.occurrences
-    )
-    scores = Counter(f"{o.hit.direction}|score={o.score.total}" for o in a.occurrences)
+    hits = Counter(f"{o.hit.pattern}|{o.location}" for o in a.occurrences)
+    scores = Counter(f"{o.hit.direction}|score={o.checklist.score}" for o in a.occurrences)
+    checks = Counter(c.id for o in a.occurrences for c in o.checklist.checks if c.passed)
     lv = a.levels
     return {
         "ruleset": RULESET_VERSION,
         "candles": len(a.series),
         "hits": dict(sorted(hits.items())),
-        "flows": dict(sorted(flows.items())),
         "scores": dict(sorted(scores.items())),
+        "checksPassed": dict(sorted(checks.items())),
         "zones": len(lv.zones),
         "orderBlocks": len(lv.order_blocks),
         "fvgs": len(lv.fvgs),

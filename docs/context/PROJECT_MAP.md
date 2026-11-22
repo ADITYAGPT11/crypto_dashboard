@@ -21,26 +21,19 @@ One rule set; both the chart and the background statistics call `analysis/engine
   flag; prior trend; twins by mirroring),
   `mirroring.py` (bearish twins back to real prices, labels flipped: Bottom ↔ Top, Upper ↔ Lower),
   `trendlines.py` (triangles, wedges), `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
-  `location.py`, `outcomes.py` (trade plan: TP1 then a trailing stop, strict 5-minute fills), `plan.py` (1h stop buffer, cost filter), `costs.py` (fees, slippage,
-  funding → R per case), `flow.py` (order-flow context: delta, CVD divergence), `confidence.py` (order-flow score 0-3 → the
-  confidence filter; setups without an edge drawn grey), `stats.py`
-  (Wilson, after-cost break-even, expectancy, verdict), `engine.py`, `types.py`.
+  `location.py`, `checklist.py` (six checks at confirmation → "4/6"), `indicators.py` (ATR, EMA,
+  SMA, RSI, rolling VWAP, Supertrend), `engine.py`, `types.py`.
   Rules in words: `docs/product/patterns.md`.
-- `marketdata/`: `binance.py` (REST klines and funding + `data.binance.vision` zips, pacing,
-  cooldown on refusal), `history.py` (`ensure`: archive months → archive days → REST tail;
-  coverage/gaps; `ensure_funding`: archive months → REST tail)
+- `marketdata/`: `binance.py` (REST klines + `data.binance.vision` zips, pacing, cooldown on
+  refusal), `history.py` (`ensure`: archive months → archive days → REST tail; coverage/gaps)
 - `depth/`: `books.py` (Binance / OKX book sync, port of `depthBook.ts`), `sampler.py` (books →
   one-minute bucket columns), `recorder.py` (`DepthRecorder`: per-symbol sockets with reconnect,
   2 s sampling, started in the API lifespan; `TCS_DEPTH_RECORD`, `TCS_DEPTH_SYMBOLS`,
   `TCS_DEPTH_DAYS`)
-- `store/sqlite.py`: candles, funding rates (+ fetched months), stats runs, setup stats (per
-  order-flow context), setup cases,
-  depth columns (WAL, swap per run)
-- `jobs/stats_job.py`: per pattern TF, every coin, every allowed level TF; aggregates per coin
-  and pooled, per location and any location
-- `api/`: `app.py` (routes, scheduler in a worker process), `service.py`, `schemas.py`
+- `store/sqlite.py`: candles and depth columns (WAL); drops tables of removed features on start
+- `api/`: `app.py` (routes; depth recorder in the lifespan), `service.py`, `schemas.py`
   (camelCase models), `convert.py`, `ts_types.py` (generates `src/api/schema.ts`)
-- `cli.py`: `tcs serve | stats | backfill | openapi | ts-types`
+- `cli.py`: `tcs serve | backfill | openapi | ts-types`
 - `tests/`: invariants (no look-ahead, scale, determinism, mirror, levels known when formed),
   per-clause rules, golden snapshot (`fixtures/` real ETH 4h), API with a fake source
 
@@ -124,11 +117,10 @@ price table, spread (arbitrage), order book, alerts.
   book every 5 s for the far levels, added up within ±2% of the mid and sampled every 2 s while
   the heatmap is on; per-exchange state and share
 - `SetupAlertService`: setup-alert rules + firings (localStorage), 60 s check against the
-  service's scanner, outcome tracking via its analysis, Telegram via the Node prototype
+  service's scanner (each firing carries the setup's checklist), Telegram via the Node prototype
   `/api/alerts/send` (injectable deps for tests)
 
-**Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useStats`, `useCoinStats` (`/stats?symbol=`), `useSetupDetail`,
-`useScanner`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
+**Hooks**: `useAnalysisApi` (`useCatalog`, `useAnalysis`, `useScanner`), `useUniverseCandles` (+ `researchUniverse`), `useLiquidity`, `useSetupAlerts`,
 `useMarketOverview`, `useNow`, `useHistories` (one symbol, several TFs),
 `useDepthHistory` (recorded heatmap minutes from `/api/v1/depth`, once per enable),
 `useFootprint` (live footprint per view bar and row size; session trade buffer per symbol),
@@ -136,12 +128,11 @@ price table, spread (arbitrage), order book, alerts.
 renders/s), `useLiveCandle` (forming candle: Binance, OKX when Binance is silent; `utils/liveCandle`), `useLivePrice`, `useLiveFundingRate`, `useDataFreshness`, `useTickerStats`,
 `useOrderBook`, `useTrades`, `useHistory`, `useConnectionSummary`
 
-**Analysis in the browser**: none that feeds statistics (the service owns every rule). Display
+**Analysis in the browser**: none (the service owns every rule). Display
 helpers: `volumeProfile` (visible-range histogram, POC / value area), `timeframeMapping` (times
 → view positions for patterns, zones, blocks, gaps), `patternGeometry` (how a selected pattern is
-drawn: shaded formation, necklines/trendlines, key-point tags, measured move, position box), `setupKeys` (`pattern|direction|location`,
-labels, legacy-key upgrade), `patternLabels` (catalogue names), `setupLibrary` (stats map, filter,
-sort, totals), `patternGroups` (chart detections → one row per pattern and direction), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`, Delta
+drawn: shaded formation, necklines/trendlines, key-point tags, breakout), `setupKeys` (`pattern|direction|location`,
+labels, legacy-key upgrade), `patternLabels` (catalogue names), `patternGroups` (chart detections → one row per pattern and direction), `depthBook` (Binance snapshot+diff sync, OKX sequenced sync, OKX full book, `farBook`, Delta
 `l2_orderbook`), `liquidityHeatmap`
 (buckets, samples, pools, recorded columns → samples, history + live merge), `heatmapRender`
 (thermal palette, contrast, snapshots → pixel buffer), `orderFlow` (delta, CVD, `BigTradeDetector`, time → bar
@@ -154,7 +145,7 @@ service's `/api/v1/candles`) + `RESEARCH_UNIVERSE`.
 
 **Pure utils (unit-tested in `src/utils/__tests__/`)**: `indicators`, `candleUtils`,
 `orderBookUtils`, `symbolUtils` (parsing, leveraged-token filter, quote currency), `connectionState`
-(close → connecting/down), `setupLibrary` (filter/sort/per-coin, setup-key parsing), `riskCalc`
+(close → connecting/down), `setupKeys` (setup-key parsing), `riskCalc`
 (position sizing + remembered prefs), `setupAlerts` (rule matching, storage parsing, Telegram
 payload), `marketStats` (volatility, ATR, trend, correlation, vol regime, sessions, movers,
 bubble layout), `marketOverview` (source parsers, liquidation sums), `marketRows` (per-coin
@@ -177,13 +168,13 @@ Layout, edge routing, highlight sets and `validateMaps` are pure in `src/utils/a
 
 **UI components**: `TopNav/`, `DashboardPage/` (+ `MarketOverview/`: strip, `CoinSearch`,
 `Connections`, `BubbleMap`, `Sentiment`, `MarketMonitor`, `Correlation`, `Liquidations`,
-`Regime`, `Movers`, `DataHealth`), `StatsPage/`, `RiskPage/`, `AlertsPage/`,
+`Regime`, `Movers`, `DataHealth`), `RiskPage/`, `AlertsPage/`,
 `AlertToast/`, `ChartPage/` (`PriceChart` with panes/legend/drawings, `ChartToolbar`,
 `DrawingToolbar`, `IndicatorsDialog`, `IndicatorSettings`, `Modal`, `icons`, `DetectionSettings`
 (Patterns popover in the toolbar), `TfBadge`, `PatternRows` (rows under the chart), `WatchlistStrip`, `LiquidityPanel`, `drawPattern`, `drawHeatmap`, `drawBigTrades`, `drawFootprint`, `OverlaySettingsDialog`) (`PriceChart`: Lightweight Charts +
 overlay canvas), `MainContainer/` (Markets), `dashboard/` (`PriceTable` → `PriceRow` →
 `PriceCell`, `OrderBookPanel`, `Metrics`, `ConnectionStatus`), `ArbitragePanel/`, `AlertsPanel/`,
-`AboutUs/`, `common-components/` (`Evidence`: Chip, CiBar, VerdictChip, Explain; `SymbolSearch`,
+`AboutUs/`, `common-components/` (`Evidence`: Chip, Explain; `SymbolSearch`,
 `RealTimeClock`)
 
 **Backend prototype** (`src/backend/`, `npm run backend` bundles it to `dist-backend/` and starts it on port 3001; type-checked via `tsconfig.backend.json`)

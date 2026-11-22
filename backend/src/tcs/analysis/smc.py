@@ -1,7 +1,7 @@
 """Market structure, order blocks and fair value gaps (ICT / "smart money concepts").
 
 Written in-house: the ``smart-money-concepts`` package marks swings with future
-candles (look-ahead), which would leak into statistics. Here every swing is used
+candles (look-ahead), which would show patterns that were not visible then. Here every swing is used
 only once it is known (``Swing.known_at``).
 
 - **Structure break**: the first close beyond the latest known, unbroken swing.

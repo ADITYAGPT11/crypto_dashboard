@@ -3,26 +3,32 @@ import { Link } from "react-router-dom";
 import { RESEARCH_UNIVERSE } from "../../services/HistoryService";
 import { MarketDataService } from "../../services/MarketDataService";
 import { useUniverseCandles } from "../../custom-hooks/useUniverseCandles";
-import { useCatalog, useScanner, useStats } from "../../custom-hooks/useAnalysisApi";
+import { useCatalog, useScanner } from "../../custom-hooks/useAnalysisApi";
 import { useLivePrice } from "../../custom-hooks/useLivePrice";
 import { loadWatchlist } from "../../utils/watchlistStorage";
 import { patternLabel } from "../../utils/patternLabels";
-import { setupKey } from "../../utils/setupKeys";
-import { statsByKey } from "../../utils/setupLibrary";
 import { loadDetection, pickedKeys, pickKey } from "../../utils/detectionConfig";
-import { pct, price, signedPct, signedR } from "../../utils/format";
+import { price, signedPct } from "../../utils/format";
 import type { Candle } from "../../types/marketData";
-import type { SetupOccurrence, SetupStats } from "../../types/analysis";
-import { Chip, CiBar, Explain, VerdictChip } from "../../common-components/Evidence";
+import type { SetupOccurrence } from "../../types/analysis";
+import { Chip, Explain } from "../../common-components/Evidence";
 import MarketOverview from "../MarketOverview";
 import styles from "./DashboardPage.module.scss";
 
 const INTERVAL = "4h" as const;
 const SPARK = 42; // 7 days of 4h candles
 
-function setupLabel(s: Pick<SetupStats, "pattern" | "direction">) {
-  return `${s.direction === "long" ? "▲" : "▼"} ${patternLabel(s.pattern)}`;
-}
+/** Setups meeting at least this many checklist items are called out in the band. */
+const STRONG = 4;
+/** Short names of the checklist items for the table. */
+const CHECK_SHORT: Record<string, string> = {
+  location: "level",
+  rsi: "RSI",
+  volume: "volume",
+  vwap: "VWAP",
+  atr: "ATR",
+  supertrend: "Supertrend",
+};
 
 /** Header band with a three-layer parallax, disabled under reduced motion. */
 function Band({ children }: { children: React.ReactNode }) {
@@ -128,50 +134,29 @@ const DashboardPage: React.FC = () => {
   const universe = useMemo(() => [...new Set([...watchlist, ...RESEARCH_UNIVERSE])], [watchlist]);
   const [attempt, setAttempt] = useState(0);
   const { candles, failed } = useUniverseCandles(universe, INTERVAL, attempt);
-  // Levels from the pattern's own timeframe; records are read at any location.
+  // Levels (zones, order blocks) from the pattern's own timeframe.
   const zoneTf = INTERVAL;
   const catalog = useCatalog().data;
   const scanner = useScanner(INTERVAL, zoneTf, watchlist);
-  const statsRes = useStats(INTERVAL, zoneTf);
-  const run = statsRes.data?.run ?? null;
   const ready = scanner.data !== null;
-  const serviceError = scanner.error ?? statsRes.error;
+  const serviceError = scanner.error;
 
   useEffect(() => {
     MarketDataService.getInstance().startMarketData(watchlist);
   }, [watchlist]);
 
-  const statsMap = useMemo(() => statsByKey(statsRes.data), [statsRes.data]);
   // The patterns picked in the chart's Patterns panel (chart patterns by default).
   const picked = useMemo(() => pickedKeys(loadDetection(), catalog), [catalog]);
-  const current = useMemo(
+  // The scanner lists the most checks met first.
+  const current: SetupOccurrence[] = useMemo(
     () =>
       (scanner.data?.items ?? [])
         .filter((i) => picked.has(pickKey(i.occurrence.pattern, i.occurrence.direction)))
-        .map((i) => {
-          const o: SetupOccurrence = { ...i.occurrence, symbol: i.symbol };
-          return {
-            occurrence: o,
-            pooled: statsMap.get(setupKey(o.pattern, o.direction, "*")) ?? null,
-          };
-        }),
-    [scanner.data, statsMap, picked],
+        .map((i) => ({ ...i.occurrence, symbol: i.symbol })),
+    [scanner.data, picked],
   );
-  const edgeNow = current.filter((c) => c.pooled?.verdict === "edge").length;
-  const library = useMemo(
-    () =>
-      [...statsMap.values()]
-        .filter((s) => s.location === "*" && s.n > 0 && picked.has(pickKey(s.pattern, s.direction)))
-        .sort((a, b) => b.n - a.n),
-    [statsMap, picked],
-  );
-  const tracked = library.reduce((s, x) => s + x.n + x.expired, 0);
-  const coins = run ? run.coins.length - run.failed.length : 0;
-  const days = run?.days ?? 0;
-  const top =
-    current.find((c) => c.pooled?.verdict === "edge") ??
-    current.find((c) => c.pooled) ??
-    current[0];
+  const strong = current.filter((o) => o.score >= STRONG).length;
+  const top = current[0];
   const patternCount = picked.size;
 
   return (
@@ -196,14 +181,19 @@ const DashboardPage: React.FC = () => {
               : `Scanning ${universe.length} coins…`
             : current.length === 0
               ? "No setups on the last 3 closed candles."
-              : `${current.length} setup${current.length === 1 ? "" : "s"} on the last 3 closed candles. ${edgeNow} with a measured edge.`}
+              : `${current.length} setup${current.length === 1 ? "" : "s"} on the last 3 closed candles. ${strong} meet ${STRONG} or more of 6 checks.`}
         </h2>
         <p>
           {!ready
             ? (serviceError ?? "Detecting patterns on the latest closed candles of every coin…")
-            : top?.pooled
-              ? `${top.occurrence.symbol} printed a ${top.occurrence.direction === "long" ? "bullish" : "bearish"} ${patternLabel(top.occurrence.pattern).toLowerCase()}. Across ${top.pooled.n} past cases on ${coins} coins it reached its target ${pct(top.pooled.winRate)} of the time (range ${pct(top.pooled.ci[0])}–${pct(top.pooled.ci[1])}).`
-              : "The scanner re-checks at every candle close. Below is how each setup has performed so far."}
+            : top
+              ? `${top.symbol} printed a ${top.direction === "long" ? "bullish" : "bearish"} ${patternLabel(top.pattern).toLowerCase()} meeting ${top.score} of ${top.checks.length} checks: ${
+                  top.checks
+                    .filter((c) => c.passed)
+                    .map((c) => c.label.toLowerCase())
+                    .join("; ") || "none"
+                }.`
+              : "The scanner re-checks at every candle close."}
         </p>
         <div className={styles.kpis}>
           <div>
@@ -211,16 +201,16 @@ const DashboardPage: React.FC = () => {
             <span className={styles.num}>{ready ? current.length : "…"}</span>
           </div>
           <div>
-            <span className={styles.lbl}>Edge candidates</span>
-            <span className={`${styles.num} ${styles.up}`}>{ready ? edgeNow : "…"}</span>
+            <span className={styles.lbl}>{STRONG}+ checks</span>
+            <span className={`${styles.num} ${styles.up}`}>{ready ? strong : "…"}</span>
           </div>
           <div>
-            <span className={styles.lbl}>Patterns measured</span>
-            <span className={styles.num}>{run ? tracked.toLocaleString("en-US") : "…"}</span>
+            <span className={styles.lbl}>Patterns watched</span>
+            <span className={styles.num}>{patternCount || "…"}</span>
           </div>
           <div>
-            <span className={styles.lbl}>History</span>
-            <span className={styles.num}>{run ? `${coins} coins · ${days} d` : "…"}</span>
+            <span className={styles.lbl}>Coins</span>
+            <span className={styles.num}>{universe.length}</span>
           </div>
         </div>
       </Band>
@@ -246,15 +236,11 @@ const DashboardPage: React.FC = () => {
             <h2 id="now-title">Setups detected now</h2>
             <Explain title="What counts as a setup">
               A pattern you picked on the chart (double bottom, flag, triangle…) in a direction,
-              confirmed on one of the last 3 closed {INTERVAL} candles. The win rate is the same
-              setup across every coin's history, each trade managed by the app&apos;s plan (pattern
-              stop, then a trailing stop from the target) and counted as a win when it closes in
-              profit within {catalog?.maxHoldBars ?? 120} candles (or the pattern&apos;s length).
+              confirmed on one of the last 3 closed {INTERVAL} candles. Checks: at an order block or
+              zone, RSI in the healthy band, a volume spike, the right side of VWAP, expanding ATR
+              and Supertrend agreeing. The count describes the context; it is not a probability.
             </Explain>
-            <p>
-              Picked patterns on a recent closed candle. Statistics pool every past case across all
-              coins.
-            </p>
+            <p>Picked patterns on a recent closed candle, the most checks met first.</p>
           </div>
           <div className={styles.xs}>
             <table className={styles.tbl}>
@@ -262,17 +248,15 @@ const DashboardPage: React.FC = () => {
                 <tr>
                   <th>Symbol</th>
                   <th>Setup</th>
-                  <th className={styles.r}>Past n</th>
-                  <th className={styles.ciCol}>Win rate · 95% range · break-even</th>
-                  <th className={styles.r}>Avg win</th>
-                  <th>Verdict</th>
+                  <th className={styles.r}>Checks</th>
+                  <th>Met</th>
                   <th>
                     <span className="sr-only">Open</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {current.slice(0, 15).map(({ occurrence: o, pooled: p }) => (
+                {current.slice(0, 15).map((o) => (
                   <tr key={`${o.symbol}${o.pattern}${o.direction}${o.time}`}>
                     <td>
                       <b>{o.symbol}</b>
@@ -283,21 +267,15 @@ const DashboardPage: React.FC = () => {
                       </span>{" "}
                       {patternLabel(o.pattern)}
                     </td>
-                    <td className={`${styles.r} ${styles.num}`}>{p ? p.n : "—"}</td>
-                    <td>
-                      {p ? (
-                        <div className={styles.ciCell}>
-                          <span className={styles.num}>{pct(p.winRate)}</span>
-                          <CiBar stats={p} />
-                        </div>
-                      ) : (
-                        <span className={styles.mute}>not measured yet</span>
-                      )}
+                    <td className={`${styles.r} ${styles.num}`}>
+                      {o.score}/{o.checks.length}
                     </td>
-                    <td className={`${styles.r} ${styles.num} ${styles.up}`}>
-                      {p ? signedPct(p.avgWinPct) : "—"}
+                    <td className={styles.mute}>
+                      {o.checks
+                        .filter((c) => c.passed)
+                        .map((c) => CHECK_SHORT[c.id] ?? c.id)
+                        .join(" · ") || "—"}
                     </td>
-                    <td>{p && <VerdictChip verdict={p.verdict} />}</td>
                     <td>
                       <Link className={styles.btnSm} to={`/chart/${o.symbol}`}>
                         Chart
@@ -307,15 +285,14 @@ const DashboardPage: React.FC = () => {
                 ))}
                 {ready && current.length === 0 && (
                   <tr>
-                    <td colSpan={7} className={styles.mute}>
-                      Nothing confirmed on the last 3 closed {INTERVAL} candles. The table below
-                      shows how each setup has done.
+                    <td colSpan={5} className={styles.mute}>
+                      Nothing confirmed on the last 3 closed {INTERVAL} candles.
                     </td>
                   </tr>
                 )}
                 {!ready && (
                   <tr>
-                    <td colSpan={7} className={styles.mute}>
+                    <td colSpan={5} className={styles.mute}>
                       {serviceError ?? "Scanning…"}
                     </td>
                   </tr>
@@ -347,7 +324,7 @@ const DashboardPage: React.FC = () => {
             </li>
             <li>
               <span className={styles.mkOk}>✓</span>
-              <span>Pattern history (after costs)</span>
+              <span>Setup checklist (6 checks)</span>
               <Chip tone="up">Live</Chip>
             </li>
             <li>
@@ -375,72 +352,6 @@ const DashboardPage: React.FC = () => {
           </ol>
         </section>
       </div>
-
-      <section className={styles.card} aria-labelledby="lib-title">
-        <div className={styles.cardHead}>
-          <h2 id="lib-title">How each setup has performed</h2>
-          <Explain title="Reading this table">
-            Every past case of each picked pattern on every coin, measured in the background.
-            Break-even is the win rate needed to profit given the average win and loss. Edge
-            candidate: at least {catalog?.minSample ?? 30} cases and the whole 95% range above the
-            break-even after costs (fees, slippage, funding). Phase 2 re-tests candidates out of
-            sample.
-          </Explain>
-          <p>
-            {coins} coins · {days} days · {INTERVAL} · after costs.
-          </p>
-        </div>
-        <div className={styles.xs}>
-          <table className={styles.tbl}>
-            <thead>
-              <tr>
-                <th>Setup</th>
-                <th className={styles.r}>n</th>
-                <th className={styles.r}>Win rate</th>
-                <th className={styles.ciCol}>95% range · break-even</th>
-                <th className={styles.r}>Avg win</th>
-                <th className={styles.r}>Avg loss</th>
-                <th className={styles.r}>Expectancy</th>
-                <th>Verdict</th>
-              </tr>
-            </thead>
-            <tbody>
-              {library.slice(0, 15).map((s) => (
-                <tr key={s.key}>
-                  <td>
-                    <b>{setupLabel(s)}</b>
-                  </td>
-                  <td className={`${styles.r} ${styles.num}`}>{s.n}</td>
-                  <td className={`${styles.r} ${styles.num}`}>{pct(s.winRate)}</td>
-                  <td>
-                    <CiBar stats={s} />
-                  </td>
-                  <td className={`${styles.r} ${styles.num} ${styles.up}`}>
-                    {signedPct(s.avgWinPct)}
-                  </td>
-                  <td className={`${styles.r} ${styles.num} ${styles.down}`}>
-                    {signedPct(s.avgLossPct)}
-                  </td>
-                  <td
-                    className={`${styles.r} ${styles.num} ${s.expectancyR >= 0 ? styles.up : styles.down}`}
-                  >
-                    {signedR(s.expectancyR)}
-                  </td>
-                  <td>
-                    <VerdictChip verdict={s.verdict} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {library.length > 15 && (
-          <p className={styles.mute}>
-            The 15 setups with the most cases.{" "}
-            <Link to="/stats">All {library.length} in Pattern stats</Link>.
-          </p>
-        )}
-      </section>
 
       <section className={styles.card} aria-labelledby="watch-title">
         <div className={styles.cardHead}>

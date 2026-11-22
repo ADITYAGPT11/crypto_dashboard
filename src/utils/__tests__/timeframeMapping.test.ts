@@ -2,16 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import type { Candle } from "../../types/marketData";
 import type { OccurrenceOut } from "../../api/schema";
 import type { Zone } from "../../types/analysis";
-import {
-  holdBars,
-  logicalAt,
-  OUTCOME_BARS,
-  spanOf,
-  TF_MS,
-  toViewLevels,
-  toViewPattern,
-  viewBarTimeForClose,
-} from "../timeframeMapping";
+import { logicalAt, spanOf, TF_MS, toViewLevels, toViewPattern } from "../timeframeMapping";
 
 const H1 = TF_MS["1h"];
 const H4 = TF_MS["4h"];
@@ -37,24 +28,21 @@ function occurrence(partial: Partial<OccurrenceOut>): OccurrenceOut {
     location: "openSpace",
     time: 0,
     startTime: 0,
-    entry: 100,
-    stop: 95,
-    target: 110,
+    close: 100,
     extreme: 95,
     points: [],
     lines: [],
-    outcome: { result: "open", exitTime: null, movePct: 0, r: 0, bars: 0 },
-    flow: { deltaRatio: null, flow: null, cvdDivergence: null },
     score: 2,
-    trail: {
-      result: "open",
-      exitTime: null,
-      exitPrice: null,
-      r: 0,
-      bars: 0,
-      activatedTime: null,
-      stops: [],
-    },
+    checks: [
+      {
+        id: "location",
+        label: "At a bullish order block / demand zone",
+        passed: true,
+        detail: "at a zone",
+      },
+      { id: "rsi", label: "RSI 50-70", passed: true, detail: "RSI 61" },
+      { id: "volume", label: "Volume spike", passed: false, detail: "volume 1.1x average" },
+    ],
     ...partial,
   };
 }
@@ -83,14 +71,6 @@ describe("logicalAt / spanOf", () => {
   });
 });
 
-describe("holdBars", () => {
-  const h = TF_MS["1h"];
-  it("is 120 candles, or the formation's length when longer (outcomes.py::hold_bars)", () => {
-    expect(holdBars(50 * h, 40 * h, h)).toBe(OUTCOME_BARS);
-    expect(holdBars(240 * h, 40 * h, h)).toBe(200);
-  });
-});
-
 describe("toViewPattern", () => {
   it("draws a 4h pattern on a 1h view as 4-bar blocks with the entry at the 4h close", () => {
     const one = series(80, H1);
@@ -111,6 +91,13 @@ describe("toViewPattern", () => {
     expect(vp.startX).toBe(7.5);
   });
 
+  it("carries the checklist and the confirmation close through", () => {
+    const vp = toViewPattern(occurrence({}), "4h", series(80, H4), "4h");
+    expect(vp.score).toBe(2);
+    expect(vp.checks.map((c) => c.id)).toEqual(["location", "rsi", "volume"]);
+    expect(vp.close).toBe(100);
+  });
+
   it("maps sloped lines from 4h candles onto a 1h view", () => {
     const occ = occurrence({
       time: 12 * H4,
@@ -119,61 +106,9 @@ describe("toViewPattern", () => {
     const vp = toViewPattern(occ, "4h", series(80, H1), "1h");
     expect(vp.lines).toEqual([{ x1: 17.5, p1: 100, x2: 49.5, p2: 102, label: "Neckline" }]);
   });
-
-  it("places the exit candle's close, its fill and the 120-candle outcome window", () => {
-    const occ = occurrence({
-      time: 10 * H4,
-      outcome: { result: "loss", exitTime: 13 * H4, movePct: -2, r: -1, bars: 3, exitPrice: 98 },
-    });
-    const vp = toViewPattern(occ, "4h", series(80, H4), "4h");
-    expect(vp.entryX).toBe(10.5);
-    expect(vp.exitX).toBe(13.5);
-    expect(vp.windowEndX).toBe(130.5); // beyond the loaded candles it extrapolates by time
-    expect(vp.outcome).toEqual({ result: "loss", r: -1, exitPrice: 98 });
-  });
-
-  it("carries the confidence filter through (grey unless the service says it passes)", () => {
-    expect(toViewPattern(occurrence({ passes: true }), "4h", series(80, H4), "4h").passes).toBe(
-      true,
-    );
-    expect(toViewPattern(occurrence({}), "4h", series(80, H4), "4h").passes).toBe(false);
-  });
-
-  it("carries the measured confidence through (null until a statistics run has it)", () => {
-    const c = { winRate: 0.41, ciLow: 0.34, ciHigh: 0.48, n: 210, basis: "score" as const };
-    expect(
-      toViewPattern(occurrence({ confidence: c }), "4h", series(80, H4), "4h").confidence,
-    ).toEqual(c);
-    expect(toViewPattern(occurrence({}), "4h", series(80, H4), "4h").confidence).toBeNull();
-  });
-
-  it("maps the trailing exit: each stop from the left edge of the candle it applies to", () => {
-    const occ = occurrence({
-      time: 10 * H4,
-      trail: {
-        result: "win",
-        exitTime: 16 * H4,
-        exitPrice: 114,
-        r: 2.8,
-        bars: 6,
-        activatedTime: 13 * H4,
-        stops: [
-          { time: 11 * H4, price: 95 },
-          { time: 14 * H4, price: 111 },
-        ],
-      },
-    });
-    const vp = toViewPattern(occ, "4h", series(80, H1), "1h");
-    expect(vp.trail.exitX).toBe(67.5); // close of 4h candle 16 = 1h bar 67
-    expect(vp.trail.activatedX).toBe(55.5);
-    expect(vp.trail.stops).toEqual([
-      { x: 43.5, price: 95 },
-      { x: 55.5, price: 111 },
-    ]);
-  });
 });
 
-describe("toViewLevels and markers", () => {
+describe("toViewLevels", () => {
   it("maps a daily zone's start and break through time onto a 4h view", () => {
     const view = series(60, H4);
     const zone: Zone = {
@@ -217,10 +152,5 @@ describe("toViewLevels and markers", () => {
       "1h",
     );
     expect(b).toMatchObject({ layer: "orderBlock", from: 2.5, to: null, fresh: true });
-  });
-
-  it("places a marker on the view bar in which the source candle closes", () => {
-    const view = series(24, H1);
-    expect(viewBarTimeForClose(view, 4 * H1, H4)).toBe(7 * H1);
   });
 });

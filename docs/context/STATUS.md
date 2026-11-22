@@ -4,55 +4,54 @@ _Last verified: 2026-11-22 · branch `claude/dazzling-cerf-jzip1j`_
 
 ## Phase
 
-**Phase 1b started: the Python analysis service owns every rule.** Pattern detection, zones,
-order blocks, outcomes and statistics run in `backend/` (Python 3.12, FastAPI, TA-Lib, SQLite).
-The chart asks it for the recent candles' analysis (refetched after every candle close); a
-background job measures every setup over one to two years of the research coins with the same
-code. The browser draws, streams live candles and order books, and sizes trades. No
-confirmations yet (by design).
+**Phase 1b: the Python analysis service owns every rule.** Pattern detection, zones, order
+blocks and the six-item **setup checklist** run in `backend/` (Python 3.12, FastAPI, TA-Lib,
+SQLite). The chart and the scanner ask it for the recent candles' analysis (refetched after every
+candle close). **No trade plan and no win-rate statistics** since 2026-11-22 (owner; see
+History): a pattern is shown with "4/6 checks", never a probability. The browser draws, streams
+live candles and order books, and sizes trades. No confirmations (by design).
 
 ## Next up (todo pointer, details in `ROADMAP.md`)
 
 0. Owner: run `npm start` where Binance and OKX are reachable and check the depth recorder goes
-   live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
-   r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
-   the estimated liquidation map (`COMPETITORS.md` §4).
-1. Owner: run `npm start` on a machine that reaches Binance, let the first r9
-   statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
-   rule set in `docs/product/patterns.md`.
+   live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload. Then
+   order-flow step 4: liquidation feed, OI/funding panels and the estimated liquidation map
+   (`COMPETITORS.md` §4).
+1. Owner: review the setup checklist (r10) on live charts; thresholds are in
+   `docs/product/patterns.md` → Setup checklist.
 2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
 3. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
-4. Random-entry baseline per setup (does a pattern beat chance with the same stop/target?).
-5. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
+4. Verify Delta funding-rate units (docs site unreachable from the dev sandbox).
 
 ## Health
 
 Verified 2026-11-11 (checks and test counts 2026-11-22):
 
-| Check                                                            | State                                                                                                                                                                                                       |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 386 tests, 39 files                                                                                                                                                                                      |
-| `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 184 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
-| `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
-| `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
-| `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
-| Liquidity heatmap                                                | ✅ with a real OKX book replayed through a mocked socket; ❌ not exercised live (Binance geo-blocked, OKX WebSocket port 8443 blocked in the sandbox)                                                       |
+| Check                                                            | State                                                                                                                                                                                        |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                           |
+| `npm test`                                                       | ✅ 367 tests, 37 files                                                                                                                                                                       |
+| `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                               |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 147 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
+| `npm run api`                                                    | ✅ :8000                                                                                                                                                                                     |
+| `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing   |
+| `npm run dev` + `npm run api`                                    | ✅ Chart, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
+| Liquidity heatmap                                                | ✅ with a real OKX book replayed through a mocked socket; ❌ not exercised live (Binance geo-blocked, OKX WebSocket port 8443 blocked in the sandbox)                                        |
 
 ## What exists
 
 - **Analysis service** (`backend/src/tcs/`, `npm run api`): `analysis/` the rule set
   (`engine.analyze` is the single entry point; catalogue and `RULESET_VERSION` in `catalog.py`;
-  rules written out in `docs/product/patterns.md`); `jobs/stats_job.py` background statistics;
-  `marketdata/` Binance REST + `data.binance.vision` archive backfill; `store/sqlite.py`;
-  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,stats,stats/setup,stats/run,scanner,depth}`; `depth/` order-book recorder.
+  rules written out in `docs/product/patterns.md`; `checklist.py` the setup checklist);
+  `marketdata/` Binance REST + `data.binance.vision` archive; `store/sqlite.py` (candles, depth);
+  `api/` FastAPI `/api/v1/{health,patterns,candles,analysis,scanner,depth}`; `depth/` order-book recorder.
   `src/api/schema.ts` is generated from it (`npm run api:types`; a test fails when stale).
 - **Chart** (`/chart/:symbol`): TradingView-style (timeframes, chart types, indicators, drawings,
   live forming candle) plus the service's patterns, the selected one drawn after the industry
   convention (shaded W / M, H&S, triangle, wedge or flag box, key-point tags, breakout ring,
-  measured move, position box over the outcome window; a candlestick pattern's box covers its own
-  candles, not the confirmation candle; other overlays fade), demand/supply zones, order blocks, fair value gaps, volume profile and a
+  checklist score "4/6 checks" on the name tag or faint inside a candlestick pattern's box, which
+  covers its own candles, not the confirmation candle; no entry / stop / target, position box or
+  trailing stop; other overlays fade), demand/supply zones, order blocks, fair value gaps, volume profile and a
   **liquidity heatmap** layer with a pools table. Only **key levels** are drawn (Overlays →
   Display settings, saved per browser): intact, nearest 2 of each kind, zones ≥ 2 ATR departure,
   overlaps merged; fresh-only, broken levels, labels and the number of pattern tags are options.
@@ -62,22 +61,19 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
   sections, bullish / bearish, trend icons); chart patterns on and candlesticks off by default;
   saved per browser and applied on every page. Zones and order blocks come from the pattern's own
   timeframe. **Patterns on this chart** under it: one row per pattern and direction (newest
-  first, win rate and n on the timeframe it was found); the open row is drawn and shows this
-  coin's record on every picked timeframe (n, win rate, Wilson 95% range, break-even, average
-  after costs; under 30 cases only n) and the plan with Size in Risk / Alert me.
-- **Pattern choice is display only.** The backend detects and measures every pattern and the
-  location / order-flow splits whatever is picked; no screen shows the splits.
-- **Pattern stats** (`/stats`): every chart pattern × direction on 1h/4h/1d, per-coin
-  breakdown, run progress.
+  first, its checklist score); the open row is drawn and lists the six checks (✓ / ✗ with what
+  was observed) plus Alert me.
+- **Pattern choice is display only.** The backend detects every pattern whatever is picked.
 - **Dashboard** (`/`): market overview (unchanged), scanner from the service (last 3 closed
-  candles, chart patterns), top setups by cases, watchlist.
-- **Risk** (`/risk`) and **Alerts** (`/alerts`): records from the service; new alert rules fire on
-  a chart pattern at any location; old stored rule keys (with a location) still work.
+  candles, picked patterns, most checks met first, which checks passed), watchlist.
+- **Risk** (`/risk`): position sizing from your own entry, stop and target. **Alerts**
+  (`/alerts`): rules fire on a pattern at any location; each firing carries the close and the
+  checklist; old stored rule keys (with a location) and firings still load.
 - **History** (`HistoryService`): Binance REST from the browser, falling back to the service's
   stored candles.
 - **Tech overview** (`/tech-overview`): clickable architecture map of the whole system; every
   module and flow opens a detailed map (`/tech-overview/<map>`: connectivity, market data,
-  heatmap, analysis engine, statistics, alerts, screens, confirmation roadmap) with files, links
+  heatmap, analysis engine, alerts, screens, confirmation roadmap) with files, links
   and built vs planned counts. Data in `TechOverviewPage/maps.ts`; tests check every listed file.
 - **Markets** (`/markets`) and the **Node prototype** (`src/backend/`, Telegram) are unchanged.
 
@@ -89,23 +85,32 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
    sandbox candle history comes from the archive (up to a day behind), Binance's book cannot sync
    (no snapshot) and funding / OI / 24h volume show "–". Where Binance REST is reachable none of
    this applies.
-2. **Statistics need a first run**: until the background job finishes (minutes), Pattern stats,
-   the setup card and the scanner show "not measured yet".
+2. **The checklist is not measured**: it describes the context a pattern formed in; nothing in
+   the app says how often such setups worked (owner's choice, 2026-11-22).
 3. **Setup alerts run in the browser** (every minute while a tab is open) and use same-timeframe
    levels; Telegram still goes through the Node prototype (`npm run backend`).
-4. **Statistics are in-sample** (after estimated costs since r4); Phase 2 adds out-of-sample
-   tests. Funding for the current month is estimated where Binance REST is refused (the archive
-   publishes whole months). Many setups have too few cases per bucket on 1d.
-5. **Order-book depth**: Binance (1 000 levels, socket) + OKX (400 live, 5 000 from REST every
+4. **Order-book depth**: Binance (1 000 levels, socket) + OKX (400 live, 5 000 from REST every
    5 s) + Delta (whole book every ~3 s) are added up within ±2% of the mid. Delta is USD-quoted
    and added at face value (USD ≈ USDT, inside one bucket). Heatmap history comes from the analysis
    service's recorder (BTC, ETH, and coins opened with the heatmap on, 7 days); without the
    service it starts when the page opens. The recorder ran live on OKX in the sandbox (800 levels,
    one column a minute); Binance's half needs REST for its snapshot (see issue 1).
-6. Delta funding-rate units unverified; Delta prices are USD-quoted (tagged, left out of spreads).
-7. `.idx/dev.nix` lists Svelte/Vue extensions; the Markets page's price-rule alerts are separate.
+5. Delta funding-rate units unverified; Delta prices are USD-quoted (tagged, left out of spreads).
+6. `.idx/dev.nix` lists Svelte/Vue extensions; the Markets page's price-rule alerts are separate.
 
 ## History
+
+- 2026-11-22: **Trade plan and statistics removed; setup checklist (rule set r10)** (owner).
+  Gone: outcome resolution and the trade plan (`outcomes.py`, `plan.py`, `costs.py`), the
+  statistics (`stats.py`, `jobs/stats_job.py`, `/stats*` routes, stats tables and funding
+  history in SQLite, dropped on start), the confidence filter (`confidence.py`) and order-flow
+  context (`flow.py`), the Pattern stats page, records on the Dashboard / Risk / Alerts, the
+  chart's position box, trailing stop, exit markers and plan price lines. New: `checklist.py`,
+  six yes/no checks at the confirmation candle (at a bullish order block / demand zone, RSI
+  50–70, volume ≥ 1.5× average, close above VWAP(20), ATR above its 50-candle mean, Supertrend up;
+  mirrored for shorts) shown as "4/6 checks" on the chart, in the pattern rows, the Dashboard
+  scanner and alerts. `indicators.py` gains RSI, rolling VWAP and Supertrend. Entries below
+  describe rule sets and features that no longer exist after this change.
 
 - 2026-11-22: **Chart page layout C** (owner, designed on the canvas first, idea C of three).
   The right column is gone: the chart is full width, the watchlist sits above it as chips, the

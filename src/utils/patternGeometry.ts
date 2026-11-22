@@ -4,8 +4,10 @@
  *
  * - the formation as a filled shape (W / M, head and shoulders, triangle, wedge, flag box),
  * - its neckline or trendlines, its key points labelled (B1/B2, T1/T2, LS/H/RS),
- * - the breakout candle, the measured move to the target,
- * - a long / short position box from entry to exit (target green, stop red).
+ * - the breakout candle and the pattern's height.
+ *
+ * No trade plan (entry, stop or target) is drawn: the app scores where a pattern formed
+ * (`backend/src/tcs/analysis/checklist.py`) and leaves the trade to the person.
  *
  * Geometry only: every price and time comes from the analysis service; nothing is detected here.
  */
@@ -30,12 +32,6 @@ export interface PointLabel {
   side: "above" | "below";
 }
 
-export interface Projection {
-  from: Pt;
-  to: Pt;
-  text: string;
-}
-
 export interface PatternFigure {
   /** Polygon shaded in the pattern's colour (empty for candlestick patterns). */
   fill: Pt[];
@@ -45,26 +41,10 @@ export interface PatternFigure {
   dots: Pt[];
   /** Close of the confirmation candle. */
   breakout: Pt;
-  /** Pattern height inside the formation (what the target projects). */
+  /** Pattern height inside the formation. */
   height: { from: Pt; to: Pt } | null;
-  /** The move from the breakout to the target. */
-  projection: Projection | null;
   /** Price span the name tag sits beyond (above for longs, below for shorts). */
   span: { x: number; high: number; low: number };
-}
-
-export interface PositionBox {
-  x1: number;
-  x2: number;
-  entry: number;
-  target: number;
-  stop: number;
-  /** Reward over risk at entry; ≤ 0 when the target was already behind entry. */
-  rr: number;
-  targetPct: number;
-  stopPct: number;
-  /** Where the trade was closed by its stop (trailed or not): the fill; null otherwise. */
-  exit: Pt | null;
 }
 
 /** Short tags on key points (industry shorthand); unlisted labels are not drawn. */
@@ -79,7 +59,6 @@ const SHORT: Record<string, string> = {
 };
 
 const TRIANGLES = new Set(["ascendingTriangle", "descendingTriangle", "symmetricalTriangle"]);
-const WEDGES = new Set(["fallingWedge", "risingWedge"]);
 const FLAGS = new Set(["bullFlag", "bearFlag"]);
 
 /** Price on the line through `a` and `b` at `x` (flat when a and b share an x). */
@@ -106,7 +85,7 @@ export function patternFigure(vp: ViewPattern): PatternFigure {
   const long = vp.direction === "long";
   const last = vp.blocks[vp.blocks.length - 1];
   const bx = last ? (last.from + last.to) / 2 : vp.entryX;
-  const breakout = { x: bx, price: vp.entry };
+  const breakout = { x: bx, price: vp.close };
   const labels: PointLabel[] = vp.points
     .filter((p) => SHORT[p.label])
     .map((p) => ({
@@ -121,8 +100,7 @@ export function patternFigure(vp: ViewPattern): PatternFigure {
     dots: [],
     breakout,
     height: null,
-    projection: null,
-    span: { x: vp.startX, high: vp.entry, low: vp.entry },
+    span: { x: vp.startX, high: vp.close, low: vp.close },
   };
   const neck = lineNamed(vp, "Neckline");
   const upper = lineNamed(vp, "Upper");
@@ -150,7 +128,6 @@ export function patternFigure(vp: ViewPattern): PatternFigure {
       long ? (p.price < m.price ? p : m) : p.price > m.price ? p : m,
     );
     fig.height = { from: ext, to: { x: ext.x, price: along(a, b, ext.x) } };
-    fig.projection = { from: nb, to: { x: nb.x, price: vp.target }, text: "Measured move" };
   } else if (upper && lower) {
     // Triangles and wedges: the two trendlines from the formation's start to the breakout,
     // the area between shaded, the swing touches as dots and a faint zigzag through them.
@@ -161,20 +138,7 @@ export function patternFigure(vp: ViewPattern): PatternFigure {
     fig.strokes.push({ pts: [la, lb], width: 2 });
     fig.strokes.push({ pts, width: 1, faint: true });
     fig.dots = pts;
-    if (TRIANGLES.has(vp.pattern)) {
-      fig.height = { from: la, to: ua };
-      fig.projection = {
-        from: breakout,
-        to: { x: bx, price: vp.target },
-        text: "Height at start",
-      };
-    } else if (WEDGES.has(vp.pattern)) {
-      fig.projection = {
-        from: breakout,
-        to: { x: bx, price: vp.target },
-        text: "Back to wedge start",
-      };
-    }
+    if (TRIANGLES.has(vp.pattern)) fig.height = { from: la, to: ua };
   } else if (flagLine && FLAGS.has(vp.pattern) && pts.length >= 3) {
     // Flags: the pole as a thick line, the pause as a box from its high to its low.
     const [pole, tip, pause] = pts;
@@ -188,13 +152,8 @@ export function patternFigure(vp: ViewPattern): PatternFigure {
     ];
     fig.fill = box;
     fig.strokes.push({ pts: [...box, top], width: 1.5 });
-    fig.projection = {
-      from: breakout,
-      to: { x: bx, price: vp.target },
-      text: "Pole length",
-    };
   }
-  const prices = [vp.entry, ...fig.fill.map((p) => p.price), ...pts.map((p) => p.price)];
+  const prices = [vp.close, ...fig.fill.map((p) => p.price), ...pts.map((p) => p.price)];
   fig.span = {
     x: fig.fill.length ? Math.min(...fig.fill.map((p) => p.x)) : vp.startX,
     high: Math.max(...prices),
@@ -205,8 +164,8 @@ export function patternFigure(vp: ViewPattern): PatternFigure {
 
 /**
  * View range of a candlestick pattern's own candles: its first candle to its last key point.
- * The confirmation candle that follows is left out (the position box starts at its close),
- * so a two-candle engulfing is boxed as two candles, not three.
+ * The confirmation candle that follows is left out, so a two-candle engulfing is boxed as
+ * two candles, not three.
  */
 export function candleSpan(vp: ViewPattern): { from: number; to: number } {
   const first = vp.blocks[0];
@@ -215,27 +174,4 @@ export function candleSpan(vp: ViewPattern): { from: number; to: number } {
     (lastX !== null && vp.blocks.find((b) => b.from <= lastX && lastX <= b.to)) ||
     vp.blocks[vp.blocks.length - 1];
   return { from: Math.min(first.from, vp.startX), to: last.to };
-}
-
-/** The trade the pattern proposes, from entry until it resolved (or the outcome window ends). */
-export function positionBox(vp: ViewPattern): PositionBox {
-  const risk = Math.abs(vp.entry - vp.stop);
-  const sign = vp.direction === "long" ? 1 : -1;
-  return {
-    x1: vp.entryX,
-    // The whole outcome window, like a position tool; the actual exit is marked inside it.
-    x2: Math.max(vp.entryX + 1, vp.windowEndX),
-    entry: vp.entry,
-    target: vp.target,
-    stop: vp.stop,
-    rr: risk > 0 ? ((vp.target - vp.entry) * sign) / risk : 0,
-    targetPct: ((vp.target - vp.entry) / vp.entry) * 100,
-    stopPct: ((vp.stop - vp.entry) / vp.entry) * 100,
-    exit:
-      vp.exitX !== null &&
-      vp.outcome.exitPrice !== null &&
-      (vp.outcome.result === "win" || vp.outcome.result === "loss")
-        ? { x: vp.exitX, price: vp.outcome.exitPrice }
-        : null,
-  };
 }

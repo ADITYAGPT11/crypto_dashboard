@@ -1,8 +1,8 @@
-import type { AnalysisOut, ScannerOut } from "../api/schema";
+import type { ScannerOut } from "../api/schema";
 import { apiGet } from "../api/client";
 import type { CandleInterval } from "../types/marketData";
 import type { SetupOccurrence } from "../types/analysis";
-import { normalizeSetupKey, toStats } from "../utils/setupKeys";
+import { normalizeSetupKey } from "../utils/setupKeys";
 import {
   FIRINGS_STORAGE_KEY,
   MAX_FIRINGS,
@@ -12,7 +12,6 @@ import {
   newRuleId,
   parseFirings,
   parseRules,
-  resolveOutcome,
   toTrigger,
   type CurrentSetup,
   type Delivery,
@@ -38,8 +37,6 @@ export interface SetupAlertDeps {
     interval: CandleInterval,
     watchlist: string[],
   ) => Promise<{ current: CurrentSetup[]; sig: string }>;
-  /** A coin's recent occurrences with their outcomes so far (to track fired alerts). */
-  occurrencesFor: (symbol: string, interval: CandleInterval) => Promise<SetupOccurrence[]>;
   /** JSON request to the backend (dev proxy `/api` → :3001). Throws when unreachable. */
   request: (path: string, init?: RequestInit) => Promise<unknown>;
   watchlist: () => string[];
@@ -59,24 +56,12 @@ async function defaultScanFor(interval: CandleInterval, watchlist: string[]) {
   });
   const current: CurrentSetup[] = body.items.map((i) => {
     const o: SetupOccurrence = { ...i.occurrence, symbol: i.symbol };
-    return {
-      occurrence: o,
-      pooled: i.pooled ? toStats(o.pattern, o.direction, o.location, i.pooled) : null,
-    };
+    return { occurrence: o };
   });
   const sig = current
     .map((c) => `${c.occurrence.symbol}:${c.occurrence.pattern}:${c.occurrence.time}`)
     .join(",");
-  return { current, sig: `${body.run?.finishedAt ?? 0}|${sig}` };
-}
-
-async function defaultOccurrencesFor(symbol: string, interval: CandleInterval) {
-  const a = await apiGet<AnalysisOut>(`/analysis/${symbol}`, {
-    tf: interval,
-    zoneTf: interval,
-    limit: 500,
-  });
-  return a.occurrences.map((o) => ({ ...o, symbol }));
+  return { current, sig };
 }
 
 async function defaultRequest(path: string, init?: RequestInit): Promise<unknown> {
@@ -100,7 +85,7 @@ function browserStorage(): SetupAlertDeps["storage"] {
 /**
  * Runs setup alerts while a GreenMTM tab is open. Each check asks the analysis service
  * (Python) which setups confirmed on the last closed candles, matches rules against
- * them, tracks the outcome of earlier firings, and sends Telegram messages through
+ * them (each firing carries the setup's checklist), and sends Telegram messages through
  * the Node backend prototype when it runs. Server-side alerts come later (ROADMAP).
  */
 export class SetupAlertService {
@@ -115,7 +100,6 @@ export class SetupAlertService {
   constructor(deps: Partial<SetupAlertDeps> = {}) {
     this.deps = {
       scanFor: defaultScanFor,
-      occurrencesFor: defaultOccurrencesFor,
       request: defaultRequest,
       watchlist: loadWatchlist,
       now: Date.now,
@@ -217,7 +201,7 @@ export class SetupAlertService {
       ruleName: "Test message",
       firedAt: now,
       values: {},
-      reason: `${BRAND.name} can reach this chat. Setup alerts will arrive here with their track record.`,
+      reason: `${BRAND.name} can reach this chat. Setup alerts will arrive here with their checklist.`,
     });
   }
 
@@ -232,16 +216,11 @@ export class SetupAlertService {
   }
 
   private async runCheck() {
-    const intervals = [
-      ...new Set([
-        ...this.snap.rules.filter((r) => !r.paused).map((r) => r.interval),
-        ...this.snap.firings.filter((f) => f.outcome === "open").map((f) => f.interval),
-      ]),
-    ];
+    const intervals = [...new Set(this.snap.rules.filter((r) => !r.paused).map((r) => r.interval))];
     if (intervals.length === 0) return;
     this.update({ checking: true });
     const fresh: SetupAlertFiring[] = [];
-    let firings = this.snap.firings;
+    const firings = this.snap.firings;
     for (const interval of intervals) {
       let result: { current: CurrentSetup[]; sig: string };
       try {
@@ -251,26 +230,6 @@ export class SetupAlertService {
       }
       if (this.lastSig.get(interval) === result.sig) continue;
       this.lastSig.set(interval, result.sig);
-      const open = [
-        ...new Set(
-          firings
-            .filter((f) => f.interval === interval && f.outcome === "open")
-            .map((f) => f.symbol),
-        ),
-      ];
-      const occBySymbol = new Map<string, SetupOccurrence[]>();
-      for (const symbol of open) {
-        try {
-          occBySymbol.set(symbol, await this.deps.occurrencesFor(symbol, interval));
-        } catch {
-          // keep the outcome as it was; retried at the next check
-        }
-      }
-      firings = firings.map((f) =>
-        f.interval === interval && f.outcome === "open" && occBySymbol.has(f.symbol)
-          ? { ...f, outcome: resolveOutcome(f, occBySymbol.get(f.symbol)!) }
-          : f,
-      );
       const known = new Set([...firings, ...fresh].map((f) => f.id));
       fresh.push(
         ...matchFirings(

@@ -14,8 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-#: Bump when ANY rule, threshold or outcome rule changes. Statistics are stored per version.
-RULESET_VERSION = "2026.11-r9"
+#: Bump when ANY detector, location or checklist rule or threshold changes.
+RULESET_VERSION = "2026.11-r10"
 
 Kind = Literal["chart", "candlestick"]
 Bias = Literal["long", "short", "either"]

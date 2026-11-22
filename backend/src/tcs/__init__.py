@@ -1,6 +1,5 @@
-"""GreenMTM analysis service (package `tcs`): market history, pattern detection and setup statistics.
+"""GreenMTM analysis service (package `tcs`): market history, pattern detection and a setup checklist.
 
-One rule set (``tcs.analysis``) serves both the chart (recent candles) and the
-background statistics job (one to two years of history), so a pattern on the
-chart is measured with exactly the rules that found it.
+One rule set (``tcs.analysis``) serves the chart and the scanner: every pattern is found, placed
+against zones and order blocks, and given the same six-item checklist wherever it is shown.
 """

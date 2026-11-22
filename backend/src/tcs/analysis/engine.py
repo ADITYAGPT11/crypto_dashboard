@@ -1,10 +1,8 @@
-"""``analyze``: the ONE entry point both processes call.
+"""``analyze``: the ONE entry point for pattern analysis.
 
-- The chart calls it on the recent (preloaded) candles of one coin.
-- The statistics job calls it on one to two years of every coin in the universe.
-
-Same function, same rules, same parameters: a pattern on the chart is measured
-by exactly the rules that drew it.
+Detects every pattern on a series, places it against zones and order blocks, and scores the
+context it formed in with the setup checklist (``checklist.py``). The chart API and the scanner
+both call it, so a pattern shows the same checks wherever it appears.
 """
 
 from __future__ import annotations
@@ -13,12 +11,9 @@ from dataclasses import dataclass
 
 from tcs.analysis.candlesticks import detect_candlesticks
 from tcs.analysis.chart_patterns import detect_chart_patterns
-from tcs.analysis.confidence import Score, score_of
-from tcs.analysis.flow import FlowContext, flow_at
+from tcs.analysis.checklist import Checklist, checker
 from tcs.analysis.indicators import atr
 from tcs.analysis.location import locate
-from tcs.analysis.outcomes import Outcome, Trail, evaluate_trailing, to_outcome
-from tcs.analysis.plan import apply_plan
 from tcs.analysis.smc import detect_fvgs, detect_structure
 from tcs.analysis.trendlines import detect_trendline_patterns
 from tcs.analysis.types import Levels, Location, PatternHit
@@ -30,13 +25,8 @@ from tcs.common.series import Series, mirror
 class Occurrence:
     hit: PatternHit
     location: Location
-    outcome: Outcome
-    #: Order flow when the pattern confirmed (context the statistics are split by).
-    flow: FlowContext
-    #: The plan's path: TP1 touch and every move of the trailing stop (outcomes.py).
-    trail: Trail
-    #: Confidence checks passed at confirmation (confidence.py); statistics split by its total.
-    score: Score
+    #: The setup checklist at confirmation (checklist.py): six yes/no facts, score 0-6.
+    checklist: Checklist
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +45,7 @@ def detect_patterns(s: Series) -> list[PatternHit]:
         *detect_trendline_patterns(s, a),
         *detect_candlesticks(s, a),
     ]
-    return sorted(apply_plan(hits, s, a), key=lambda h: (h.index, h.pattern))
+    return sorted(hits, key=lambda h: (h.index, h.pattern))
 
 
 def detect_levels(s: Series) -> Levels:
@@ -71,32 +61,20 @@ def analyze(
     level_series: Series | None = None,
     levels: Levels | None = None,
     hits: list[PatternHit] | None = None,
-    fine: Series | None = None,
 ) -> Analysis:
-    """Detect, place and resolve every pattern on ``s``.
+    """Detect, place and check every pattern on ``s``.
 
-    ``level_series`` gives zones/order blocks from another (equal or higher)
-    timeframe; ``levels`` and ``hits`` may be passed when already computed (the
-    statistics job reuses one detection pass across zone timeframes). ``fine`` = 5-minute
-    candles over the same period: trades are then walked on them (``outcomes.py``).
+    ``level_series`` gives zones/order blocks from another (equal or higher) timeframe;
+    ``levels`` and ``hits`` may be passed when already computed.
     """
     lv_series = level_series if level_series is not None else s
     lv = levels if levels is not None else detect_levels(lv_series)
     a = atr(s)
     found = hits if hits is not None else detect_patterns(s)
     mirrored = mirror(s) if any(h.direction == "short" for h in found) else None
+    check = checker(s, mirrored)
     occurrences: list[Occurrence] = []
     for hit in found:
-        flow = flow_at(s, hit, mirrored)
-        path = evaluate_trailing(s, hit, a, fine=fine)
-        occurrences.append(
-            Occurrence(
-                hit,
-                locate(hit, s, float(a[hit.index]), lv_series, lv.zones, lv.order_blocks),
-                to_outcome(hit, path),
-                flow,
-                path,
-                score_of(flow),
-            )
-        )
+        location = locate(hit, s, float(a[hit.index]), lv_series, lv.zones, lv.order_blocks)
+        occurrences.append(Occurrence(hit, location, check(hit, location)))
     return Analysis(s, lv_series, occurrences, lv)

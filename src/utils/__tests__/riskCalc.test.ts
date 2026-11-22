@@ -2,7 +2,6 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   computePosition,
   DEFAULT_RISK_PREFS,
-  expectedValue,
   parseRiskPrefs,
   type Position,
   type RiskInput,
@@ -69,15 +68,6 @@ describe("computePosition", () => {
     expect(computePosition({ ...BASE, riskPct: 0 }).ok).toBe(false);
     expect(computePosition({ ...BASE, account: -5 }).ok).toBe(false);
     expect(computePosition({ ...BASE, feePct: -1 }).ok).toBe(false);
-  });
-});
-
-describe("expectedValue", () => {
-  it("is zero at the break-even win rate and scales with the win rate", () => {
-    const p = position({ feePct: 0.05 });
-    expect(expectedValue(p, p.breakEven)).toBeCloseTo(0, 8);
-    expect(expectedValue(p, 0.5)).toBeCloseTo(0.5 * p.gainAtTarget - 0.5 * p.lossAtStop, 10);
-    expect(expectedValue(p, 0)).toBeCloseTo(-p.lossAtStop, 10);
   });
 });
 

@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
-import type { SetupOccurrence, SetupStats } from "../../types/analysis";
+import type { SetupOccurrence } from "../../types/analysis";
 import {
   matchFirings,
   parseFirings,
   parseRules,
-  resolveOutcome,
   WATCHLIST,
   type CurrentSetup,
   type SetupAlertRule,
@@ -12,15 +11,7 @@ import {
 
 const H4 = 14_400_000;
 
-const pooled = (verdict: SetupStats["verdict"]) =>
-  ({ n: 212, wins: 129, winRate: 0.61, ci: [0.54, 0.67], verdict }) as SetupStats;
-
-function occ(
-  symbol: string,
-  time: number,
-  result: SetupOccurrence["outcome"]["result"] = "open",
-  pattern = "doubleBottom",
-): SetupOccurrence {
+function occ(symbol: string, time: number, pattern = "doubleBottom"): SetupOccurrence {
   return {
     symbol,
     pattern,
@@ -28,29 +19,26 @@ function occ(
     location: "zone",
     time,
     startTime: time - 10 * 14_400_000,
-    entry: 100,
-    stop: 95,
-    target: 110,
+    close: 100,
     extreme: 95,
     points: [],
     lines: [],
-    outcome: { result, exitTime: null, movePct: 0, r: 0, bars: 0 },
-    flow: { deltaRatio: null, flow: null, cvdDivergence: null },
     score: 2,
-    trail: {
-      result: "open",
-      exitTime: null,
-      exitPrice: null,
-      r: 0,
-      bars: 0,
-      activatedTime: null,
-      stops: [],
-    },
+    checks: [
+      {
+        id: "location",
+        label: "At a bullish order block / demand zone",
+        passed: true,
+        detail: "at a zone",
+      },
+      { id: "rsi", label: "RSI 50-70: healthy momentum", passed: true, detail: "RSI 61" },
+      { id: "volume", label: "Volume spike", passed: false, detail: "volume 1.0x average" },
+    ],
   };
 }
 
-function current(symbol: string, time: number, verdict: SetupStats["verdict"] = "edge") {
-  return { occurrence: occ(symbol, time), pooled: pooled(verdict) };
+function current(symbol: string, time: number): CurrentSetup {
+  return { occurrence: occ(symbol, time) };
 }
 
 const rule = (over: Partial<SetupAlertRule> = {}): SetupAlertRule => ({
@@ -60,7 +48,6 @@ const rule = (over: Partial<SetupAlertRule> = {}): SetupAlertRule => ({
   interval: "4h",
   telegram: true,
   inApp: true,
-  edgeOnly: false,
   paused: false,
   createdAt: 100 * H4,
   ...over,
@@ -70,14 +57,16 @@ describe("matchFirings", () => {
   const now = 103 * H4;
   const cur: CurrentSetup[] = [current("BTC-USDT", 101 * H4), current("ETH-USDT", 101 * H4)];
 
-  it("fires for a matching coin, setup and timeframe with the pooled record", () => {
+  it("fires for a matching coin, setup and timeframe with its checklist", () => {
     const f = matchFirings([rule()], cur, "4h", [], new Set(), now);
     expect(f).toHaveLength(1);
     expect(f[0]).toMatchObject({
       id: `r1|BTC-USDT|${101 * H4}`,
       symbol: "BTC-USDT",
-      entry: 100,
-      record: { n: 212, wins: 129, verdict: "edge" },
+      close: 100,
+      score: 2,
+      of: 3,
+      met: ["At a bullish order block / demand zone", "RSI 50-70: healthy momentum"],
       telegram: "offline",
       unseen: true,
     });
@@ -106,31 +95,9 @@ describe("matchFirings", () => {
     ).toEqual([]);
   });
 
-  it("respects edge-only rules", () => {
-    const noEdge = [current("BTC-USDT", 101 * H4, "noEdge")];
-    expect(matchFirings([rule({ edgeOnly: true })], noEdge, "4h", [], new Set(), now)).toEqual([]);
-    expect(matchFirings([rule()], noEdge, "4h", [], new Set(), now)).toHaveLength(1);
-  });
-
   it("marks delivery off when the rule has no Telegram", () => {
     const f = matchFirings([rule({ telegram: false, inApp: false })], cur, "4h", [], new Set(), 0);
     expect(f[0]).toMatchObject({ telegram: "off", unseen: false });
-  });
-});
-
-describe("resolveOutcome", () => {
-  it("reads the outcome of the same occurrence from the coin's newer analysis", () => {
-    const [firing] = matchFirings(
-      [rule()],
-      [current("BTC-USDT", 101 * H4)],
-      "4h",
-      [],
-      new Set(),
-      0,
-    );
-    const newer = [occ("BTC-USDT", 101 * H4, "win")];
-    expect(resolveOutcome(firing, newer)).toBe("win");
-    expect(resolveOutcome({ ...firing, time: 99 * H4 }, newer)).toBe("open");
   });
 });
 
@@ -153,6 +120,28 @@ describe("storage parsing", () => {
   it("round-trips valid firings", () => {
     const f = matchFirings([rule()], [current("BTC-USDT", 101 * H4)], "4h", [], new Set(), 5);
     expect(parseFirings(JSON.parse(JSON.stringify(f)))).toEqual(f);
-    expect(parseFirings([{ ...f[0], entry: "x" }])).toEqual([]);
+    expect(parseFirings([{ ...f[0], time: "x" }])).toEqual([]);
+  });
+
+  it("keeps firings stored before the checklist, without their old trade plan", () => {
+    const old = {
+      id: "r1|BTC-USDT|1",
+      ruleId: "r1",
+      symbol: "BTC-USDT",
+      setupKey: "doubleBottom|long|zone",
+      interval: "4h",
+      time: 1,
+      firedAt: 2,
+      entry: 100,
+      stop: 95,
+      target: 110,
+      record: { n: 1, wins: 1, winRate: 1, ci: [0, 1], verdict: "tooFew" },
+      outcome: "win",
+      telegram: "sent",
+      unseen: false,
+    };
+    expect(parseFirings([old])).toEqual([
+      expect.objectContaining({ id: old.id, close: 0, score: 0, of: 0, met: [] }),
+    ]);
   });
 });

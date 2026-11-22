@@ -1,4 +1,4 @@
-"""The rule set: detectors, locations, outcomes and statistics.
+"""The rule set: detectors, locations and the setup checklist.
 
 Every detector follows the same contract:
 

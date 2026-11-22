@@ -13,7 +13,6 @@ import { SetupAlertService } from "./services/SetupAlertService";
 
 // The chart library is large; load it only when the Chart page opens.
 const ChartPage = lazy(() => import("./components/ChartPage"));
-const StatsPage = lazy(() => import("./components/StatsPage"));
 const TechOverviewPage = lazy(() => import("./components/TechOverviewPage"));
 
 function App() {
@@ -28,7 +27,6 @@ function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/chart" element={<ChartPage />} />
           <Route path="/chart/:symbol" element={<ChartPage />} />
-          <Route path="/stats" element={<StatsPage />} />
           <Route path="/risk" element={<RiskPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/markets" element={<Markets />} />
