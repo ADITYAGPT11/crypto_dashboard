@@ -26,3 +26,11 @@ export function latestPatterns<T extends Listed>(
     .sort((a, b) => b.closeTime - a.closeTime)
     .slice(0, size);
 }
+
+/**
+ * Chart timeframe after clicking a pattern: the pattern's own when it is lower than the chart's
+ * (a 15m pattern is a sliver on a 4h chart), else the chart's unchanged.
+ */
+export function viewTfFor<T extends string>(patternTf: T, viewTf: T, ms: Record<T, number>): T {
+  return ms[patternTf] < ms[viewTf] ? patternTf : viewTf;
+}

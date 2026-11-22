@@ -1,7 +1,6 @@
 import { Modal } from "./Modal";
 import {
   DEFAULT_OVERLAYS,
-  PATTERN_TAG_CHOICES,
   HEAT_CONTRASTS,
   PER_KIND_CHOICES,
   ZONE_ATR_CHOICES,
@@ -15,6 +14,7 @@ type Flag = {
 
 const SHOW: [Flag, string][] = [
   ["pattern", "Patterns"],
+  ["otherPatterns", "Other listed patterns in view (faint)"],
   ["zones", "Demand / supply zones"],
   ["orderBlocks", "Order blocks"],
   ["fvg", "Fair value gaps"],
@@ -39,7 +39,7 @@ const OverlaySettingsDialog: React.FC<{
 }> = ({ value, onChange, onClose }) => {
   const set = <K extends keyof OverlaySettings>(k: K, v: OverlaySettings[K]) =>
     onChange({ ...value, [k]: v });
-  const select = <K extends "perKind" | "minZoneAtr" | "patternTags">(
+  const select = <K extends "perKind" | "minZoneAtr">(
     k: K,
     label: string,
     choices: readonly number[],
@@ -118,12 +118,6 @@ const OverlaySettingsDialog: React.FC<{
             <option value="high">High · thinner liquidity lights up</option>
           </select>
         </label>
-      </div>
-      <h3 className={styles.sub}>Pattern tags</h3>
-      <div className={styles.form}>
-        {select("patternTags", "Other recent patterns tagged", PATTERN_TAG_CHOICES, (n) =>
-          n === 0 ? "None (selected only)" : String(n),
-        )}
       </div>
     </Modal>
   );

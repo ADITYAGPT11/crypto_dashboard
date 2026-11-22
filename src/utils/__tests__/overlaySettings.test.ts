@@ -84,12 +84,12 @@ describe("keyLevels", () => {
 describe("parseOverlays", () => {
   it("keeps valid choices and falls back for junk", () => {
     expect(
-      parseOverlays({ perKind: 5, minZoneAtr: 3, labels: false, patternTags: 0 }),
+      parseOverlays({ perKind: 5, minZoneAtr: 3, labels: false, otherPatterns: false }),
     ).toMatchObject({
       perKind: 5,
       minZoneAtr: 3,
       labels: false,
-      patternTags: 0,
+      otherPatterns: false,
       zones: true,
     });
     expect(parseOverlays({ perKind: 7, minZoneAtr: "x" })).toMatchObject({

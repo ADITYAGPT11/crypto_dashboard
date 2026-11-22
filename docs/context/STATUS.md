@@ -30,7 +30,7 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 | Check                                                            | State                                                                                                                                                                                        |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                           |
-| `npm test`                                                       | ✅ 368 tests, 38 files                                                                                                                                                                       |
+| `npm test`                                                       | ✅ 369 tests, 38 files                                                                                                                                                                       |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                               |
 | `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 148 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
 | `npm run api`                                                    | ✅ :8000                                                                                                                                                                                     |
@@ -63,8 +63,10 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
   timeframe. **Last 10 patterns** under it: the 10 newest detections on the picked timeframes
   meeting at least 3 of 6 checks (`utils/patternList.ts`), in two columns of compact rows, each
   with its six checks as inline tags (OB · RSI · VOL · VWAP · ATR · ST; hover for what was
-  observed) and its score; only these are drawn. Clicking a row draws it; a footer line names it
-  with Alert me.
+  observed) and its score. On the chart (labels name only, no score) the selected one is drawn
+  in full and the other listed ones in view faintly (Display settings → "Other listed patterns
+  in view"). Clicking a row draws it and, when the pattern's timeframe is lower than the chart's,
+  switches the chart down to it once; a footer line names it with Alert me.
 - **Pattern choice is display only.** The backend detects every pattern whatever is picked.
 - **Dashboard** (`/`): market overview (unchanged), scanner from the service (last 3 closed
   candles, picked patterns, most checks met first, which checks passed), watchlist.
@@ -102,6 +104,11 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 
 ## History
 
+- 2026-11-22: **Chart: names only, every listed pattern in view, switch down on click**
+  (owner). Chart labels drop the "N/6 checks" score; the other listed patterns whose candles
+  are on screen are drawn faintly (shape + name) instead of small timeframe tags (the "Pattern
+  tags" count setting became the `otherPatterns` on/off). Clicking a 15m pattern on a 4h chart
+  switches the chart to 15m (`viewTfFor`); same or higher timeframes leave it.
 - 2026-11-22: **Last 10 patterns with 3+ checks; 15m timeframe** (owner). The chart's pattern
   list shows the 10 newest detections with at least 3 of 6 checks, one row per detection (was
   one row per pattern and direction, every score); `utils/patternGroups.ts` replaced by
