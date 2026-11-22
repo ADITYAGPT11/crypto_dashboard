@@ -13,6 +13,7 @@ function view(partial: Partial<ViewPattern>): ViewPattern {
     startX: 9.5,
     lines: [],
     confidence: null,
+    passes: true,
     extreme: 90,
     entry: 106,
     stop: 89,

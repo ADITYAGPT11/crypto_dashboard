@@ -251,7 +251,12 @@ const PatternRows: React.FC<Props> = (p) => {
           const long = g.direction === "long";
           const panel = `row-${g.id.replace(/[^a-z0-9]/gi, "-")}`;
           return (
-            <li key={g.id} className={open ? styles.rowOpen : undefined}>
+            <li
+              key={g.id}
+              className={[open ? styles.rowOpen : "", f.occ.passes ? "" : styles.rowFiltered]
+                .filter(Boolean)
+                .join(" ")}
+            >
               <button
                 type="button"
                 className={styles.rowBtn}
@@ -268,6 +273,14 @@ const PatternRows: React.FC<Props> = (p) => {
                     <span className="sr-only">{long ? " Long" : " Short"}</span>
                   </span>{" "}
                   {patternLabel(g.pattern)}
+                  {!f.occ.passes && (
+                    <span
+                      className={styles.filtered}
+                      title="Filtered out: past setups like this one (same pattern, direction, timeframe and order-flow score) did not clear break-even after costs, or there are too few of them."
+                    >
+                      Filtered
+                    </span>
+                  )}
                 </b>
                 <span className={styles.rowWhere}>
                   <TfBadge tf={f.tf} /> {whenText(f, now)}

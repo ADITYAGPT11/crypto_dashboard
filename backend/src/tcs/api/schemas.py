@@ -77,6 +77,12 @@ class ConfidenceOut(Out):
     n: int
     #: "score" = same score; "pattern" = every case of the pattern (score bucket too small).
     basis: Literal["score", "pattern"]
+    #: Win rate needed to break even after fees, slippage and funding.
+    break_even: float = 0.5
+    #: Mean result per trade in R after costs.
+    expectancy_net_r: float = 0.0
+    #: "edge" = the Wilson low clears the break-even (the confidence filter passes).
+    verdict: Literal["edge", "noEdge", "tooFew"] = "tooFew"
 
 
 class OccurrenceOut(Out):
@@ -99,6 +105,8 @@ class OccurrenceOut(Out):
     score: int
     #: Filled from the latest statistics run; None until it has at least ``MIN_SAMPLE`` cases.
     confidence: ConfidenceOut | None = None
+    #: The confidence filter: True only when ``confidence.verdict`` is "edge" (else drawn grey).
+    passes: bool = False
 
 
 class ZoneOut(Out):

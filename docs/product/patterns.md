@@ -1,4 +1,4 @@
-# Pattern, zone and order-block rules (rule set `2026.11-r8`)
+# Pattern, zone and order-block rules (rule set `2026.11-r9`)
 
 The written rules behind `backend/src/tcs/analysis/`. Code and this page must agree; when they
 don't, the code wins and this page is fixed in the same change. Any change to a threshold or rule
@@ -110,25 +110,28 @@ The 0.02 cut comes from the feature's own spread (median |ratio| 0.023 on real E
 outcomes. Unknown (no taker volume in the window) falls in no bucket. Context records are pooled
 across coins only (per-coin buckets would be too small).
 
-## Confidence score (`analysis/confidence.py`, since r7)
+## Confidence filter (`analysis/confidence.py`, since r9; score since r7)
 
-Four yes/no checks at the confirmation candle, counted 0-4. The chart shows the **win rate of
-past setups of the same pattern, direction, timeframe and score** (pooled across coins, with its
-Wilson range as ±), or the pattern's whole record when that score has under 30 cases; nothing
-until a statistics run has 30. Never a weighted guess.
+Three yes/no order-flow checks at the confirmation candle, counted **0-3**: delta **not against**
+the trade, delta **agrees** (so flow scores 0 against / 1 neutral / 2 agrees), and a **CVD
+divergence** in the trade's favour (`flow.py`). The statistics are split by score (`score:<n>`).
+Each setup shows the win rate of past setups of the same pattern, direction, timeframe and score
+(the pattern's whole record when that score has under 30 cases), and it **passes the filter** only
+when that record's verdict is **edge**: at least 30 cases and the Wilson low of the win rate above
+the break-even after costs. Setups that do not pass are **drawn grey** ("filtered") on the chart
+and in the pattern list; the trade plan itself is the same for every setup.
 
-| Check         | Passes when                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------------------- |
-| With trend    | the confirmation close is on the trade's side of the EMA(200)                                     |
-| Flow agrees   | delta over the last 3 candles `confirms` (order-flow context above)                               |
-| Calm volume   | no candle from the pattern's first to the confirmation traded ≥ 1.5× the 20-candle mean before it |
-| Not stretched | RSI(14) stayed above 35 through the pattern (below 65 for shorts, via the mirror)                 |
+Chosen on the r8 plan with strict 5-minute fills: candidates picked on **year 1 only** (net R,
+|t| ≥ 2) and kept only when **year 2** agreed. Kept: order flow (4h: +0.12 / +0.13R agrees,
++0.17 / +0.21R not against) and CVD divergence (1h +0.10 / +0.10R, 4h +0.24 / +0.25R). Dropped:
+Bitcoin's trend (flipped in year 2), daily trend (year 2 only), EMA-200 trend, calm volume and RSI
+not stretched (the r7 checks). Score 3 on 4h: +0.22R (year 1) / +0.15R (year 2) after costs;
+score 0: −0.13 / −0.28R. On 1d the samples are too small to sort.
 
-Each check was kept because it raised the win rate in **both** years of a 2-year sample (10 coins,
-1h and 4h, every pattern pooled). Tested and dropped: at a demand / supply zone or order block
-(no lift), "strong" zone with a ≥ 2 ATR departure (no lift). A volume spike and an oversold RSI
-**lowered** the win rate, so the kept checks are their opposites. On 1d the sample is too small to
-tell; the score is still measured there, not assumed.
+**Caveats.** In-sample records; about 330 groups (pattern × direction × timeframe × score) are
+tested, so a few "edges" are expected by chance, and in the 2024-11 → 2026-11 sample every passing
+group was a **short** (a falling market). Treat a pass as "worth a look", confirmed only by the
+forward record.
 
 ## Chart patterns (in-house)
 

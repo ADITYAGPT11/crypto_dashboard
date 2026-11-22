@@ -128,6 +128,8 @@ export const TF_COLOR: Record<string, string> = {
   "4h": "#4C9AFF",
   "1d": "#F0A35E",
 };
+/** Tag colour of a setup the confidence filter leaves out. */
+const FILTERED_TAG = "#5B6672";
 
 const C = {
   up: "#56D364",
@@ -734,7 +736,7 @@ const PriceChart: React.FC<Props> = ({
           px,
           py + (o.direction === "long" ? 16 : -16),
           `${o.tf} ${arrow}${patternShort(o.pattern)}`,
-          TF_COLOR[o.tf] ?? C.muted,
+          o.passes ? (TF_COLOR[o.tf] ?? C.muted) : FILTERED_TAG,
         );
       }
     }

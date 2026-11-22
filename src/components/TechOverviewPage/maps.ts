@@ -1679,9 +1679,9 @@ const analysisEngine: ArchMap = {
       lane: "ctx",
       y: 360,
       title: "confidence.py",
-      sub: "score 0-4 · shown as a %",
+      sub: "score 0-3 · the filter",
       kind: "py",
-      desc: "Four yes/no checks at the signal bar (with the trend, flow agrees, calm volume, RSI not stretched); the chart shows the measured win rate of past setups with the same score.",
+      desc: "Order-flow score 0-3 at the signal bar (flow against / neutral / agrees + CVD divergence). A setup passes the filter only when its record at that score clears break-even after costs; others are drawn grey.",
       files: ["backend/src/tcs/analysis/confidence.py"],
     },
     {

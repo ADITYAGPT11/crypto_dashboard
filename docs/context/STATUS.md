@@ -17,7 +17,7 @@ confirmations yet (by design).
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload; run the
    r2 statistics on 1h and 1d. Then order-flow step 4: liquidation feed, OI/funding panels and
    the estimated liquidation map (`COMPETITORS.md` §4).
-1. Owner: run `npm start` on a machine that reaches Binance, let the first r8
+1. Owner: run `npm start` on a machine that reaches Binance, let the first r9
    statistics run finish (about 15 min for 10 coins × 3 timeframes × 2 years), and review the
    rule set in `docs/product/patterns.md`.
 2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
@@ -32,9 +32,9 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 | Check                                                            | State                                                                                                                                                                                                       |
 | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                                          |
-| `npm test`                                                       | ✅ 385 tests, 39 files                                                                                                                                                                                      |
+| `npm test`                                                       | ✅ 386 tests, 39 files                                                                                                                                                                                      |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                                              |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 183 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 184 tests (invariants on every detector, per-clause rules, golden snapshot, API, generated TS types)                                                                                                     |
 | `npm run api`                                                    | ✅ :8000; stats job on 3 coins × 1 year × 1h/4h/1d from the archive in ~17 s                                                                                                                                |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing                  |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Pattern stats, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -127,6 +127,11 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
   Pattern stats, Dashboard and Alerts. Drawing: the name and key-point tags are 10 px see-through
   pills, the entry / stop / target zones 6% (were 14%), no text inside the box, and the price axis
   shows only the three prices (no Entry / Stop / Target words). The win-rates status line is gone.
+- 2026-11-22: **Confidence filter (rule set r9)** (owner). Score 0-3 from order flow and CVD
+  divergence (re-picked on year 1, confirmed on year 2 under the r8 plan); each setup passes only
+  when its record at that score clears break-even after costs (`OccurrenceOut.passes`). Filtered
+  setups are drawn grey ("filtered") on the chart, in the timeframe tags and in the pattern list.
+  Trade plan unchanged. On the preview run only a few groups pass, all shorts (`DECISIONS.md`).
 - 2026-11-22: **Trade plan B with strict 5-minute fills (rule set r8)** (owner). Every trade:
   entry at the confirmation close; pattern stop (on 1h 0.5 ATR beyond the invalidation price);
   TP1 = the target, then a stop trailing 2 ATR behind the best price, moved at candle closes;

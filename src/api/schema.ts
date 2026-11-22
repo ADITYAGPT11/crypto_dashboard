@@ -70,6 +70,9 @@ export interface ConfidenceOut {
   ciHigh: number;
   n: number;
   basis: "score" | "pattern";
+  breakEven?: number;
+  expectancyNetR?: number;
+  verdict?: "edge" | "noEdge" | "tooFew";
 }
 
 export interface ContextSummaryOut {
@@ -163,6 +166,7 @@ export interface OccurrenceOut {
   trail: TrailOut;
   score: number;
   confidence?: ConfidenceOut | null;
+  passes?: boolean;
 }
 
 export interface OrderBlockOut {

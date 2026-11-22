@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from tcs.analysis.candlesticks import detect_candlesticks
 from tcs.analysis.chart_patterns import detect_chart_patterns
-from tcs.analysis.confidence import Score, scorer
+from tcs.analysis.confidence import Score, score_of
 from tcs.analysis.flow import FlowContext, flow_at
 from tcs.analysis.indicators import atr
 from tcs.analysis.location import locate
@@ -85,7 +85,6 @@ def analyze(
     a = atr(s)
     found = hits if hits is not None else detect_patterns(s)
     mirrored = mirror(s) if any(h.direction == "short" for h in found) else None
-    score = scorer(s, mirrored)
     occurrences: list[Occurrence] = []
     for hit in found:
         flow = flow_at(s, hit, mirrored)
@@ -97,7 +96,7 @@ def analyze(
                 to_outcome(hit, path),
                 flow,
                 path,
-                score(hit, flow),
+                score_of(flow),
             )
         )
     return Analysis(s, lv_series, occurrences, lv)

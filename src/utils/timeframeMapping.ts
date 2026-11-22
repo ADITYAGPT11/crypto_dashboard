@@ -71,6 +71,8 @@ export interface ViewPattern {
   lines: ViewLine[];
   /** Measured win rate of past setups like this one (null until a statistics run has it). */
   confidence: ConfidenceOut | null;
+  /** The confidence filter: its record clears break-even after costs. False = drawn grey. */
+  passes: boolean;
   /** The pattern's extreme (low for longs, high for shorts): where its tag sits. */
   extreme: number;
   entry: number;
@@ -137,6 +139,7 @@ export function toViewPattern(
     })),
     extreme: occ.extreme,
     confidence: occ.confidence ?? null,
+    passes: occ.passes ?? false,
     entry: occ.entry,
     stop: occ.stop,
     target: occ.target,

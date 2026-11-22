@@ -189,16 +189,19 @@ class Service:
                         ci_high=s["ci_high"],
                         n=s["n"],
                         basis=basis,
+                        break_even=s["break_even_net"],
+                        expectancy_net_r=s["expectancy_net_r"],
+                        verdict=s["verdict"],
                     )
             return None
 
-        return out.model_copy(
-            update={
-                "occurrences": [
-                    o.model_copy(update={"confidence": confidence(o)}) for o in out.occurrences
-                ]
-            }
-        )
+        def update(o: OccurrenceOut) -> OccurrenceOut:
+            c = confidence(o)
+            return o.model_copy(
+                update={"confidence": c, "passes": c is not None and c.verdict == "edge"}
+            )
+
+        return out.model_copy(update={"occurrences": [update(o) for o in out.occurrences]})
 
     def _fine(self, symbol: str, since: int, now: int) -> Series | None:
         """5-minute candles for walking trades (``outcomes.py``), at most ``FINE_DAYS`` back.

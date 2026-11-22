@@ -499,3 +499,17 @@ invalidation price, skip setups costing over 0.1R) with the trail at 2 ATR, the 
 better. Every plan is still negative after costs; random entries were not re-run under strict
 fills. The stop moves only at candle closes (a resting order), so fills do not depend on prices'
 order inside a candle; 5-minute candles add gap fills (≈0.01% of trades changed).
+
+### 2026-11-22 · Confidence becomes a filter on order flow (r9); setups without an edge drawn grey
+
+Why: the owner kept the trade plan fixed and asked for a confidence layer as a filter, greying
+out filtered setups. The r7 checks raised win rates, not profit, so the checks were re-picked on
+the r8 plan with strict fills: year-1 selection (net R, |t| ≥ 2), year-2 confirmation. Order flow
+and CVD divergence held on 1h/4h; Bitcoin trend (flipped), daily trend (year 2 only) and the r7
+checks did not. Score = flow (0 against / 1 neutral / 2 agrees) + CVD divergence (1). Pass =
+the record at that score (or the pattern's when under 30 cases) has verdict "edge" (Wilson low
+above the after-cost break-even). On the preview run (10 coins, 2 years) only a handful of
+groups pass, all shorts (1h rising wedge / symmetrical triangle / double top at score 3; 4h
+bearish harami, double top, hanging man, symmetrical and descending triangles, bearish engulfing
+at score 3; 1d bear flag). With ~330 groups tested and a falling market, chance and regime can
+explain them; the forward record decides.

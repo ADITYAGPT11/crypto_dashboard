@@ -215,7 +215,7 @@ def test_score_buckets_split_every_case(client: TestClient) -> None:
         (s["pattern"], s["direction"]): s["summary"]["n"] for s in every if s["location"] == "*"
     }
     split: dict[tuple[str, str], int] = {}
-    for n in range(5):
+    for n in range(4):
         rows = client.get(
             "/api/v1/stats", params={"tf": "4h", "zoneTf": "4h", "context": f"score:{n}"}
         ).json()["setups"]
@@ -231,7 +231,9 @@ def test_chart_occurrences_carry_their_measured_confidence(client: TestClient) -
     with_conf = [o for o in a["occurrences"] if o["confidence"] is not None]
     assert with_conf, "no occurrence got a confidence"
     for o in a["occurrences"]:
-        assert 0 <= o["score"] <= 4
+        assert 0 <= o["score"] <= 3
+        c = o["confidence"]
+        assert o["passes"] == (c is not None and c["verdict"] == "edge")
     for o in with_conf:
         c = o["confidence"]
         assert c["n"] >= 30

@@ -18,6 +18,8 @@ import type { ViewPattern } from "../../utils/timeframeMapping";
 const UP = "86,211,100";
 const DOWN = "244,112,103";
 const AMBER = "240,163,94";
+/** Setups the confidence filter leaves out. */
+const FILTERED = "139,152,165";
 const INK = "#0B0F14";
 
 type XFn = (logical: number) => number | null;
@@ -85,7 +87,8 @@ export function drawPattern(
   barW: number,
 ) {
   const long = vp.direction === "long";
-  const rgb = long ? UP : DOWN;
+  // Filtered setups (no measured edge at their score) are drawn grey and faded.
+  const rgb = !vp.passes ? FILTERED : long ? UP : DOWN;
   const solid = `rgb(${rgb})`;
   const map = (p: Pt): [number, number] | null => {
     const px = x(p.x);
@@ -106,6 +109,7 @@ export function drawPattern(
   };
 
   g.save();
+  if (!vp.passes) g.globalAlpha = 0.6;
   g.lineJoin = "round";
   g.lineCap = "round";
 
@@ -292,7 +296,8 @@ export function drawPattern(
     const sy = y(long ? fig.span.high : fig.span.low);
     if (sx !== null && sy !== null) {
       const conf = confidenceLabel(vp.confidence);
-      const tag = conf ? `${name} · ${conf.value} ${conf.spread}` : name;
+      const base = conf ? `${name} · ${conf.value} ${conf.spread}` : name;
+      const tag = vp.passes ? base : `${base} · filtered`;
       softPill(g, sx, sy + (long ? -14 : 14), `${long ? "▲" : "▼"} ${tag}`, rgb, "left");
     }
     // 7. Breakout marker on the confirmation close.
@@ -352,7 +357,13 @@ export function drawPattern(
         g.restore();
       }
       const above = inside ? top : top - 20;
-      softPill(g, cx, long ? yLow + 20 : above - 14, `${long ? "▲" : "▼"} ${name}`, rgb);
+      softPill(
+        g,
+        cx,
+        long ? yLow + 20 : above - 14,
+        `${long ? "▲" : "▼"} ${name}${vp.passes ? "" : " · filtered"}`,
+        rgb,
+      );
     }
   }
   g.restore();

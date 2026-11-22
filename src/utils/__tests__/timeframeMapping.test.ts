@@ -132,6 +132,13 @@ describe("toViewPattern", () => {
     expect(vp.outcome).toEqual({ result: "loss", r: -1, exitPrice: 98 });
   });
 
+  it("carries the confidence filter through (grey unless the service says it passes)", () => {
+    expect(toViewPattern(occurrence({ passes: true }), "4h", series(80, H4), "4h").passes).toBe(
+      true,
+    );
+    expect(toViewPattern(occurrence({}), "4h", series(80, H4), "4h").passes).toBe(false);
+  });
+
   it("carries the measured confidence through (null until a statistics run has it)", () => {
     const c = { winRate: 0.41, ciLow: 0.34, ciHigh: 0.48, n: 210, basis: "score" as const };
     expect(
