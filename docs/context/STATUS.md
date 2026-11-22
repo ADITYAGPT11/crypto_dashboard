@@ -30,7 +30,7 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 | Check                                                            | State                                                                                                                                                                                        |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                           |
-| `npm test`                                                       | ✅ 369 tests, 38 files                                                                                                                                                                       |
+| `npm test`                                                       | ✅ 373 tests, 39 files                                                                                                                                                                       |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                               |
 | `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 148 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
 | `npm run api`                                                    | ✅ :8000                                                                                                                                                                                     |
@@ -104,6 +104,10 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 
 ## History
 
+- 2026-11-22: **Chart labels never overlap** (owner). `utils/labelPlacement.ts`: zone and
+  volume-profile labels reserve their space first, then the selected pattern's labels, then
+  each faint pattern name tries small up/down nudges and is left out when no spot is free. A
+  zone label that would sit on another label is left out (its zone is still drawn).
 - 2026-11-22: **Chart: names only, every listed pattern in view, switch down on click**
   (owner). Chart labels drop the "N/6 checks" score; the other listed patterns whose candles
   are on screen are drawn faintly (shape + name) instead of small timeframe tags (the "Pattern

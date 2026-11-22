@@ -20,7 +20,8 @@ import { DrawingManager, type DrawingKind } from "lightweight-charts-drawing";
 import type { Candle, CandleInterval } from "../../types/marketData";
 import type { ViewLevel, ViewPattern } from "../../utils/timeframeMapping";
 import { patternLabel } from "../../utils/patternLabels";
-import { drawPattern } from "./drawPattern";
+import { drawPattern, flushLabels, labelLayer } from "./drawPattern";
+import { overlaps } from "../../utils/labelPlacement";
 import type { BookSample } from "../../utils/liquidityHeatmap";
 import type { HeatContrast } from "../../utils/heatmapRender";
 import { timeToLogical } from "../../utils/orderFlow";
@@ -598,6 +599,9 @@ const PriceChart: React.FC<Props> = ({
     if (heatOn) drawHeatmap(heatRef.current!, hm, xAt, y, plotW, h, ly.heatContrast);
     else clearHeatmap(heatRef.current);
 
+    // Labels never overlap: zone and volume-profile labels reserve their space first, then the
+    // selected pattern's, then the faint pattern names find room around them (or are left out).
+    const labels = labelLayer(4, h - 4);
     // A selected pattern is the subject: levels and the volume profile step back.
     g.globalAlpha = ly.pattern && sel ? 0.35 : 1;
     const LEVEL_STYLE = {
@@ -633,7 +637,13 @@ const PriceChart: React.FC<Props> = ({
         const name =
           z.layer === "orderBlock" ? `${bull ? "bull" : "bear"} OB` : bull ? "demand" : "supply";
         g.fillStyle = z.layer === "orderBlock" ? "rgba(76,154,255,0.95)" : `rgba(${rgb},0.9)`;
-        g.fillText(`${z.tf} ${name}${z.fresh ? " · fresh" : ""}`, Math.max(x1, 0) + 4, yBot - 8);
+        const text = `${z.tf} ${name}${z.fresh ? " · fresh" : ""}`;
+        const r = { x: Math.max(x1, 0) + 4, y: yBot - 15, w: g.measureText(text).width, h: 14 };
+        // A label that would sit on another one is left out (the zone itself is still drawn).
+        if (!labels.placed.some((p) => overlaps(r, p, 0))) {
+          g.fillText(text, r.x, yBot - 8);
+          labels.placed.push(r);
+        }
       }
     }
 
@@ -679,7 +689,10 @@ const PriceChart: React.FC<Props> = ({
           g.lineTo(plotW, Math.round(py) + 0.5);
           g.stroke();
           g.fillStyle = text;
-          g.fillText(`${tag} ${fmtPrice(p)}`, plotW - maxW - 6, py - 5);
+          const label = `${tag} ${fmtPrice(p)}`;
+          g.fillText(label, plotW - maxW - 6, py - 5);
+          const tw = g.measureText(label).width;
+          labels.placed.push({ x: plotW - maxW - 6 - tw, y: py - 11, w: tw, h: 12 });
         }
         g.restore();
       }
@@ -691,15 +704,26 @@ const PriceChart: React.FC<Props> = ({
       // The other listed patterns whose candles are on screen: drawn faintly, under the selected.
       for (const o of oth) {
         if (o === sel || o.entryX < range.from - 1 || o.startX > range.to + 1) continue;
-        drawPattern(g, o, `${patternLabel(o.pattern)} · ${o.tf}`, cs, x, y, barW, true);
+        drawPattern(g, o, `${patternLabel(o.pattern)} · ${o.tf}`, cs, x, y, barW, true, labels);
       }
       g.lineWidth = 1;
     }
     if (ly.pattern && sel) {
       // The tag ("Bear flag · 1d") names the source timeframe; its candles are not shaded.
-      drawPattern(g, sel, `${patternLabel(sel.pattern)} · ${sel.tf}`, cs, x, y, barW);
+      drawPattern(
+        g,
+        sel,
+        `${patternLabel(sel.pattern)} · ${sel.tf}`,
+        cs,
+        x,
+        y,
+        barW,
+        false,
+        labels,
+      );
       g.lineWidth = 1;
     }
+    if (ly.pattern) flushLabels(g, labels);
     // Last, so live prints stay visible above zones and the pattern drawing.
     if (heatOn) drawDepthProfile(g, hm[hm.length - 1], y, plotW, h);
     if (ly.footprint && fp) drawFootprint(g, fp.bars, fp.step, bars, TF_MS[vtf], x, y, h);
