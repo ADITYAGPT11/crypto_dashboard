@@ -68,7 +68,7 @@ function CheckTags({ checks, volume }: { checks: SetupCheck[]; volume?: string |
       {volume === "falling" ? (
         <span
           className={styles.tagInfo}
-          title="Volume fell while the pattern formed, as textbooks expect for flags, triangles and wedges. Information only: not one of the six checks."
+          title="Volume fell while the pattern formed, as textbooks expect for flags, pennants, triangles, wedges and rectangles. Information only: not one of the six checks."
         >
           VOL↓
         </span>

@@ -54,7 +54,6 @@ flowchart LR
 - [x] Candlestick patterns in the analysis service (10, both directions; in-house since r5)
 - [x] Bull flag and inverse head and shoulders (in-house)
 - [x] Triangles (ascending, descending, symmetrical) and wedges; bearish twins of every pattern
-- [ ] Cup and handle, rectangles (if the owner wants them)
 
 ## Phase 1 · Backend + history (M1, M2)
 

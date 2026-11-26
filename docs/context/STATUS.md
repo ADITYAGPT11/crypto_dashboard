@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-26 · branch `claude/beautiful-goodall-ac540j` · rule set r12_
+_Last verified: 2026-11-26 · branch `claude/beautiful-goodall-ac540j` · rule set r13_
 
 ## Phase
 
@@ -17,7 +17,7 @@ live candles and order books, and sizes trades. No confirmations (by design).
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload. Then
    order-flow step 4: liquidation feed, OI/funding panels and the estimated liquidation map
    (`COMPETITORS.md` §4).
-1. Owner: review the setup checklist (rule set r12) on live charts; thresholds are in
+1. Owner: review the setup checklist (rule set r13) on live charts; thresholds are in
    `docs/product/patterns.md` → Setup checklist.
 2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
 3. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
@@ -106,6 +106,10 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 
 ## History
 
+- 2026-11-26: **Rule set r13: six patterns added** (owner). Rectangle and rising / falling
+  channels (parallel lines in `trendlines.py`), triple bottom / top, bull / bear pennant, cup with
+  handle / inverted (`chart_patterns.py`), bullish / bearish liquidity sweep (new `sweeps.py`).
+  Drawn on the chart (`patternGeometry.ts`). ETH 4h golden year: 225 → 289 (`DECISIONS.md`).
 - 2026-11-26: **Rule set r12: the rest of the textbook review** (owner). Triangle and wedge
   breakouts at most 75% of the way to the apex; breakouts against the usual direction are
   signals that way (catalogue bias "either"); H&S sides at most 2× apart in width; hammer and

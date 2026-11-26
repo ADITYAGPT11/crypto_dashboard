@@ -9,11 +9,15 @@ from tcs.analysis.types import Line, PatternHit, Point
 _FLIPPED = {
     "Bottom 1": "Top 1",
     "Bottom 2": "Top 2",
+    "Bottom 3": "Top 3",
     "Peak": "Trough",
     "Top": "Bottom",
     "Flag low": "Flag high",
     "Flag high": "Flag low",
     "Upper": "Lower",
+    "Cup low": "Cup high",
+    "Swing low": "Swing high",
+    "Handle low": "Handle high",
     "Lower": "Upper",
 }
 

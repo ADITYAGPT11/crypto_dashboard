@@ -16,7 +16,7 @@ import numpy as np
 
 from tcs.analysis.indicators import atr
 from tcs.analysis.mirroring import unmirror
-from tcs.analysis.swings import SWING_BARS, Swing, swing_lows
+from tcs.analysis.swings import SWING_BARS, Swing, swing_highs, swing_lows
 from tcs.analysis.types import Line, PatternHit, Point
 from tcs.common.series import FloatArray, Series, mirror
 
@@ -39,6 +39,15 @@ FLAG_POLE_BARS = (3, 15)
 FLAG_MIN_BARS = 3  # pause candles before a breakout counts
 FLAG_MAX_BARS = 20
 FLAG_MAX_RETRACE = 0.5  # pause gives back at most half the pole
+PENNANT_CONVERGE_ATR = 0.25  # pennant: highs' line falls and lows' line rises at least this much
+# Cup with handle (Bulkowski: a U-shaped cup between rims near one price, a handle in its
+# upper half; Bulkowski's daily cups run 7-65 weeks, here in candles)
+CUP_MIN_BARS, CUP_MAX_BARS = 20, 150  # left rim to right rim
+CUP_MIN_DEPTH_ATR = 3.0  # lower rim to the cup's low
+CUP_RIM_TOL = 0.15  # rims within this share of the depth of each other
+CUP_U_SHARE = 0.6  # at least this share of the cup's closes in its lower half (U, not V)
+CUP_HANDLE_MIN_BARS = 3
+CUP_HANDLE_DIP_ATR = 0.5  # the handle pulls back at least this far below the right rim
 # Reversal patterns need a trend to reverse (Bulkowski: "prices trend downward into the pattern")
 PRIOR_BARS = 20  # the first low is compared with the close this many candles earlier
 PRIOR_TREND_ATR = 2.0  # ... and must lie at least this far below it
@@ -55,6 +64,14 @@ def _not_rising(closes: FloatArray) -> bool:
     x = np.arange(closes.shape[0], dtype=np.float64)
     dx = x - x.mean()
     return float((dx * (closes - closes.mean())).sum()) <= 0
+
+
+def _fit_line(values: FloatArray, x0: int) -> tuple[float, float]:
+    """Least-squares line through ``values`` at x = x0, x0 + 1, ...: (slope, value at x0)."""
+    x = np.arange(values.shape[0], dtype=np.float64)
+    dx = x - x.mean()
+    slope = float((dx * (values - values.mean())).sum() / (dx * dx).sum())
+    return slope, float(values.mean() - slope * x.mean())
 
 
 def _trend_into(s: Series, a: FloatArray, first: Swing) -> bool:
@@ -134,6 +151,176 @@ def double_bottoms(s: Series, a: FloatArray, lows: list[Swing]) -> list[PatternH
                     # already past the target (the measured move is spent) = no signal.
                     break
             break  # nearest qualifying first low only
+    return hits
+
+
+def triple_bottoms(s: Series, a: FloatArray, lows: list[Swing]) -> list[PatternHit]:
+    """Three swing lows near one price, a real rally between each pair (r13; Bulkowski).
+
+    The double bottom's rules with a third low: all three within ``DB_LOW_TOL_ATR``, each gap
+    ``DB_MIN_GAP``-``DB_MAX_GAP`` candles, no lower low, both peaks (strictly between the lows'
+    candles) at least ``DB_MIN_HEIGHT_ATR`` above the lows, price falling into the first low.
+    Confirmed on the first close above the higher peak (Bulkowski: "above the highest peak").
+    Entry = confirmation close; stop = lowest low - 0.2 ATR; target = neckline + height.
+    """
+    hits: list[PatternHit] = []
+    last_confirm = -1
+    n = len(s)
+
+    def peak(i: int, j: int) -> int:
+        return i + 1 + int(np.argmax(s.high[i + 1 : j]))
+
+    for r in range(2, len(lows)):
+        third = lows[r]
+        i3 = third.index
+        a3 = float(a[i3])
+        if not _finite(a3) or i3 <= last_confirm:
+            continue
+        found: PatternHit | None = None
+        for m in range(r - 1, 0, -1):
+            second = lows[m]
+            i2 = second.index
+            if i3 - i2 > DB_MAX_GAP:
+                break
+            if i3 - i2 < DB_MIN_GAP:
+                continue
+            for f in range(m - 1, -1, -1):
+                first = lows[f]
+                i1 = first.index
+                if i2 - i1 > DB_MAX_GAP:
+                    break
+                if i2 - i1 < DB_MIN_GAP:
+                    continue
+                prices = (first.price, second.price, third.price)
+                if max(prices) - min(prices) > DB_LOW_TOL_ATR * a3:
+                    continue
+                bottom = min(prices)
+                if float(s.low[i1 : i3 + 1].min()) < bottom - 1e-12:
+                    continue
+                p1, p2 = peak(i1, i2), peak(i2, i3)
+                h1, h2 = float(s.high[p1]), float(s.high[p2])
+                if min(h1, h2) - max(prices) < DB_MIN_HEIGHT_ATR * a3:
+                    continue
+                if not _trend_into(s, a, first):
+                    continue
+                neck_idx, neckline = (p1, h1) if h1 >= h2 else (p2, h2)
+                for c in range(i3 + 1, min(i3 + DB_CONFIRM_WITHIN, n - 1) + 1):
+                    close = float(s.close[c])
+                    if close < bottom:
+                        break
+                    if close > neckline:
+                        target = neckline + (neckline - bottom)
+                        if c >= third.known_at and c > last_confirm and target > close:
+                            ac = float(a[c]) if _finite(float(a[c])) else a3
+                            found = PatternHit(
+                                pattern="tripleBottom",
+                                direction="long",
+                                index=c,
+                                entry=close,
+                                stop=bottom - STOP_PAD_ATR * ac,
+                                target=target,
+                                start=i1,
+                                extreme=bottom,
+                                points=(
+                                    Point(i1, first.price, "Bottom 1"),
+                                    Point(p1, h1, "Peak"),
+                                    Point(i2, second.price, "Bottom 2"),
+                                    Point(p2, h2, "Peak"),
+                                    Point(i3, third.price, "Bottom 3"),
+                                ),
+                                lines=(
+                                    Line(Point(neck_idx, neckline), Point(c, neckline), "Neckline"),
+                                ),
+                            )
+                        break
+                if found:
+                    break
+            if found:
+                break
+        if found:
+            hits.append(found)
+            last_confirm = found.index
+    return hits
+
+
+def cups_with_handle(s: Series, a: FloatArray, highs: list[Swing]) -> list[PatternHit]:
+    """A rounded cup between two swing-high rims, then a handle; confirmed above the right rim.
+
+    Rims: confirmed swing highs ``CUP_MIN_BARS``-``CUP_MAX_BARS`` apart, within ``CUP_RIM_TOL``
+    of the depth of each other, nothing between them higher than the lower rim. Cup: at least
+    ``CUP_MIN_DEPTH_ATR`` deep and U-shaped (``CUP_U_SHARE`` of its closes in its lower half;
+    a V spends half its time there). Handle: from the right rim, at least
+    ``CUP_HANDLE_MIN_BARS`` candles and at most half the cup's length, dipping at least
+    ``CUP_HANDLE_DIP_ATR`` and never closing below the cup's middle. Confirmed on the first close
+    above the right rim. Entry = that close; stop = handle low - 0.2 ATR; target = + depth.
+    """
+    hits: list[PatternHit] = []
+    last_confirm = -1
+    n = len(s)
+    for r in range(1, len(highs)):
+        right = highs[r]
+        i_r = right.index
+        if i_r <= last_confirm:
+            continue
+        found: PatternHit | None = None
+        for q in range(r - 1, -1, -1):
+            left = highs[q]
+            i_l = left.index
+            if i_r - i_l > CUP_MAX_BARS:
+                break
+            if i_r - i_l < CUP_MIN_BARS:
+                continue
+            ar = float(a[i_r])
+            if not _finite(ar):
+                break
+            rim = min(left.price, right.price)
+            if float(s.high[i_l + 1 : i_r].max()) > rim:
+                continue  # something inside the cup rose above its rims
+            i_b = i_l + 1 + int(np.argmin(s.low[i_l + 1 : i_r]))
+            bottom = float(s.low[i_b])
+            depth = rim - bottom
+            if (
+                depth < CUP_MIN_DEPTH_ATR * ar
+                or abs(left.price - right.price) > CUP_RIM_TOL * depth
+            ):
+                continue
+            mid = bottom + depth / 2
+            if float(np.mean(s.close[i_l + 1 : i_r] < mid)) < CUP_U_SHARE:
+                continue  # a V, not a U
+            handle_low, i_h = float("inf"), i_r
+            for f in range(i_r + 1, min(i_r + (i_r - i_l) // 2, n - 1) + 1):
+                close = float(s.close[f])
+                if close > right.price:
+                    long_enough = f - i_r - 1 >= CUP_HANDLE_MIN_BARS
+                    if long_enough and right.price - handle_low >= CUP_HANDLE_DIP_ATR * ar:
+                        af = float(a[f]) if _finite(float(a[f])) else ar
+                        found = PatternHit(
+                            pattern="cupWithHandle",
+                            direction="long",
+                            index=f,
+                            entry=close,
+                            stop=handle_low - STOP_PAD_ATR * af,
+                            target=close + depth,
+                            start=i_l,
+                            extreme=handle_low,
+                            points=(
+                                Point(i_l, left.price, "Left rim"),
+                                Point(i_b, bottom, "Cup low"),
+                                Point(i_r, right.price, "Right rim"),
+                                Point(i_h, handle_low, "Handle low"),
+                            ),
+                            lines=(Line(Point(i_l, right.price), Point(f, right.price), "Rim"),),
+                        )
+                    break
+                if close < mid:
+                    break  # the handle fell into the cup's lower half
+                if float(s.low[f]) < handle_low:
+                    handle_low, i_h = float(s.low[f]), f
+            if found:
+                break
+        if found:
+            hits.append(found)
+            last_confirm = found.index
     return hits
 
 
@@ -245,6 +432,10 @@ def bull_flags(s: Series, a: FloatArray) -> list[PatternHit]:
     The pole top is the highest high of the previous 15 candles. Confirmed on the
     first close above the pause's highest high, 4-20 candles after the top.
     Entry = confirmation close; stop = pause low - 0.2 ATR; target = entry + pole.
+
+    **Pennant** (r13; Bulkowski: a short pause between converging lines): the same rule, named
+    a pennant when the least-squares line of the pause's highs falls and that of its lows rises,
+    each by at least ``PENNANT_CONVERGE_ATR`` ATR; drawn with those two lines.
     """
     hits: list[PatternHit] = []
     last_confirm = -1
@@ -266,9 +457,30 @@ def bull_flags(s: Series, a: FloatArray) -> list[PatternHit]:
             close = float(s.close[f])
             if f - t > FLAG_MIN_BARS and close > flag_high and _not_rising(s.close[t + 1 : f]):
                 af = float(a[f]) if _finite(float(a[f])) else at
+                k = f - t - 2  # the pause's last candle, counted from its first (t + 1)
+                hs, hi0 = _fit_line(s.high[t + 1 : f], t + 1)
+                ls, lo0 = _fit_line(s.low[t + 1 : f], t + 1)
+                pennant = (
+                    -hs * k >= PENNANT_CONVERGE_ATR * af and ls * k >= PENNANT_CONVERGE_ATR * af
+                )
+                if pennant:
+                    pattern = "bullPennant"
+                    points = (Point(base, float(s.low[base]), "Pole"), Point(t, top, "Top"))
+                    lines = (
+                        Line(Point(t + 1, hi0), Point(f, hi0 + hs * (k + 1)), "Upper"),
+                        Line(Point(t + 1, lo0), Point(f, lo0 + ls * (k + 1)), "Lower"),
+                    )
+                else:
+                    pattern = "bullFlag"
+                    points = (
+                        Point(base, float(s.low[base]), "Pole"),
+                        Point(t, top, "Top"),
+                        Point(flag_low_idx, flag_low, "Flag low"),
+                    )
+                    lines = (Line(Point(t + 1, flag_high), Point(f, flag_high), "Flag high"),)
                 hits.append(
                     PatternHit(
-                        pattern="bullFlag",
+                        pattern=pattern,
                         direction="long",
                         index=f,
                         entry=close,
@@ -276,12 +488,8 @@ def bull_flags(s: Series, a: FloatArray) -> list[PatternHit]:
                         target=close + pole,
                         start=base,
                         extreme=flag_low,
-                        points=(
-                            Point(base, float(s.low[base]), "Pole"),
-                            Point(t, top, "Top"),
-                            Point(flag_low_idx, flag_low, "Flag low"),
-                        ),
-                        lines=(Line(Point(t + 1, flag_high), Point(f, flag_high), "Flag high"),),
+                        points=points,
+                        lines=lines,
                         formation=(t + 1, f),
                     )
                 )
@@ -299,14 +507,28 @@ def bull_flags(s: Series, a: FloatArray) -> list[PatternHit]:
 
 BEARISH_TWIN = {
     "doubleBottom": "doubleTop",
+    "tripleBottom": "tripleTop",
     "inverseHeadShoulders": "headShoulders",
     "bullFlag": "bearFlag",
+    "bullPennant": "bearPennant",
+    "cupWithHandle": "invertedCupWithHandle",
 }
 
 
 def _bullish(s: Series, a: FloatArray) -> list[PatternHit]:
     lows = swing_lows(s, SWING_BARS)
-    return [*double_bottoms(s, a, lows), *inverse_head_shoulders(s, a, lows), *bull_flags(s, a)]
+    triples = triple_bottoms(s, a, lows)
+    # A triple bottom's breakout also completes a double bottom of two of its lows: one name.
+    taken = {h.index for h in triples}
+    doubles = [h for h in double_bottoms(s, a, lows) if h.index not in taken]
+    highs = swing_highs(s, SWING_BARS)
+    return [
+        *doubles,
+        *triples,
+        *inverse_head_shoulders(s, a, lows),
+        *bull_flags(s, a),
+        *cups_with_handle(s, a, highs),
+    ]
 
 
 def detect_chart_patterns(s: Series, atrs: FloatArray | None = None) -> list[PatternHit]:

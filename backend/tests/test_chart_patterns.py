@@ -7,11 +7,14 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from tcs.analysis.chart_patterns import detect_chart_patterns
+from tcs.analysis import chart_patterns
+from tcs.analysis.chart_patterns import detect_chart_patterns, double_bottoms
+from tcs.analysis.indicators import atr
+from tcs.analysis.swings import SWING_BARS, swing_lows
 from tcs.analysis.types import PatternHit
 from tcs.common.series import Series, mirror
 
-from .helpers import path
+from .helpers import candles, path
 
 
 def of(s: Series, pattern: str, after: int = 0) -> list[PatternHit]:
@@ -71,6 +74,37 @@ class TestDoubleBottom:
         assert bottoms
         assert [(t.index, t.direction) for t in tops] == [(b.index, "short") for b in bottoms]
         assert tops[0].entry == pytest.approx(-bottoms[0].entry)
+
+
+TRIPLE = [(0, 110), (14, 90), (22, 100), (30, 90.2), (38, 100.3), (46, 90.1), (56, 104), (62, 103)]
+
+
+class TestTripleBottom:
+    def test_confirms_above_the_higher_peak(self) -> None:
+        hits = of(falling_into(TRIPLE), "tripleBottom")
+        assert len(hits) == 1
+        h = hits[0]
+        assert [p.label for p in h.points][::2] == ["Bottom 1", "Bottom 2", "Bottom 3"]
+        assert h.entry > h.lines[0].a.price  # closed above the higher peak
+        assert h.target == pytest.approx(h.lines[0].a.price * 2 - h.extreme)
+
+    def test_its_breakout_is_not_also_a_double_bottom(self) -> None:
+        s = falling_into(TRIPLE)
+        triple = of(s, "tripleBottom")[0]
+        assert [h for h in of(s, "doubleBottom") if h.index == triple.index] == []
+        # ... though two of its lows alone do make one (the suppression is what removes it).
+        lows = swing_lows(s, SWING_BARS)
+        assert any(h.index == triple.index for h in double_bottoms(s, atr(s), lows))
+
+    def test_third_low_must_be_near_the_others(self) -> None:
+        uneven = falling_into([*TRIPLE[:5], (46, 94), (56, 104), (62, 103)])
+        assert of(uneven, "tripleBottom") == []
+
+    def test_triple_top_is_the_mirror(self) -> None:
+        tops = of(mirror(falling_into(TRIPLE)), "tripleTop")
+        assert [(t.index, t.direction) for t in tops] == [
+            (h.index, "short") for h in of(falling_into(TRIPLE), "tripleBottom")
+        ]
 
 
 IHS = [(0, 104), (20, 90), (28, 96), (38, 84), (48, 96.5), (56, 90.5), (70, 100), (80, 99)]
@@ -157,3 +191,73 @@ class TestBullFlag:
         assert [h.index for h in of(mirror(path(FLAG)), "bearFlag")] == [
             h.index for h in of(path(FLAG), "bullFlag")
         ]
+
+
+def pole_and_pause(pause: list[tuple[float, float]]) -> Series:
+    """A 12-point pole in 6 candles, the given (high, low) pause with level closes, a breakout."""
+    rows = [(100.0, 100.5, 99.5, 100.0)] * 15
+    rows += [(100.0 + 2 * i, 102.3 + 2 * i, 99.8 + 2 * i, 102.0 + 2 * i) for i in range(6)]
+    rows += [(109.7, h, lo, 109.7) for h, lo in pause]
+    rows += [(109.7, 113.5, 109.5, 113.2), (113.2, 114.0, 112.8, 113.8)]
+    return candles(rows)
+
+
+CONVERGING = [(112.4, 107.0), (111.9, 107.5), (111.4, 108.0), (110.9, 108.5), (110.4, 109.0)]
+
+
+class TestPennant:
+    def test_a_converging_pause_is_a_pennant(self) -> None:
+        hits = of(pole_and_pause(CONVERGING), "bullPennant")
+        assert len(hits) == 1
+        upper, lower = hits[0].lines
+        assert upper.b.price < upper.a.price and lower.b.price > lower.a.price
+        assert of(pole_and_pause(CONVERGING), "bullFlag") == []
+
+    def test_a_parallel_pause_stays_a_flag(self) -> None:
+        s = pole_and_pause([(112.4, 107.0)] * 5)
+        assert of(s, "bullPennant") == []
+        assert len(of(s, "bullFlag")) == 1
+
+    def test_bear_pennant_is_the_mirror(self) -> None:
+        assert len(of(mirror(pole_and_pause(CONVERGING)), "bearPennant")) == 1
+
+
+CUP: list[tuple[int, float]] = [
+    (0, 100),
+    (10, 120),
+    (25, 104),
+    (30, 102),
+    (40, 103),
+    (45, 104),
+    (60, 120),
+    (66, 115),
+    (72, 124),
+]
+V_CUP: list[tuple[int, float]] = [(0, 100), (10, 120), (35, 102), (60, 120), (66, 115), (72, 124)]
+
+
+class TestCupWithHandle:
+    def test_confirms_above_the_right_rim(self) -> None:
+        hits = of(path(CUP), "cupWithHandle")
+        assert len(hits) == 1
+        h = hits[0]
+        labels = {p.label: p.price for p in h.points}
+        assert h.entry > labels["Right rim"]
+        assert labels["Handle low"] > (labels["Cup low"] + labels["Right rim"]) / 2  # upper half
+        assert h.target == pytest.approx(h.entry + labels["Right rim"] - labels["Cup low"])
+
+    def test_a_v_is_not_a_cup(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        assert of(path(V_CUP), "cupWithHandle") == []
+        monkeypatch.setattr(chart_patterns, "CUP_U_SHARE", 0.0)  # the U rule is what rejects it
+        assert len(of(path(V_CUP), "cupWithHandle")) == 1
+
+    def test_needs_a_handle(self) -> None:
+        no_handle: list[tuple[int, float]] = [*CUP[:7], (66, 124), (70, 125)]
+        assert of(path(no_handle), "cupWithHandle") == []
+
+    def test_a_handle_in_the_lower_half_fails(self) -> None:
+        deep: list[tuple[int, float]] = [*CUP[:7], (66, 108), (74, 124)]
+        assert of(path(deep), "cupWithHandle") == []
+
+    def test_inverted_cup_is_the_mirror(self) -> None:
+        assert len(of(mirror(path(CUP)), "invertedCupWithHandle")) == 1
