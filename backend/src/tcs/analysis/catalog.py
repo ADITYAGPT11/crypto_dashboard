@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 #: Bump when ANY detector, location or checklist rule or threshold changes.
-RULESET_VERSION = "2026.11-r10"
+RULESET_VERSION = "2026.11-r11"
 
 Kind = Literal["chart", "candlestick"]
 Bias = Literal["long", "short", "either"]

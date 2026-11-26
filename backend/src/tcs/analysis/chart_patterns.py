@@ -92,7 +92,9 @@ def double_bottoms(s: Series, a: FloatArray, lows: list[Swing]) -> list[PatternH
             bottom = min(first.price, second.price)
             if float(s.low[i1 : i2 + 1].min()) < bottom - 1e-12:
                 continue  # a lower low between: not a double bottom
-            neck_idx = i1 + int(np.argmax(s.high[i1 : i2 + 1]))
+            # The peak is the highest high strictly between the two lows' candles: a rally of
+            # its own, never the wick of a low's candle (r11).
+            neck_idx = i1 + 1 + int(np.argmax(s.high[i1 + 1 : i2]))
             neckline = float(s.high[neck_idx])
             if neckline - max(first.price, second.price) < DB_MIN_HEIGHT_ATR * a2:
                 continue

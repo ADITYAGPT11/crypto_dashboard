@@ -526,3 +526,20 @@ this conversation found several of these checks (zones, volume spikes, oversold 
 improve results under the old plan; the owner chose the checklist knowing that. The research and
 its code are in the history (r5–r9 entries above) if measurement returns. Removed with it: order-
 flow context and funding history (only the statistics used them) and the Pattern stats page.
+
+### 2026-11-26 · Double-bottom peak between the lows; five touches for triangles and wedges (r11)
+
+Why: the owner reviewed every rule against Bulkowski, Edwards & Magee and Nison and asked for the
+two gaps with no reason behind them to be fixed. (1) The double bottom / top's peak was the
+highest high from the first low's candle to the second's, so a low's own wick could be the whole
+"rally" (4 of 17 on the ETH 4h year); it is now the highest high strictly between the two lows'
+candles. (2) Triangles and wedges fell back to 2 swing highs + 2 swing lows; Bulkowski asks for at
+least five touches (3 on one line, 2 on the other), so the 2 + 2 fallback is gone. Effect on the
+golden year (ETH 4h, 2,190 candles): 273 → 253 detections. Triangles and wedges 45 → 26
+(symmetrical 20 → 12, falling wedge 13 → 9, rising wedge 11 → 5, descending triangle 1 → 0; 21
+four-touch formations dropped, 4 five-touch ones newly found because the earlier one no longer
+blocks them). Double bottoms / tops 17 → 16: two one-candle W's dropped, 28–31 May 2026 newly
+found (its old "peak" was the second low's own wick, never broken), and the 11 and 18 Feb ones keep
+their signal with the real rally as the neckline. Not measured against outcomes (no statistics
+since r10). Left for later (owner): breakouts near the apex, against-bias breakouts, H&S width
+symmetry, volume inside the formation, hammer / hanging-man naming.

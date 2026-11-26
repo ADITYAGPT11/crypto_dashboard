@@ -17,9 +17,10 @@ def hits(s: Series, pattern: str) -> list[PatternHit]:
     return [h for h in detect_trendline_patterns(s) if h.pattern == pattern]
 
 
-# Flat top at ~110, rising lows 100 -> 103 -> 106, breakout to 116.
+# Flat top at ~110, rising lows 100 -> 103 -> 106, breakout to 116. Five touches (3 lows, 2 highs)
+# are known before the breakout; the third high at 48 only becomes a swing after it.
 ASC = [
-    (0, 96),
+    (0, 104),
     (8, 100),
     (16, 110),
     (24, 103),
@@ -31,7 +32,7 @@ ASC = [
 ]
 # Falling highs 114 -> 111 -> 108, rising lows 100 -> 102.5 -> 105, breakout up.
 SYM = [
-    (0, 98),
+    (0, 104),
     (6, 100),
     (14, 114),
     (22, 102.5),
@@ -41,12 +42,12 @@ SYM = [
     (52, 114),
     (58, 115),
 ]
-# Both lines falling, upper steeper: highs 120 -> 113 -> 108, lows 110 -> 106 -> 103.5.
+# Both lines falling, upper steeper: highs 120 -> 114 -> 108, lows 110 -> 106 -> 103.5.
 WEDGE = [
     (0, 118),
     (6, 120),
     (14, 110),
-    (22, 113),
+    (22, 114),
     (30, 106),
     (38, 108),
     (46, 103.5),
@@ -81,6 +82,14 @@ def test_mirrors_are_the_bearish_twins() -> None:
     assert ("descendingTriangle", "short") in kinds(mirror(path(ASC)))
     assert ("symmetricalTriangle", "short") in kinds(mirror(path(SYM)))
     assert ("risingWedge", "short") in kinds(mirror(path(WEDGE)))
+
+
+def test_four_touches_are_not_enough() -> None:
+    # Two highs and two lows only: Bulkowski asks for five touches (3 + 2) (r11).
+    two_by_two = path([(0, 98), (6, 100), (14, 114), (22, 102.5), (30, 111), (38, 105), (44, 114)])
+    assert [
+        k for k in kinds(two_by_two) if k[0].endswith("Triangle") or k[0].endswith("Wedge")
+    ] == []
 
 
 def test_no_breakout_no_signal() -> None:

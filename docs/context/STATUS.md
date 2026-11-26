@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-26 · branch `claude/beautiful-goodall-ac540j`_
+_Last verified: 2026-11-26 · branch `claude/beautiful-goodall-ac540j` · rule set r11_
 
 ## Phase
 
@@ -17,7 +17,7 @@ live candles and order books, and sizes trades. No confirmations (by design).
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload. Then
    order-flow step 4: liquidation feed, OI/funding panels and the estimated liquidation map
    (`COMPETITORS.md` §4).
-1. Owner: review the setup checklist (r10) on live charts; thresholds are in
+1. Owner: review the setup checklist (rule set r11) on live charts; thresholds are in
    `docs/product/patterns.md` → Setup checklist.
 2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
 3. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
@@ -32,7 +32,7 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                           |
 | `npm test`                                                       | ✅ 374 tests, 39 files                                                                                                                                                                       |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                               |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 148 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 150 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
 | `npm run api`                                                    | ✅ :8000                                                                                                                                                                                     |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing   |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -104,6 +104,10 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 
 ## History
 
+- 2026-11-26: **Rule set r11: double-bottom peak, five-touch triangles and wedges** (owner, after a
+  rule-by-rule review against the textbooks). The double bottom / top's peak is now strictly
+  between the two lows' candles (never a low's own wick); triangles and wedges need 3 + 2 swings
+  (the 2 + 2 fallback is gone). ETH 4h golden year: 273 → 253 detections (`DECISIONS.md`).
 - 2026-11-26: **Chart draws only the latest pattern** (owner). The faint drawing of the other
   listed patterns is off by default (`showOtherPatterns`, renamed from `otherPatterns` so the
   saved "on" from 2026-11-22 is dropped); the toggle stays in Display settings.

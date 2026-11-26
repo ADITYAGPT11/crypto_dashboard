@@ -15,7 +15,8 @@ same rule on the mirrored series. A breakout against a pattern's textbook bias
 (e.g. an ascending triangle breaking down) is a failed pattern, not a signal.
 
 Lines are fitted through the last 2-3 swing highs and 2-3 swing lows known at the
-breakout candle (least squares; every swing within ``TOUCH_TOL_ATR`` of its line).
+breakout candle, at least five swings in all (3 + 2 or 3 + 3: Bulkowski's minimum
+touches); least squares, every swing within ``TOUCH_TOL_ATR`` of its line.
 Closes must stay inside the lines during the formation; the lines must converge
 and not have crossed. Confirmed on the first close beyond the line.
 
@@ -109,7 +110,8 @@ def _upward(s: Series, a: FloatArray) -> list[PatternHit]:
 def _formation_at(
     s: Series, c: int, ac: float, known_h: list[Swing], known_l: list[Swing], last_confirm: int
 ) -> PatternHit | None:
-    for nh, nl in ((3, 3), (3, 2), (2, 3), (2, 2)):
+    # At least five touches: three on one line, two on the other (Bulkowski; r11).
+    for nh, nl in ((3, 3), (3, 2), (2, 3)):
         hs, ls = known_h[-nh:], known_l[-nl:]
         if len(hs) < nh or len(ls) < nl:
             continue
