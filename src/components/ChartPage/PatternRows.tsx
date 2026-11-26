@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import type { CandleInterval } from "../../types/marketData";
 import type { SetupCheck, SetupOccurrence } from "../../types/analysis";
 import { Explain } from "../../common-components/Evidence";
-import { LIST_SIZE, MIN_CHECKS } from "../../utils/patternList";
+import { LIST_SIZE, MIN_CHECKS, type Grouped } from "../../utils/patternList";
 import { patternLabel } from "../../utils/patternLabels";
 import { setupKey } from "../../utils/setupKeys";
 import { monthDay } from "../../utils/format";
@@ -22,8 +22,8 @@ export interface Found {
 
 interface Props {
   symbol: string;
-  /** The listed detections, newest first. */
-  items: Found[];
+  /** The listed rows, newest first: one per breakout, other patterns on it in `also`. */
+  items: Grouped<Found>[];
   idOf: (f: Found) => string;
   /** Selected row; its detection is the one drawn. */
   openId: string | null;
@@ -52,7 +52,7 @@ function whenText(f: Found, now: boolean) {
 }
 
 /** The six checks as small tags: green when met, struck through when not; hover for detail. */
-function CheckTags({ checks }: { checks: SetupCheck[] }) {
+function CheckTags({ checks, volume }: { checks: SetupCheck[]; volume?: string | null }) {
   return (
     <span className={styles.tags}>
       {checks.map((c) => (
@@ -65,6 +65,19 @@ function CheckTags({ checks }: { checks: SetupCheck[] }) {
           <span className="sr-only">{c.passed ? " met" : " not met"}</span>
         </span>
       ))}
+      {volume === "falling" ? (
+        <span
+          className={styles.tagInfo}
+          title="Volume fell while the pattern formed, as textbooks expect for flags, triangles and wedges. Information only: not one of the six checks."
+        >
+          VOL↓
+        </span>
+      ) : (
+        // Keeps every row's columns lined up whether or not it has the tag.
+        <span className={`${styles.tagInfo} ${styles.tagSlot}`} aria-hidden="true">
+          VOL↓
+        </span>
+      )}
     </span>
   );
 }
@@ -89,8 +102,10 @@ const PatternRows: React.FC<Props> = (p) => {
             RSI(14) between 50 and 70 (30–50 for shorts; beyond is stretched); volume at least 1.5×
             the 20-candle average; close above VWAP(20) (below for shorts); ATR(14) at or above its
             50-candle average; Supertrend(10, 3) pointing the pattern&apos;s way. Hover a tag for
-            what was observed. The score counts the checks met. It describes the context; it is not
-            measured against outcomes and is not a prediction
+            what was observed. VOL↓ (not a check) marks a flag, triangle or wedge whose volume fell
+            while it formed. Patterns confirmed on the same candle share one row. The score counts
+            the checks met. It describes the context; it is not measured against outcomes and is not
+            a prediction
             {p.ruleset ? ` (rules ${p.ruleset})` : ""}.
           </Explain>
         </span>
@@ -118,10 +133,19 @@ const PatternRows: React.FC<Props> = (p) => {
                     <span className="sr-only">{long ? " Long" : " Short"}</span>
                   </span>{" "}
                   {patternLabel(f.pattern)}
+                  {f.also.length > 0 && (
+                    <span
+                      className={styles.also}
+                      title="Confirmed on the same candle: one breakout, several pattern names"
+                    >
+                      {" + "}
+                      {f.also.map((a) => patternLabel(a.pattern)).join(" + ")}
+                    </span>
+                  )}
                 </b>
                 <TfBadge tf={f.tf} />
                 <span className={styles.rowWhen}>{whenText(f, p.isNow(f))}</span>
-                <CheckTags checks={f.occ.checks} />
+                <CheckTags checks={f.occ.checks} volume={f.occ.formationVolume} />
                 <span
                   className={styles.num}
                   title={`${f.occ.score} of ${f.occ.checks.length} checks met`}
@@ -141,8 +165,10 @@ const PatternRows: React.FC<Props> = (p) => {
         <div className={styles.rowFoot}>
           <span>
             Drawn: <b>{patternLabel(sel.pattern)}</b> on {sel.tf}, {sel.occ.score} of{" "}
-            {sel.occ.checks.length} checks. A checklist of where it formed, not a probability: you
-            decide the trade.
+            {sel.occ.checks.length} checks
+            {sel.also.length > 0 &&
+              ` (same breakout as ${sel.also.map((a) => patternLabel(a.pattern)).join(", ")})`}
+            . A checklist of where it formed, not a probability: you decide the trade.
           </span>
           <Link
             className={styles.btn}

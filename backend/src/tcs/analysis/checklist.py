@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 
@@ -160,3 +161,26 @@ def checker(s: Series, mirrored: Series | None) -> Callable[[PatternHit, Locatio
         )
 
     return check
+
+
+FORMATION_MIN_BARS = 3
+
+
+def formation_volume(s: Series, hit: PatternHit) -> Literal["falling", "rising"] | None:
+    """Whether volume fell or rose while the pattern formed (least-squares slope of volume
+    over ``hit.formation``). Information shown beside the checklist, never counted in it.
+
+    Textbooks expect it to fall inside flags, triangles and wedges (Bulkowski: about three
+    times in four). None for patterns without a formation, with too few candles or flat volume.
+    """
+    if hit.formation is None:
+        return None
+    first, last = hit.formation
+    vol = s.volume[first:last]
+    if len(vol) < FORMATION_MIN_BARS or not np.all(np.isfinite(vol)):
+        return None
+    x = np.arange(len(vol), dtype=np.float64)
+    slope = float(((x - x.mean()) * (vol - vol.mean())).sum())
+    if slope == 0:
+        return None
+    return "falling" if slope < 0 else "rising"

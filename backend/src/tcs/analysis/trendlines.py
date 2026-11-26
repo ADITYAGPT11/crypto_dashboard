@@ -11,13 +11,17 @@ falling wedge       falling (steeper)    falling              up
 ==================  ===================  ===================  ===========
 
 The bearish twins (descending triangle, symmetrical down, rising wedge) are the
-same rule on the mirrored series. A breakout against a pattern's textbook bias
-(e.g. an ascending triangle breaking down) is a failed pattern, not a signal.
+same rule on the mirrored series. A breakout against a pattern's usual direction
+(an ascending triangle or falling wedge breaking down, a descending triangle or
+rising wedge breaking up) is a signal in the breakout's direction, as Bulkowski
+counts it (r12; until r11 it was a failed pattern with no signal).
 
 Lines are fitted through the last 2-3 swing highs and 2-3 swing lows known at the
-breakout candle (least squares; every swing within ``TOUCH_TOL_ATR`` of its line).
+breakout candle, at least five swings in all (3 + 2 or 3 + 3: Bulkowski's minimum
+touches); least squares, every swing within ``TOUCH_TOL_ATR`` of its line.
 Closes must stay inside the lines during the formation; the lines must converge
-and not have crossed. Confirmed on the first close beyond the line.
+and not have crossed, and the breakout must come at most three quarters of the way
+from the start to the apex. Confirmed on the first close beyond the line.
 
 Plan: entry = breakout close; stop = the last swing on the other side - 0.2 ATR;
 target = triangles: breakout + height at the start (measured move); wedges: back
@@ -42,6 +46,7 @@ INSIDE_TOL_ATR = 0.25  # closes may poke this far outside a line during the form
 FLAT_ATR = 0.6  # a line moving less than this over the whole formation is flat
 MIN_HEIGHT_ATR = 2.0  # height at the start
 MIN_CONVERGENCE = 0.25  # the end must be at least 25% narrower than the start
+MAX_APEX_SHARE = 0.75  # breakout at most this far from the start to the apex (r12)
 STOP_PAD_ATR = 0.2
 
 
@@ -71,14 +76,23 @@ def _fit(points: list[Swing]) -> _Fit:
 
 
 def _classify(rise_u: float, rise_l: float) -> str | None:
-    """Bullish-breakout pattern for line rises (in ATR over the formation)."""
-    flat_u, _flat_l = abs(rise_u) <= FLAT_ATR, abs(rise_l) <= FLAT_ATR
+    """The pattern an upward breakout completes, from the line rises (ATR over the formation).
+
+    Upward is the usual way out of an ascending triangle and a falling wedge; a descending
+    triangle or a rising wedge breaking UP is the less common, against-the-bias breakout,
+    which Bulkowski counts as the same pattern with an upward breakout (r12).
+    """
+    flat_u, flat_l = abs(rise_u) <= FLAT_ATR, abs(rise_l) <= FLAT_ATR
     if flat_u and rise_l > FLAT_ATR:
         return "ascendingTriangle"
+    if flat_l and rise_u < -FLAT_ATR:
+        return "descendingTriangle"  # against its bias
     if rise_u < -FLAT_ATR and rise_l > FLAT_ATR:
         return "symmetricalTriangle"
     if rise_u < -FLAT_ATR and rise_l < -FLAT_ATR and rise_u < rise_l:
         return "fallingWedge"
+    if rise_u > FLAT_ATR and rise_l > FLAT_ATR and rise_l > rise_u:
+        return "risingWedge"  # against its bias
     return None
 
 
@@ -109,7 +123,8 @@ def _upward(s: Series, a: FloatArray) -> list[PatternHit]:
 def _formation_at(
     s: Series, c: int, ac: float, known_h: list[Swing], known_l: list[Swing], last_confirm: int
 ) -> PatternHit | None:
-    for nh, nl in ((3, 3), (3, 2), (2, 3), (2, 2)):
+    # At least five touches: three on one line, two on the other (Bulkowski; r11).
+    for nh, nl in ((3, 3), (3, 2), (2, 3)):
         hs, ls = known_h[-nh:], known_l[-nl:]
         if len(hs) < nh or len(ls) < nl:
             continue
@@ -124,6 +139,10 @@ def _formation_at(
             continue
         width0, width1 = up.at(start) - lo.at(start), up.at(c) - lo.at(c)
         if width0 < MIN_HEIGHT_ATR * ac or width1 <= 0 or width1 > (1 - MIN_CONVERGENCE) * width0:
+            continue
+        # The lines narrow linearly, so the share of the way to the apex is 1 - width1 / width0.
+        # A breakout in the last quarter is the weak case (Edwards & Magee; Bulkowski).
+        if width1 < (1 - MAX_APEX_SHARE) * width0:
             continue
         span = c - start
         pattern = _classify(up.slope * span / ac, lo.slope * span / ac)
@@ -164,14 +183,17 @@ def _formation_at(
                 Line(Point(start, up.at(start)), Point(c, up.at(c)), "Upper"),
                 Line(Point(start, lo.at(start)), Point(c, lo.at(c)), "Lower"),
             ),
+            formation=(start, c),
         )
     return None
 
 
 BEARISH_TWIN = {
     "ascendingTriangle": "descendingTriangle",
+    "descendingTriangle": "ascendingTriangle",  # an ascending triangle breaking down
     "symmetricalTriangle": "symmetricalTriangle",
     "fallingWedge": "risingWedge",
+    "risingWedge": "fallingWedge",  # a falling wedge breaking down
 }
 
 

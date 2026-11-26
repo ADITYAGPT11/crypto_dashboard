@@ -48,6 +48,7 @@ def occurrence(s: Series, o: Occurrence) -> OccurrenceOut:
             )
             for c in o.checklist.checks
         ],
+        formation_volume=o.formation_volume,
     )
 
 

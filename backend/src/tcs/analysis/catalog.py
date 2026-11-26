@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 #: Bump when ANY detector, location or checklist rule or threshold changes.
-RULESET_VERSION = "2026.11-r10"
+RULESET_VERSION = "2026.11-r12"
 
 Kind = Literal["chart", "candlestick"]
 Bias = Literal["long", "short", "either"]
@@ -85,17 +85,17 @@ CATALOG: tuple[PatternSpec, ...] = (
         "ascendingTriangle",
         "Ascending triangle",
         "chart",
-        "long",
+        "either",
         "Edwards & Magee ch. 8; Bulkowski 'Triangles, Ascending'",
-        "Flat resistance over rising lows; confirmed on a close above resistance.",
+        "Flat resistance over rising lows; confirmed on a close outside either line (usually up).",
     ),
     PatternSpec(
         "descendingTriangle",
         "Descending triangle",
         "chart",
-        "short",
+        "either",
         "Edwards & Magee ch. 8; Bulkowski 'Triangles, Descending'",
-        "Flat support under falling highs; confirmed on a close below support.",
+        "Flat support under falling highs; confirmed on a close outside either line (usually down).",
     ),
     PatternSpec(
         "symmetricalTriangle",
@@ -109,17 +109,17 @@ CATALOG: tuple[PatternSpec, ...] = (
         "fallingWedge",
         "Falling wedge",
         "chart",
-        "long",
+        "either",
         "Edwards & Magee ch. 10; Bulkowski 'Wedges, Falling'",
-        "Two falling, converging lines; confirmed on a close above the upper line.",
+        "Two falling, converging lines; confirmed on a close outside either line (usually up).",
     ),
     PatternSpec(
         "risingWedge",
         "Rising wedge",
         "chart",
-        "short",
+        "either",
         "Edwards & Magee ch. 10; Bulkowski 'Wedges, Rising'",
-        "Two rising, converging lines; confirmed on a close below the lower line.",
+        "Two rising, converging lines; confirmed on a close outside either line (usually down).",
     ),
     # Candlestick patterns (in-house, candlesticks.py: shape, trend, confirmation, plan)
     PatternSpec(

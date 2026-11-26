@@ -28,8 +28,10 @@ body is at most a tenth of its range.
 
 Context and plan, the same for every pattern:
 
-- **No trend filter** (removed in r6): requiring a prior decline did not improve the
-  measured win rate and cut the cases to a third (``docs/context/DECISIONS.md``, 2026-11-22).
+- **Trend**: none for engulfing, stars and harami (removed in r6: requiring a prior decline
+  did not improve the then-measured win rate and cut the cases to a third). The hammer family
+  needs one (r12): a hammer and a hanging man are the same candle, named by the trend before it
+  (``_downtrend``; the mirror gives the hanging man and shooting star their prior rise).
 - **Size**: the pattern's high-low range is at least ``MIN_RANGE_ATR`` ATR.
 - **Confirmation** (Nison; Bulkowski's breakout): within ``CONFIRM_BARS`` candles a
   close above the pattern's high; a close below its low first cancels it. The
@@ -48,7 +50,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from tcs.analysis.indicators import atr
+from tcs.analysis.indicators import atr, ema
 from tcs.analysis.mirroring import unmirror
 from tcs.analysis.types import PatternHit, Point
 from tcs.common.series import FloatArray, Series, mirror
@@ -59,6 +61,13 @@ SHADOW_BODY = 2.0  # hammer family: long shadow at least this many bodies
 SHORT_SHADOW = 0.1  # hammer family: the other shadow at most this share of the range
 STAR_CLOSE_INTO = 0.5  # morning star: third close above this share of the first body
 MIN_RANGE_ATR = 0.8
+#: Hammer family only (r12): the same shape is a hammer after a fall and a hanging man after a
+#: rise, so the trend before it names it. The r5 definition: the close before the candle is
+#: below its EMA(TREND_EMA) and at least TREND_MIN_ATR ATR below the close TREND_BARS earlier.
+TREND_EMA = 20
+TREND_BARS = 5
+TREND_MIN_ATR = 0.5
+NEEDS_TREND = frozenset({"hammer", "invertedHammer"})
 CONFIRM_BARS = 3
 STOP_PAD_ATR = 0.1
 TARGET_R = 1.5
@@ -153,9 +162,20 @@ BEARISH_TWIN = {
 }
 
 
+def _downtrend(s: Series, a: FloatArray, trend: FloatArray, before: int) -> bool:
+    if before - TREND_BARS < 0:
+        return False
+    ab, e = float(a[before]), float(trend[before])
+    if not (np.isfinite(ab) and np.isfinite(e)):
+        return False
+    close = float(s.close[before])
+    return close < e and close <= float(s.close[before - TREND_BARS]) - TREND_MIN_ATR * ab
+
+
 def _bullish(s: Series, a: FloatArray) -> list[PatternHit]:
     n = len(s)
     b = _Bars(s)
+    trend = ema(s.close, TREND_EMA)
     found: dict[tuple[str, int], PatternHit] = {}
     for end in range(AVG_BODY_BARS + 2, n):
         for pattern, (shape, size, self_confirming) in RULES.items():
@@ -166,6 +186,8 @@ def _bullish(s: Series, a: FloatArray) -> list[PatternHit]:
             high = float(s.high[start : end + 1].max())
             ae = float(a[end])
             if not np.isfinite(ae) or ae <= 0 or high - low < MIN_RANGE_ATR * ae:
+                continue
+            if pattern in NEEDS_TREND and not _downtrend(s, a, trend, start - 1):
                 continue
             confirm: int | None = end if self_confirming else None
             if confirm is None:

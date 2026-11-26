@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+import numpy as np
 import pytest
 
 from tcs.analysis.chart_patterns import detect_chart_patterns
@@ -38,6 +41,15 @@ class TestDoubleBottom:
     def test_needs_a_meaningful_peak_between_the_lows(self) -> None:
         shallow = falling_into([(0, 110), (20, 90), (30, 91.5), (40, 90.3), (52, 104)])
         assert of(shallow, "doubleBottom") == []
+
+    def test_a_lows_own_wick_is_not_the_peak(self) -> None:
+        # The first low's candle has a tall upper wick (2 ATR); between the lows price only
+        # drifts. One long candle and a retest is not a W (r11).
+        s = falling_into([(0, 110), (20, 90), (26, 91.5), (32, 90.3), (44, 104)])
+        i = 20 + int(np.argmin(s.low[20:36]))  # the first low's candle
+        high = s.high.copy()
+        high[i] = 100.0
+        assert of(replace(s, high=high), "doubleBottom") == []
 
     def test_lows_must_be_close_together(self) -> None:
         uneven = falling_into([(0, 110), (20, 90), (30, 100), (40, 95), (52, 104)])
@@ -85,6 +97,14 @@ class TestInverseHeadShoulders:
             [(0, 104), (20, 90), (28, 96), (38, 84), (48, 96.5), (56, 90.5), (70, 94)]
         )
         assert of(stuck, "inverseHeadShoulders") == []
+
+    def test_shoulders_must_be_alike_in_width(self) -> None:
+        # r12: IHS with the right side squeezed: left shoulder 18 candles from the head, right
+        # shoulder 8, more than twice as narrow (valid with the width check switched off).
+        lopsided = falling_into(
+            [(0, 104), (20, 90), (28, 96), (38, 84), (42, 96.5), (46, 90.5), (56, 100), (66, 99)]
+        )
+        assert of(lopsided, "inverseHeadShoulders") == []
 
     def test_fails_when_right_shoulder_breaks_first(self) -> None:
         failed = falling_into(

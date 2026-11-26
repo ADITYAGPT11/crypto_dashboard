@@ -17,9 +17,10 @@ def hits(s: Series, pattern: str) -> list[PatternHit]:
     return [h for h in detect_trendline_patterns(s) if h.pattern == pattern]
 
 
-# Flat top at ~110, rising lows 100 -> 103 -> 106, breakout to 116.
+# Flat top at ~110, rising lows 100 -> 103 -> 106, breakout to 116. Five touches (3 lows, 2 highs)
+# are known before the breakout; the third high at 48 only becomes a swing after it.
 ASC = [
-    (0, 96),
+    (0, 104),
     (8, 100),
     (16, 110),
     (24, 103),
@@ -29,24 +30,24 @@ ASC = [
     (54, 116),
     (60, 117),
 ]
-# Falling highs 114 -> 111 -> 108, rising lows 100 -> 102.5 -> 105, breakout up.
-SYM = [
-    (0, 98),
+# Falling highs 114 -> 112, rising lows 100 -> 103 -> 106, breakout up about 70% of the way to
+# the apex (r12: not in the last quarter).
+SYM: list[tuple[int, float]] = [
+    (0, 104),
     (6, 100),
     (14, 114),
-    (22, 102.5),
-    (30, 111),
-    (38, 105),
-    (46, 108),
-    (52, 114),
-    (58, 115),
+    (22, 103),
+    (30, 112),
+    (38, 106),
+    (44, 116),
+    (50, 117),
 ]
-# Both lines falling, upper steeper: highs 120 -> 113 -> 108, lows 110 -> 106 -> 103.5.
+# Both lines falling, upper steeper: highs 120 -> 114 -> 108, lows 110 -> 106 -> 103.5.
 WEDGE = [
     (0, 118),
     (6, 120),
     (14, 110),
-    (22, 113),
+    (22, 114),
     (30, 106),
     (38, 108),
     (46, 103.5),
@@ -83,8 +84,32 @@ def test_mirrors_are_the_bearish_twins() -> None:
     assert ("risingWedge", "short") in kinds(mirror(path(WEDGE)))
 
 
+def test_four_touches_are_not_enough() -> None:
+    # Two highs and two lows only: Bulkowski asks for five touches (3 + 2) (r11).
+    two_by_two = path([(0, 98), (6, 100), (14, 114), (22, 102.5), (30, 111), (38, 105), (44, 114)])
+    assert [
+        k for k in kinds(two_by_two) if k[0].endswith("Triangle") or k[0].endswith("Wedge")
+    ] == []
+
+
+def test_against_the_bias_breakout_is_a_signal_that_way() -> None:
+    # r12: an ascending triangle breaking DOWN is an ascending triangle, short (Bulkowski);
+    # its mirror, a descending triangle breaking up, is a descending triangle, long.
+    down = [*ASC[:7], (54, 100), (60, 98)]
+    assert ("ascendingTriangle", "short") in kinds(path(down))
+    assert ("descendingTriangle", "long") in kinds(mirror(path(down)))
+
+
+def test_no_breakout_in_the_last_quarter_before_the_apex() -> None:
+    # The same triangle with the breakout delayed until the lines are under a quarter of their
+    # starting width apart: too late (Edwards & Magee).
+    late = [*ASC[:7], (56, 109.6), (64, 109.8), (70, 118)]
+    assert hits(path(late), "ascendingTriangle") == []
+
+
 def test_no_breakout_no_signal() -> None:
-    stuck = path([*ASC[:7], (54, 108), (60, 109)])
+    # The data ends inside the triangle (since r12 a break down would be a short signal).
+    stuck = path([*ASC[:7], (52, 108.5)])
     assert hits(stuck, "ascendingTriangle") == []
 
 

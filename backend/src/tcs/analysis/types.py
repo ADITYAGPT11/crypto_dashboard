@@ -48,6 +48,9 @@ class PatternHit:
     extreme: float
     points: tuple[Point, ...] = ()
     lines: tuple[Line, ...] = ()
+    #: Candles [first, last) the pattern formed over before its breakout, whose volume trend is
+    #: shown (flag pause, triangle or wedge); None for patterns without one.
+    formation: tuple[int, int] | None = None
 
 
 @dataclass(frozen=True, slots=True)

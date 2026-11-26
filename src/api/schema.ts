@@ -106,6 +106,7 @@ export interface OccurrenceOut {
   lines: LineOut[];
   score: number;
   checks: CheckOut[];
+  formationVolume?: "falling" | "rising" | null;
 }
 
 export interface OrderBlockOut {

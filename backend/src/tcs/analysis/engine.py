@@ -8,10 +8,11 @@ both call it, so a pattern shows the same checks wherever it appears.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from tcs.analysis.candlesticks import detect_candlesticks
 from tcs.analysis.chart_patterns import detect_chart_patterns
-from tcs.analysis.checklist import Checklist, checker
+from tcs.analysis.checklist import Checklist, checker, formation_volume
 from tcs.analysis.indicators import atr
 from tcs.analysis.location import locate
 from tcs.analysis.smc import detect_fvgs, detect_structure
@@ -27,6 +28,8 @@ class Occurrence:
     location: Location
     #: The setup checklist at confirmation (checklist.py): six yes/no facts, score 0-6.
     checklist: Checklist
+    #: Volume trend while the pattern formed (flags, triangles, wedges); not a check.
+    formation_volume: Literal["falling", "rising"] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,5 +79,7 @@ def analyze(
     occurrences: list[Occurrence] = []
     for hit in found:
         location = locate(hit, s, float(a[hit.index]), lv_series, lv.zones, lv.order_blocks)
-        occurrences.append(Occurrence(hit, location, check(hit, location)))
+        occurrences.append(
+            Occurrence(hit, location, check(hit, location), formation_volume(s, hit))
+        )
     return Analysis(s, lv_series, occurrences, lv)

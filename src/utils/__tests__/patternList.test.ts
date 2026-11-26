@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vite-plus/test";
 import { LIST_SIZE, latestPatterns, MIN_CHECKS, viewTfFor } from "../patternList";
 
-const d = (closeTime: number, score: number) => ({ closeTime, occ: { score } });
+const d = (closeTime: number, score: number, tf = "4h", direction = "long", pattern = "x") => ({
+  closeTime,
+  tf,
+  direction,
+  pattern,
+  occ: { score },
+});
 
 describe("latestPatterns", () => {
   it("keeps detections with at least 3 of 6 checks, newest first", () => {
@@ -16,6 +22,31 @@ describe("latestPatterns", () => {
     expect(out).toHaveLength(LIST_SIZE);
     expect(out[0].closeTime).toBe(24);
     expect(out[9].closeTime).toBe(15);
+  });
+
+  it("puts detections on one breakout (candle, timeframe, side) in one row, most checks first", () => {
+    const out = latestPatterns([
+      d(5, 3, "4h", "short", "doubleTop"),
+      d(5, 5, "4h", "short", "headShoulders"),
+      d(5, 4, "4h", "long", "hammer"),
+      d(5, 4, "1h", "short", "bearFlag"),
+      d(4, 4),
+    ]);
+    expect(out.map((f) => [f.pattern, f.also.map((a) => a.pattern)])).toEqual([
+      ["headShoulders", ["doubleTop"]],
+      ["hammer", []],
+      ["bearFlag", []],
+      ["x", []],
+    ]);
+  });
+
+  it("counts a shared breakout as one of the 10 rows", () => {
+    const many = Array.from({ length: 12 }, (_, i) =>
+      d(Math.floor(i / 2), 4, "4h", "long", `p${i}`),
+    );
+    const out = latestPatterns(many);
+    expect(out).toHaveLength(6);
+    expect(out.every((f) => f.also.length === 1)).toBe(true);
   });
 
   it("is empty when nothing meets the minimum", () => {

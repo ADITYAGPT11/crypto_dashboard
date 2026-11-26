@@ -526,3 +526,39 @@ this conversation found several of these checks (zones, volume spikes, oversold 
 improve results under the old plan; the owner chose the checklist knowing that. The research and
 its code are in the history (r5–r9 entries above) if measurement returns. Removed with it: order-
 flow context and funding history (only the statistics used them) and the Pattern stats page.
+
+### 2026-11-26 · Double-bottom peak between the lows; five touches for triangles and wedges (r11)
+
+Why: the owner reviewed every rule against Bulkowski, Edwards & Magee and Nison and asked for the
+two gaps with no reason behind them to be fixed. (1) The double bottom / top's peak was the
+highest high from the first low's candle to the second's, so a low's own wick could be the whole
+"rally" (4 of 17 on the ETH 4h year); it is now the highest high strictly between the two lows'
+candles. (2) Triangles and wedges fell back to 2 swing highs + 2 swing lows; Bulkowski asks for at
+least five touches (3 on one line, 2 on the other), so the 2 + 2 fallback is gone. Effect on the
+golden year (ETH 4h, 2,190 candles): 273 → 253 detections. Triangles and wedges 45 → 26
+(symmetrical 20 → 12, falling wedge 13 → 9, rising wedge 11 → 5, descending triangle 1 → 0; 21
+four-touch formations dropped, 4 five-touch ones newly found because the earlier one no longer
+blocks them). Double bottoms / tops 17 → 16: two one-candle W's dropped, 28–31 May 2026 newly
+found (its old "peak" was the second low's own wick, never broken), and the 11 and 18 Feb ones keep
+their signal with the real rally as the neckline. Not measured against outcomes (no statistics
+since r10). Left for later (owner): breakouts near the apex, against-bias breakouts, H&S width
+symmetry, volume inside the formation, hammer / hanging-man naming.
+
+### 2026-11-26 · Textbook review, the rest (r12): apex, both breakouts, H&S width, hammer trend, volume, one row per breakout
+
+Why: after r11 the owner asked for every remaining proposal of the rule review. Choices the owner
+made: the hammer family is named by the trend before it (textbook) rather than by shape, and
+volume inside the formation is an information tag ("VOL↓"), not a seventh check nor a rule. Rule
+changes, each measured alone on the ETH 4h golden year (r11 → r12, 253 → 225 detections):
+**apex**: triangle and wedge breakouts at most 75% of the way to the apex (Edwards & Magee),
+253 → 242; most of our symmetrical triangles broke 76–100% of the way (12 → 2).
+**Both breakouts**: an ascending triangle or falling wedge breaking down (and their mirrors) is a
+signal that way, as Bulkowski counts them; catalogue bias "either"; 242 → 251 (+10 such).
+**H&S width**: neither side more than twice the other; inverse H&S 9 → 4, the 31 Jul 2026 top
+kept with better-balanced shoulders (28 vs 15 candles instead of 35 vs 10); 251 → 246.
+**Hammer family trend**: the r5 trend definition (EMA(20), 0.5 ATR in 5 candles) back for hammer
+and inverted hammer only, so hanging man and shooting star need a rise; 246 → 225 (hammer family
+38 → 17, hanging man 6 → 0 on this year). Reverses part of r6 for these four patterns: naming,
+not a measured gain. Display: volume fell in 22 of 41 flag / triangle / wedge formations;
+detections confirmed on the same candle, timeframe and side share one row in the chart's list
+(15 such breakouts among 157 listed 4h detections). Nothing here is measured against outcomes.

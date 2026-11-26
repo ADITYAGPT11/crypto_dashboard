@@ -32,6 +32,7 @@ HS_SHOULDER_TOL_ATR = 1.0  # shoulders within this distance of each other
 HS_MIN_HEIGHT_ATR = 1.5  # neckline above the head, at the head
 HS_SHOULDER_CLEAR_ATR = 0.5  # each shoulder at least this far below the neckline
 HS_CONFIRM_WITHIN = 25
+HS_MAX_WIDTH_RATIO = 2.0  # one side (shoulder to head) at most twice as long as the other (r12)
 # Bull flag (Edwards & Magee ch. 11: a fast, nearly vertical pole, a short pause)
 FLAG_POLE_MIN_ATR = 3.0
 FLAG_POLE_BARS = (3, 15)
@@ -92,7 +93,9 @@ def double_bottoms(s: Series, a: FloatArray, lows: list[Swing]) -> list[PatternH
             bottom = min(first.price, second.price)
             if float(s.low[i1 : i2 + 1].min()) < bottom - 1e-12:
                 continue  # a lower low between: not a double bottom
-            neck_idx = i1 + int(np.argmax(s.high[i1 : i2 + 1]))
+            # The peak is the highest high strictly between the two lows' candles: a rally of
+            # its own, never the wick of a low's candle (r11).
+            neck_idx = i1 + 1 + int(np.argmax(s.high[i1 + 1 : i2]))
             neckline = float(s.high[neck_idx])
             if neckline - max(first.price, second.price) < DB_MIN_HEIGHT_ATR * a2:
                 continue
@@ -176,6 +179,10 @@ def inverse_head_shoulders(s: Series, a: FloatArray, lows: list[Swing]) -> list[
                 if left.price < head.price + HS_HEAD_DEPTH_ATR * ar:
                     continue
                 if abs(left.price - right.price) > HS_SHOULDER_TOL_ATR * ar:
+                    continue
+                # Shoulders alike in width (Bulkowski): neither side more than twice the other.
+                wide, narrow = max(i_h - i_l, i_r - i_h), min(i_h - i_l, i_r - i_h)
+                if wide > HS_MAX_WIDTH_RATIO * narrow:
                     continue
                 if not _trend_into(s, a, left):
                     continue
@@ -275,6 +282,7 @@ def bull_flags(s: Series, a: FloatArray) -> list[PatternHit]:
                             Point(flag_low_idx, flag_low, "Flag low"),
                         ),
                         lines=(Line(Point(t + 1, flag_high), Point(f, flag_high), "Flag high"),),
+                        formation=(t + 1, f),
                     )
                 )
                 last_confirm = f
