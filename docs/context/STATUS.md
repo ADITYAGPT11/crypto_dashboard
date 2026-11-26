@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-22 · branch `claude/dazzling-cerf-jzip1j`_
+_Last verified: 2026-11-26 · branch `claude/beautiful-goodall-ac540j`_
 
 ## Phase
 
@@ -30,7 +30,7 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 | Check                                                            | State                                                                                                                                                                                        |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                           |
-| `npm test`                                                       | ✅ 373 tests, 39 files                                                                                                                                                                       |
+| `npm test`                                                       | ✅ 374 tests, 39 files                                                                                                                                                                       |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                               |
 | `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 148 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
 | `npm run api`                                                    | ✅ :8000                                                                                                                                                                                     |
@@ -63,9 +63,9 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
   timeframe. **Last 10 patterns** under it: the 10 newest detections on the picked timeframes
   meeting at least 3 of 6 checks (`utils/patternList.ts`), in two columns of compact rows, each
   with its six checks as inline tags (OB · RSI · VOL · VWAP · ATR · ST; hover for what was
-  observed) and its score. On the chart (labels name only, no score) the selected one is drawn
-  in full and the other listed ones in view faintly (Display settings → "Other listed patterns
-  in view"). Clicking a row draws it and, when the pattern's timeframe is lower than the chart's,
+  observed) and its score. On the chart (labels name only, no score) only the selected one is
+  drawn, by default the newest; the other listed ones in view can be drawn faintly (Display
+  settings → "Other listed patterns in view", off by default). Clicking a row draws it and, when the pattern's timeframe is lower than the chart's,
   switches the chart down to it once; a footer line names it with Alert me.
 - **Pattern choice is display only.** The backend detects every pattern whatever is picked.
 - **Dashboard** (`/`): market overview (unchanged), scanner from the service (last 3 closed
@@ -104,6 +104,9 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 
 ## History
 
+- 2026-11-26: **Chart draws only the latest pattern** (owner). The faint drawing of the other
+  listed patterns is off by default (`showOtherPatterns`, renamed from `otherPatterns` so the
+  saved "on" from 2026-11-22 is dropped); the toggle stays in Display settings.
 - 2026-11-22: **Chart labels never overlap** (owner). `utils/labelPlacement.ts`: zone and
   volume-profile labels reserve their space first, then the selected pattern's labels, then
   each faint pattern name tries small up/down nudges and is left out when no spot is free. A

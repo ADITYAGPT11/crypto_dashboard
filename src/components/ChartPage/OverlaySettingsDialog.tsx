@@ -14,7 +14,7 @@ type Flag = {
 
 const SHOW: [Flag, string][] = [
   ["pattern", "Patterns"],
-  ["otherPatterns", "Other listed patterns in view (faint)"],
+  ["showOtherPatterns", "Other listed patterns in view (faint)"],
   ["zones", "Demand / supply zones"],
   ["orderBlocks", "Order blocks"],
   ["fvg", "Fair value gaps"],

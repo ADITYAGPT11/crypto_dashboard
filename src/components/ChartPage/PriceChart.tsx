@@ -49,7 +49,7 @@ export interface Layers {
   vp: boolean;
   pattern: boolean;
   /** Also draw the other listed patterns in view, faintly. */
-  otherPatterns: boolean;
+  showOtherPatterns: boolean;
   heatmap: boolean;
   /** How hard the heatmap's colour saturates (share of visible cells below full brightness). */
   heatContrast: HeatContrast;
@@ -700,7 +700,7 @@ const PriceChart: React.FC<Props> = ({
 
     g.globalAlpha = 1;
     const barW = ts.options().barSpacing;
-    if (ly.pattern && ly.otherPatterns) {
+    if (ly.pattern && ly.showOtherPatterns) {
       // The other listed patterns whose candles are on screen: drawn faintly, under the selected.
       for (const o of oth) {
         if (o === sel || o.entryX < range.from - 1 || o.startX > range.to + 1) continue;

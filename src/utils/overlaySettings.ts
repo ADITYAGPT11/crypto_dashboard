@@ -37,8 +37,9 @@ export interface OverlaySettings {
   mergeOverlaps: boolean;
   /** Also draw the most recently broken levels (faint). */
   showBroken: boolean;
-  /** Also draw, faintly, the other listed patterns that are in view. */
-  otherPatterns: boolean;
+  /** Also draw, faintly, the other listed patterns that are in view (off: only the selected,
+   * by default the newest). Renamed from `otherPatterns` so the old saved "on" is dropped. */
+  showOtherPatterns: boolean;
 }
 
 export const DEFAULT_OVERLAYS: OverlaySettings = {
@@ -57,7 +58,7 @@ export const DEFAULT_OVERLAYS: OverlaySettings = {
   freshOnly: false,
   mergeOverlaps: true,
   showBroken: false,
-  otherPatterns: true,
+  showOtherPatterns: false,
 };
 
 export const PER_KIND_CHOICES = [1, 2, 3, 5, 10] as const;
@@ -87,7 +88,7 @@ export function parseOverlays(value: unknown): OverlaySettings {
     freshOnly: flag("freshOnly"),
     mergeOverlaps: flag("mergeOverlaps"),
     showBroken: flag("showBroken"),
-    otherPatterns: flag("otherPatterns"),
+    showOtherPatterns: flag("showOtherPatterns"),
   };
 }
 
