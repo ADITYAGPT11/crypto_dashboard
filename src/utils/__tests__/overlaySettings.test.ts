@@ -84,12 +84,12 @@ describe("keyLevels", () => {
 describe("parseOverlays", () => {
   it("keeps valid choices and falls back for junk", () => {
     expect(
-      parseOverlays({ perKind: 5, minZoneAtr: 3, labels: false, otherPatterns: false }),
+      parseOverlays({ perKind: 5, minZoneAtr: 3, labels: false, showOtherPatterns: true }),
     ).toMatchObject({
       perKind: 5,
       minZoneAtr: 3,
       labels: false,
-      otherPatterns: false,
+      showOtherPatterns: true,
       zones: true,
     });
     expect(parseOverlays({ perKind: 7, minZoneAtr: "x" })).toMatchObject({
@@ -97,5 +97,10 @@ describe("parseOverlays", () => {
       minZoneAtr: 2,
     });
     expect(parseOverlays(null)).toEqual(DEFAULT_OVERLAYS);
+  });
+
+  it("draws only the selected pattern by default, ignoring the old saved key", () => {
+    expect(DEFAULT_OVERLAYS.showOtherPatterns).toBe(false);
+    expect(parseOverlays({ otherPatterns: true }).showOtherPatterns).toBe(false);
   });
 });
