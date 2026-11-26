@@ -38,4 +38,5 @@ def unmirror(hit: PatternHit, pattern: str) -> PatternHit:
         extreme=-hit.extreme,
         points=tuple(_p(p) for p in hit.points),
         lines=tuple(Line(_p(ln.a), _p(ln.b), flip_label(ln.label)) for ln in hit.lines),
+        formation=hit.formation,
     )

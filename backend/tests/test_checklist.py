@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 
-from tcs.analysis.checklist import MAX_SCORE, checker
+from tcs.analysis.checklist import MAX_SCORE, checker, formation_volume
 from tcs.analysis.indicators import rolling_vwap, supertrend
 from tcs.analysis.types import Location, PatternHit
 from tcs.common.series import Candle, Series, mirror
 from tcs.common.timeframes import TF_MS
+
+from .helpers import candles
 
 N = 120
 
@@ -105,3 +109,35 @@ def test_supertrend_flips_with_the_trend_and_vwap_weights_volume() -> None:
     s = series([100.0] * 19 + [200.0], [1.0] * 19 + [19.0])
     assert rolling_vwap(s)[-1] > 130  # half the volume at a typical price ~167: (100 + 167) / 2
     assert np.isnan(rolling_vwap(s)[0])
+
+
+class TestFormationVolume:
+    """Volume trend over a flag, triangle or wedge: shown beside the checks, never counted (r12)."""
+
+    @staticmethod
+    def hit(formation: tuple[int, int] | None) -> PatternHit:
+        return PatternHit("bullFlag", "long", 9, 1.0, 0.5, 2.0, 0, 0.5, formation=formation)
+
+    @staticmethod
+    def series(volume: list[float]) -> Series:
+        s = candles([(100.0, 101.0, 99.0, 100.0)] * len(volume))
+        return replace(s, volume=np.array(volume, dtype=np.float64))
+
+    def test_falling_and_rising(self) -> None:
+        down = self.series([9, 9, 8, 7, 6, 5, 4, 3, 2, 9])
+        up = self.series([1, 1, 2, 3, 4, 5, 6, 7, 8, 1])
+        assert formation_volume(down, self.hit((2, 9))) == "falling"
+        assert formation_volume(up, self.hit((2, 9))) == "rising"
+
+    def test_only_the_formation_counts(self) -> None:
+        # Heavy breakout candle (index 9) is outside [2, 9).
+        s = self.series([1, 1, 8, 7, 6, 5, 4, 3, 2, 100])
+        assert formation_volume(s, self.hit((2, 9))) == "falling"
+
+    def test_none_without_a_formation_or_with_flat_volume(self) -> None:
+        s = self.series([5.0] * 10)
+        assert formation_volume(s, self.hit(None)) is None
+        assert formation_volume(s, self.hit((2, 9))) is None
+        assert (
+            formation_volume(self.series([9, 8, 7, 6, 5, 4, 3, 2, 1, 1]), self.hit((2, 4))) is None
+        )

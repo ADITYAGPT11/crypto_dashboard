@@ -1,6 +1,6 @@
 # Project status
 
-_Last verified: 2026-11-26 · branch `claude/beautiful-goodall-ac540j` · rule set r11_
+_Last verified: 2026-11-26 · branch `claude/beautiful-goodall-ac540j` · rule set r12_
 
 ## Phase
 
@@ -17,7 +17,7 @@ live candles and order books, and sizes trades. No confirmations (by design).
    live (`/api/v1/depth/BTC-USDT` feeds) and the heatmap keeps its history after a reload. Then
    order-flow step 4: liquidation feed, OI/funding panels and the estimated liquidation map
    (`COMPETITORS.md` §4).
-1. Owner: review the setup checklist (rule set r11) on live charts; thresholds are in
+1. Owner: review the setup checklist (rule set r12) on live charts; thresholds are in
    `docs/product/patterns.md` → Setup checklist.
 2. Server-side setup alerts + Telegram in Python (replace the Node prototype's role).
 3. QuestDB collector (live klines, funding, OI) replacing the SQLite store; Docker Compose.
@@ -30,9 +30,9 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 | Check                                                            | State                                                                                                                                                                                        |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run check` (`vp check`: format + lint + types)              | ✅                                                                                                                                                                                           |
-| `npm test`                                                       | ✅ 374 tests, 39 files                                                                                                                                                                       |
+| `npm test`                                                       | ✅ 376 tests, 39 files                                                                                                                                                                       |
 | `npm run build` (`tsc -b` app + node + backend, then Vite)       | ✅ chart code in its own chunk                                                                                                                                                               |
-| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 150 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
+| `npm run api:check` (ruff format + lint, pyright strict, pytest) | ✅ 158 tests (invariants on every detector, per-clause rules, checklist, golden snapshot, API, generated TS types)                                                                           |
 | `npm run api`                                                    | ✅ :8000                                                                                                                                                                                     |
 | `npm start`                                                      | ✅ starts web, api and the Node prototype with prefixed logs; Ctrl+C stops all three; finds uv off PATH (`~/.local/bin`, `~/.cargo/bin`) and prints the install command when it is missing   |
 | `npm run dev` + `npm run api`                                    | ✅ Chart, Dashboard, Alerts, Risk in headless Chromium at 1440 px and 400 px: no app errors, no sideways scroll (Binance blocked in the sandbox: candles via the service's archive fallback) |
@@ -63,7 +63,9 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
   timeframe. **Last 10 patterns** under it: the 10 newest detections on the picked timeframes
   meeting at least 3 of 6 checks (`utils/patternList.ts`), in two columns of compact rows, each
   with its six checks as inline tags (OB · RSI · VOL · VWAP · ATR · ST; hover for what was
-  observed) and its score. On the chart (labels name only, no score) only the selected one is
+  observed), a "VOL↓" information tag when volume fell while a flag, triangle or wedge formed
+  (not a check), and its score; patterns confirmed on the same candle, timeframe and side share
+  one row ("Double bottom + Rising wedge"). On the chart (labels name only, no score) only the selected one is
   drawn, by default the newest; the other listed ones in view can be drawn faintly (Display
   settings → "Other listed patterns in view", off by default). Clicking a row draws it and, when the pattern's timeframe is lower than the chart's,
   switches the chart down to it once; a footer line names it with Alert me.
@@ -104,6 +106,11 @@ Verified 2026-11-11 (checks and test counts 2026-11-22):
 
 ## History
 
+- 2026-11-26: **Rule set r12: the rest of the textbook review** (owner). Triangle and wedge
+  breakouts at most 75% of the way to the apex; breakouts against the usual direction are
+  signals that way (catalogue bias "either"); H&S sides at most 2× apart in width; hammer and
+  inverted hammer need a prior fall again (so hanging man and shooting star need a rise);
+  "VOL↓" tag; one list row per breakout. ETH 4h golden year: 253 → 225 (`DECISIONS.md`).
 - 2026-11-26: **Rule set r11: double-bottom peak, five-touch triangles and wedges** (owner, after a
   rule-by-rule review against the textbooks). The double bottom / top's peak is now strictly
   between the two lows' candles (never a low's own wick); triangles and wedges need 3 + 2 swings

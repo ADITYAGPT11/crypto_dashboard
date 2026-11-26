@@ -98,6 +98,14 @@ class TestInverseHeadShoulders:
         )
         assert of(stuck, "inverseHeadShoulders") == []
 
+    def test_shoulders_must_be_alike_in_width(self) -> None:
+        # r12: IHS with the right side squeezed: left shoulder 18 candles from the head, right
+        # shoulder 8, more than twice as narrow (valid with the width check switched off).
+        lopsided = falling_into(
+            [(0, 104), (20, 90), (28, 96), (38, 84), (42, 96.5), (46, 90.5), (56, 100), (66, 99)]
+        )
+        assert of(lopsided, "inverseHeadShoulders") == []
+
     def test_fails_when_right_shoulder_breaks_first(self) -> None:
         failed = falling_into(
             [

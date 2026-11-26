@@ -148,9 +148,20 @@ class TestHammerFamily:
         rows = flip(confirm_up(inverted_hammer(decline())))
         assert ("hangingMan", len(rows) - 1) in found(rows)
 
-    def test_hammer_needs_no_prior_downtrend(self) -> None:
+    def test_hammer_needs_a_prior_fall(self) -> None:
+        # r12: the trend names the shape. After a rise a hammer-shaped candle is a hanging man,
+        # and one that then breaks up is neither (Nison, StockCharts).
         rows = confirm_up(hammer(rise(30)))
-        assert ("hammer", len(rows) - 1) in found(rows)
+        assert not any(k in ("hammer", "hangingMan") for k, _ in found(rows))
+
+    def test_inverted_hammer_needs_a_prior_fall(self) -> None:
+        rows = confirm_up(inverted_hammer(rise(30)))
+        assert not any(k in ("invertedHammer", "shootingStar") for k, _ in found(rows))
+
+    def test_hanging_man_needs_a_prior_rise(self) -> None:
+        # The hammer shape after a decline, breaking down: not a hanging man.
+        rows = flip(confirm_up(inverted_hammer(rise(30))))
+        assert not any(k == "hangingMan" for k, _ in found(rows))
 
 
 class TestMorningStar:

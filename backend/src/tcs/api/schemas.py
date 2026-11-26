@@ -50,6 +50,8 @@ class OccurrenceOut(Out):
     #: Checklist items passed, 0 to ``CatalogOut.max_score`` (an observation, not a probability).
     score: int
     checks: list[CheckOut]
+    #: Volume trend while a flag, triangle or wedge formed; information, not a check.
+    formation_volume: Literal["falling", "rising"] | None = None
 
 
 class ZoneOut(Out):
