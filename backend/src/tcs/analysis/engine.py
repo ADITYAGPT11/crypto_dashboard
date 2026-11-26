@@ -16,6 +16,7 @@ from tcs.analysis.checklist import Checklist, checker, formation_volume
 from tcs.analysis.indicators import atr
 from tcs.analysis.location import locate
 from tcs.analysis.smc import detect_fvgs, detect_structure
+from tcs.analysis.sweeps import detect_sweeps
 from tcs.analysis.trendlines import detect_trendline_patterns
 from tcs.analysis.types import Levels, Location, PatternHit
 from tcs.analysis.zones import detect_zones
@@ -47,6 +48,7 @@ def detect_patterns(s: Series) -> list[PatternHit]:
         *detect_chart_patterns(s, a),
         *detect_trendline_patterns(s, a),
         *detect_candlesticks(s, a),
+        *detect_sweeps(s, a),
     ]
     return sorted(hits, key=lambda h: (h.index, h.pattern))
 

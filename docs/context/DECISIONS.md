@@ -562,3 +562,21 @@ and inverted hammer only, so hanging man and shooting star need a rise; 246 → 
 not a measured gain. Display: volume fell in 22 of 41 flag / triangle / wedge formations;
 detections confirmed on the same candle, timeframe and side share one row in the chart's list
 (15 such breakouts among 157 listed 4h detections). Nothing here is measured against outcomes.
+
+### 2026-11-26 · Six patterns added (r13): rectangle, channels, triple bottom, pennant, cup with handle, liquidity sweep
+
+Why: the owner asked which important patterns were missing and to add the worthwhile ones. Picked
+by Bulkowski's rankings (rectangle bottom 8th of 39 and cup with handle 3rd for upward breakouts;
+triple bottom 12th), crypto usage (channels, liquidity sweeps) and fit with the existing
+detectors. Rectangles and channels are the triangle detector with parallel lines (until now
+rejected); triple bottoms extend the double bottom and take over its row when both confirm on
+one candle (they were mislabelled as double bottoms); pennants are flags whose pause converges
+(they were named flags); cup with handle is new (U-shape test: ≥ 60% of the cup's closes in its
+lower half; a V has 50%); liquidity sweeps are a new module, limited to obvious lows (the
+lowest of the 20 candles before) after the first version fired 103 times a year. Left out:
+harmonic patterns (no independent evidence), three-line strike (rare), three inside / outside
+(our engulfing and harami already wait for a confirmation close), broadening, diamonds,
+rounding bottoms. Effect on the ETH 4h golden year: 225 → 289 detections (sweeps 43, falling
+channel 12, rising channel 4, cup 5 + inverted 1, rectangle 1, triple bottom 1 replacing a double
+bottom, pennants 0: no flag pause converged this year; two falling wedges became channels).
+Sweeps have no textbook statistic; nothing here is measured against outcomes.

@@ -17,10 +17,11 @@ One rule set; both the chart and the background statistics call `analysis/engine
 - `common/`: `series.py` (column arrays incl. taker buy volume, `head`/`scaled`/`mirror`), `timeframes.py`, `universe.py`
 - `analysis/`: `catalog.py` (pattern ids, labels, sources, `RULESET_VERSION`), `indicators.py`
   (TA-Lib ATR/EMA/SMA), `swings.py` (pivots + `known_at`), `candlesticks.py` (in-house shapes,
-  trend, confirmation; twins by mirroring), `chart_patterns.py` (double bottom, inverse H&S, bull
-  flag; prior trend; twins by mirroring),
+  trend, confirmation; twins by mirroring), `chart_patterns.py` (double and triple bottom, inverse H&S,
+  bull flag and pennant, cup with handle; prior trend; twins by mirroring),
   `mirroring.py` (bearish twins back to real prices, labels flipped: Bottom ↔ Top, Upper ↔ Lower),
-  `trendlines.py` (triangles, wedges), `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
+  `trendlines.py` (triangles, wedges, rectangles, channels), `sweeps.py` (liquidity sweeps),
+  `zones.py`, `smc.py` (BOS/CHoCH, order blocks, FVG),
   `location.py`, `checklist.py` (six checks at confirmation → "4/6"), `indicators.py` (ATR, EMA,
   SMA, RSI, rolling VWAP, Supertrend), `engine.py`, `types.py`.
   Rules in words: `docs/product/patterns.md`.

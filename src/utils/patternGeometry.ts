@@ -2,7 +2,8 @@
  * How a selected pattern is drawn, in the chart's logical (bar) × price space, after the
  * conventions of TradingView's pattern tools and Bulkowski's illustrations:
  *
- * - the formation as a filled shape (W / M, head and shoulders, triangle, wedge, flag box),
+ * - the formation as a filled shape (W / M, triple, head and shoulders, cup, triangle, wedge,
+ *   rectangle, channel, flag box, pennant), or a swept level with its wick for a sweep,
  * - its neckline or trendlines, its key points labelled (B1/B2, T1/T2, LS/H/RS),
  * - the breakout candle and the pattern's height.
  *
@@ -51,15 +52,26 @@ export interface PatternFigure {
 const SHORT: Record<string, string> = {
   "Bottom 1": "B1",
   "Bottom 2": "B2",
+  "Bottom 3": "B3",
   "Top 1": "T1",
   "Top 2": "T2",
+  "Top 3": "T3",
   "Left shoulder": "LS",
   Head: "H",
   "Right shoulder": "RS",
 };
 
-const TRIANGLES = new Set(["ascendingTriangle", "descendingTriangle", "symmetricalTriangle"]);
+/** Two-line formations whose height (the measured move) is marked. */
+const MEASURED = new Set([
+  "ascendingTriangle",
+  "descendingTriangle",
+  "symmetricalTriangle",
+  "rectangle",
+  "risingChannel",
+  "fallingChannel",
+]);
 const FLAGS = new Set(["bullFlag", "bearFlag"]);
+const PENNANTS = new Set(["bullPennant", "bearPennant"]);
 
 /** Price on the line through `a` and `b` at `x` (flat when a and b share an x). */
 function along(a: Pt, b: Pt, x: number): number {
@@ -102,7 +114,9 @@ export function patternFigure(vp: ViewPattern): PatternFigure {
     height: null,
     span: { x: vp.startX, high: vp.close, low: vp.close },
   };
-  const neck = lineNamed(vp, "Neckline");
+  // A cup's rim line is drawn like a neckline: the path runs rim, cup low, rim, handle.
+  const neck = lineNamed(vp, "Neckline") ?? lineNamed(vp, "Rim");
+  const swept = lineNamed(vp, "Swept level");
   const upper = lineNamed(vp, "Upper");
   const lower = lineNamed(vp, "Lower");
   const flagLine = lineNamed(vp, "Flag high") ?? lineNamed(vp, "Flag low");
@@ -128,9 +142,17 @@ export function patternFigure(vp: ViewPattern): PatternFigure {
       long ? (p.price < m.price ? p : m) : p.price > m.price ? p : m,
     );
     fig.height = { from: ext, to: { x: ext.x, price: along(a, b, ext.x) } };
+  } else if (upper && lower && PENNANTS.has(vp.pattern) && pts.length >= 2) {
+    // Pennants: the pole as a thick line, the pause between its two converging lines shaded.
+    const [ua, ub] = upper;
+    const [la, lb] = lower;
+    fig.strokes.push({ pts: [pts[0], pts[1]], width: 3 });
+    fig.fill = [ua, ub, lb, la];
+    fig.strokes.push({ pts: [ua, ub], width: 1.5 });
+    fig.strokes.push({ pts: [la, lb], width: 1.5 });
   } else if (upper && lower) {
-    // Triangles and wedges: the two trendlines from the formation's start to the breakout,
-    // the area between shaded, the swing touches as dots and a faint zigzag through them.
+    // Triangles, wedges, rectangles and channels: the two trendlines from the formation's start
+    // to the breakout, the area between shaded, the swing touches as dots and a faint zigzag.
     const [ua, ub] = upper;
     const [la, lb] = lower;
     fig.fill = [ua, ub, lb, la];
@@ -138,7 +160,15 @@ export function patternFigure(vp: ViewPattern): PatternFigure {
     fig.strokes.push({ pts: [la, lb], width: 2 });
     fig.strokes.push({ pts, width: 1, faint: true });
     fig.dots = pts;
-    if (TRIANGLES.has(vp.pattern)) fig.height = { from: la, to: ua };
+    if (MEASURED.has(vp.pattern)) {
+      const x = la.x;
+      fig.height = { from: la, to: { x, price: along(ua, ub, x) } };
+    }
+  } else if (swept && pts.length >= 2) {
+    // Liquidity sweep: the swept level from the swing to the sweep, the wick's low as a dot.
+    const [a, b] = swept;
+    fig.strokes.push({ pts: [a, { x: bx, price: b.price }], width: 2, dashed: true });
+    fig.dots = [pts[0], pts[1]];
   } else if (flagLine && FLAGS.has(vp.pattern) && pts.length >= 3) {
     // Flags: the pole as a thick line, the pause as a box from its high to its low.
     const [pole, tip, pause] = pts;

@@ -1,14 +1,19 @@
-"""Triangles and wedges: two converging trendlines through confirmed swings.
+"""Triangles, wedges, rectangles and channels: two trendlines through confirmed swings.
 
-One detector, classified by the slopes of its lines (Edwards & Magee ch. 8 and 10):
+One detector, classified by the slopes of its lines (Edwards & Magee ch. 8-10; Bulkowski).
+Converging lines (the end at least 25% narrower than the start):
 
 ==================  ===================  ===================  ===========
-pattern             upper line           lower line           breakout
+pattern             upper line           lower line           usual way
 ==================  ===================  ===================  ===========
 ascending triangle  flat                 rising               up
-symmetrical (long)  falling              rising               up
+symmetrical         falling              rising               either
 falling wedge       falling (steeper)    falling              up
 ==================  ===================  ===================  ===========
+
+Parallel lines (the width at the breakout within 25% of the start's, r13): a **rectangle**
+when both are flat, a **rising / falling channel** when both slope the same way. All three
+break either way.
 
 The bearish twins (descending triangle, symmetrical down, rising wedge) are the
 same rule on the mirrored series. A breakout against a pattern's usual direction
@@ -47,6 +52,7 @@ FLAT_ATR = 0.6  # a line moving less than this over the whole formation is flat
 MIN_HEIGHT_ATR = 2.0  # height at the start
 MIN_CONVERGENCE = 0.25  # the end must be at least 25% narrower than the start
 MAX_APEX_SHARE = 0.75  # breakout at most this far from the start to the apex (r12)
+PARALLEL_TOL = 0.25  # parallel: the width at the breakout within this share of the start's (r13)
 STOP_PAD_ATR = 0.2
 
 
@@ -96,6 +102,17 @@ def _classify(rise_u: float, rise_l: float) -> str | None:
     return None
 
 
+def _classify_parallel(rise_u: float, rise_l: float) -> str | None:
+    """Parallel lines (r13): a rectangle when both are flat, else a channel sloping their way."""
+    if abs(rise_u) <= FLAT_ATR and abs(rise_l) <= FLAT_ATR:
+        return "rectangle"
+    if rise_u > FLAT_ATR and rise_l > FLAT_ATR:
+        return "risingChannel"
+    if rise_u < -FLAT_ATR and rise_l < -FLAT_ATR:
+        return "fallingChannel"
+    return None
+
+
 def _upward(s: Series, a: FloatArray) -> list[PatternHit]:
     highs, lows = swing_highs(s, SWING_BARS), swing_lows(s, SWING_BARS)
     hits: list[PatternHit] = []
@@ -138,14 +155,21 @@ def _formation_at(
         if up.worst > TOUCH_TOL_ATR * ac or lo.worst > TOUCH_TOL_ATR * ac:
             continue
         width0, width1 = up.at(start) - lo.at(start), up.at(c) - lo.at(c)
-        if width0 < MIN_HEIGHT_ATR * ac or width1 <= 0 or width1 > (1 - MIN_CONVERGENCE) * width0:
-            continue
-        # The lines narrow linearly, so the share of the way to the apex is 1 - width1 / width0.
-        # A breakout in the last quarter is the weak case (Edwards & Magee; Bulkowski).
-        if width1 < (1 - MAX_APEX_SHARE) * width0:
+        if width0 < MIN_HEIGHT_ATR * ac or width1 <= 0:
             continue
         span = c - start
-        pattern = _classify(up.slope * span / ac, lo.slope * span / ac)
+        rise_u, rise_l = up.slope * span / ac, lo.slope * span / ac
+        converging = width1 <= (1 - MIN_CONVERGENCE) * width0
+        if converging:
+            # The lines narrow linearly, so the share of the way to the apex is 1 - width1 /
+            # width0. A breakout in the last quarter is the weak case (Edwards & Magee; Bulkowski).
+            if width1 < (1 - MAX_APEX_SHARE) * width0:
+                continue
+            pattern = _classify(rise_u, rise_l)
+        elif abs(width1 - width0) <= PARALLEL_TOL * width0:
+            pattern = _classify_parallel(rise_u, rise_l)
+        else:
+            continue  # widening: a broadening formation, not detected
         if pattern is None:
             continue
         # Breakout: first close above the upper line; closes stayed inside until then.
@@ -163,7 +187,10 @@ def _formation_at(
         stop = last_low.price - STOP_PAD_ATR * ac
         if stop >= close:
             continue
-        target = float(s.high[start : c + 1].max()) if pattern == "fallingWedge" else close + width0
+        # Measured move: triangles the height at the start; rectangles and channels the height at
+        # the breakout; a falling wedge back to where it began.
+        height = width0 if converging else width1
+        target = float(s.high[start : c + 1].max()) if pattern == "fallingWedge" else close + height
         if target <= close:
             continue
         return PatternHit(
@@ -194,6 +221,9 @@ BEARISH_TWIN = {
     "symmetricalTriangle": "symmetricalTriangle",
     "fallingWedge": "risingWedge",
     "risingWedge": "fallingWedge",  # a falling wedge breaking down
+    "rectangle": "rectangle",
+    "risingChannel": "fallingChannel",  # a falling channel breaking down
+    "fallingChannel": "risingChannel",  # a rising channel breaking down
 }
 
 

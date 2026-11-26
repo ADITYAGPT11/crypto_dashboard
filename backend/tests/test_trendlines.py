@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from tcs.analysis.trendlines import detect_trendline_patterns
 from tcs.analysis.types import PatternHit
 from tcs.common.series import Series, mirror
@@ -113,8 +115,47 @@ def test_no_breakout_no_signal() -> None:
     assert hits(stuck, "ascendingTriangle") == []
 
 
-def test_parallel_lines_are_a_channel_not_a_triangle() -> None:
-    channel = path(
-        [(0, 96), (8, 100), (16, 110), (24, 100), (32, 110), (40, 100), (48, 110.1), (54, 116)]
-    )
-    assert [k for k in kinds(channel) if k[0].endswith("Triangle") or k[0].endswith("Wedge")] == []
+# Flat lines at 100 and 110, three lows and two highs known at the breakout (r13).
+RECT: list[tuple[int, float]] = [
+    (0, 104),
+    (8, 100),
+    (16, 110),
+    (24, 100),
+    (32, 110),
+    (40, 100),
+    (48, 110.1),
+    (54, 116),
+]
+# Both lines rising 0.25 a candle, 10 apart.
+RISING_CHANNEL: list[tuple[int, float]] = [
+    (0, 104),
+    (8, 100),
+    (16, 110),
+    (24, 104),
+    (32, 114),
+    (40, 108),
+    (48, 118.2),
+    (54, 126),
+]
+
+
+def test_parallel_flat_lines_are_a_rectangle_not_a_triangle() -> None:
+    found = kinds(path(RECT))
+    assert found == [("rectangle", "long")]
+    h = hits(path(RECT), "rectangle")[0]
+    assert h.target - h.entry == pytest.approx(11, abs=1)  # height at the breakout
+
+
+def test_rectangle_breaks_either_way() -> None:
+    assert kinds(path([*RECT[:7], (54, 94)])) == [("rectangle", "short")]
+    assert kinds(mirror(path(RECT))) == [("rectangle", "short")]
+
+
+def test_parallel_sloping_lines_are_a_channel() -> None:
+    assert kinds(path(RISING_CHANNEL)) == [("risingChannel", "long")]
+    assert kinds(mirror(path(RISING_CHANNEL))) == [("fallingChannel", "short")]
+
+
+def test_a_channel_needs_five_touches() -> None:
+    # The rectangle without its first low: 2 + 2 touches.
+    assert kinds(path([(0, 96), *RECT[1:]])) == []

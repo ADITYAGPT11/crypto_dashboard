@@ -131,6 +131,78 @@ describe("patternFigure", () => {
     expect(f.fill.map((p) => p.x)).toEqual([15, 30, 30, 15]);
   });
 
+  it("draws a pennant as a pole and its two converging lines", () => {
+    const f = patternFigure(
+      view({
+        pattern: "bullPennant",
+        points: [
+          { x: 10, price: 90, label: "Pole" },
+          { x: 16, price: 112, label: "Top" },
+        ],
+        lines: [
+          { x1: 17, p1: 112, x2: 23, p2: 109.5, label: "Upper" },
+          { x1: 17, p1: 107, x2: 23, p2: 109.5, label: "Lower" },
+        ],
+      }),
+    );
+    expect(f.strokes[0]).toEqual({
+      pts: [
+        { x: 10, price: 90 },
+        { x: 16, price: 112 },
+      ],
+      width: 3,
+    });
+    expect(f.fill).toHaveLength(4);
+    expect(f.dots).toEqual([]);
+  });
+
+  it("measures a rectangle's height", () => {
+    const f = patternFigure(
+      view({
+        pattern: "rectangle",
+        points: [{ x: 12, price: 110, label: "" }],
+        lines: [
+          { x1: 8, p1: 110, x2: 30, p2: 110, label: "Upper" },
+          { x1: 8, p1: 100, x2: 30, p2: 100, label: "Lower" },
+        ],
+      }),
+    );
+    expect(f.height).toEqual({ from: { x: 8, price: 100 }, to: { x: 8, price: 110 } });
+  });
+
+  it("draws a cup with handle through its rims, low and handle on the rim line", () => {
+    const f = patternFigure(
+      view({
+        pattern: "cupWithHandle",
+        points: [
+          { x: 9, price: 120, label: "Left rim" },
+          { x: 29, price: 101, label: "Cup low" },
+          { x: 59, price: 120, label: "Right rim" },
+          { x: 65, price: 114, label: "Handle low" },
+        ],
+        lines: [{ x1: 9, p1: 120, x2: 70, p2: 120, label: "Rim" }],
+      }),
+    );
+    expect(f.fill.slice(1, 5).map((p) => p.price)).toEqual([120, 101, 120, 114]);
+    expect(f.height).toEqual({ from: { x: 29, price: 101 }, to: { x: 29, price: 120 } });
+  });
+
+  it("draws a sweep as the swept level and the wick", () => {
+    const f = patternFigure(
+      view({
+        pattern: "bullishSweep",
+        points: [
+          { x: 25, price: 89.5, label: "Swing low" },
+          { x: 30, price: 88.5, label: "Sweep" },
+        ],
+        lines: [{ x1: 25, p1: 89.5, x2: 30, p2: 89.5, label: "Swept level" }],
+      }),
+    );
+    expect(f.fill).toEqual([]);
+    expect(f.strokes[0].dashed).toBe(true);
+    expect(f.dots.map((d) => d.price)).toEqual([89.5, 88.5]);
+  });
+
   it("tells candlestick patterns from chart patterns", () => {
     expect(isChartPattern(doubleBottom)).toBe(true);
     expect(isChartPattern(view({ pattern: "hammer" }))).toBe(false);

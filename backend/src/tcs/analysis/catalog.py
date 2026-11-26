@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 #: Bump when ANY detector, location or checklist rule or threshold changes.
-RULESET_VERSION = "2026.11-r12"
+RULESET_VERSION = "2026.11-r13"
 
 Kind = Literal["chart", "candlestick"]
 Bias = Literal["long", "short", "either"]
@@ -120,6 +120,95 @@ CATALOG: tuple[PatternSpec, ...] = (
         "either",
         "Edwards & Magee ch. 10; Bulkowski 'Wedges, Rising'",
         "Two rising, converging lines; confirmed on a close outside either line (usually down).",
+    ),
+    # Added in r13 (Bulkowski's rankings and crypto usage; docs/product/patterns.md)
+    PatternSpec(
+        "tripleBottom",
+        "Triple bottom",
+        "chart",
+        "long",
+        "Bulkowski 'Triple Bottoms'",
+        "Three similar swing lows; confirmed on a close above the higher peak between them.",
+    ),
+    PatternSpec(
+        "tripleTop",
+        "Triple top",
+        "chart",
+        "short",
+        "Bulkowski 'Triple Tops'",
+        "Three similar swing highs; confirmed on a close below the lower trough between them.",
+    ),
+    PatternSpec(
+        "bullPennant",
+        "Bull pennant",
+        "chart",
+        "long",
+        "Edwards & Magee ch. 11; Bulkowski 'Pennants'",
+        "A steep rise, a short pause between converging lines; confirmed on a close above it.",
+    ),
+    PatternSpec(
+        "bearPennant",
+        "Bear pennant",
+        "chart",
+        "short",
+        "Edwards & Magee ch. 11; Bulkowski 'Pennants'",
+        "A steep fall, a short pause between converging lines; confirmed on a close below it.",
+    ),
+    PatternSpec(
+        "rectangle",
+        "Rectangle",
+        "chart",
+        "either",
+        "Edwards & Magee ch. 9; Bulkowski 'Rectangles'",
+        "Two flat, parallel lines (a range); confirmed on a close outside either line.",
+    ),
+    PatternSpec(
+        "risingChannel",
+        "Rising channel",
+        "chart",
+        "either",
+        "Bulkowski 'Channels'",
+        "Two rising, parallel lines; confirmed on a close outside either line.",
+    ),
+    PatternSpec(
+        "fallingChannel",
+        "Falling channel",
+        "chart",
+        "either",
+        "Bulkowski 'Channels'",
+        "Two falling, parallel lines; confirmed on a close outside either line.",
+    ),
+    PatternSpec(
+        "cupWithHandle",
+        "Cup with handle",
+        "chart",
+        "long",
+        "Bulkowski 'Cup with Handle'; O'Neil",
+        "A rounded cup between two rims and a shallow handle; confirmed on a close above the right rim.",
+    ),
+    PatternSpec(
+        "invertedCupWithHandle",
+        "Inverted cup with handle",
+        "chart",
+        "short",
+        "Bulkowski 'Cup with Handle, Inverted'",
+        "An upside-down cup and handle; confirmed on a close below the right rim.",
+    ),
+    PatternSpec(
+        "bullishSweep",
+        "Bullish liquidity sweep",
+        "chart",
+        "long",
+        "ICT / smart-money concepts (swing failure)",
+        "A wick below an obvious swing low that closes back above it.",
+    ),
+    PatternSpec(
+        "bearishSweep",
+        "Bearish liquidity sweep",
+        "chart",
+        "short",
+        "ICT / smart-money concepts (swing failure)",
+        "A wick above an obvious swing high that closes back below it.",
     ),
     # Candlestick patterns (in-house, candlesticks.py: shape, trend, confirmation, plan)
     PatternSpec(

@@ -19,6 +19,8 @@ from tcs.analysis.chart_patterns import BEARISH_TWIN as CHART_TWIN
 from tcs.analysis.chart_patterns import detect_chart_patterns
 from tcs.analysis.engine import detect_levels, detect_patterns
 from tcs.analysis.smc import detect_fvgs, detect_structure
+from tcs.analysis.sweeps import BEARISH_TWIN as SWEEP_TWIN
+from tcs.analysis.sweeps import detect_sweeps
 from tcs.analysis.trendlines import BEARISH_TWIN as LINE_TWIN
 from tcs.analysis.trendlines import detect_trendline_patterns
 from tcs.analysis.types import PatternHit
@@ -32,6 +34,7 @@ DETECTORS: dict[str, Detector] = {
     "candlesticks": lambda s: detect_candlesticks(s),
     "chart": lambda s: detect_chart_patterns(s),
     "trendlines": lambda s: detect_trendline_patterns(s),
+    "sweeps": lambda s: detect_sweeps(s),
 }
 SERIES = {f"walk{seed}": random_walk(seed) for seed in (1, 2, 3, 4)}
 SERIES["eth4h"] = real_eth_4h().tail(900)
@@ -70,11 +73,11 @@ def test_scale_invariant_and_deterministic(detector: Detector, series: Series) -
 
 @pytest.mark.parametrize("series", SERIES.values(), ids=SERIES.keys())
 def test_bearish_patterns_are_mirrored_bullish_ones(series: Series) -> None:
-    twins = {**CHART_TWIN, **LINE_TWIN}
+    twins = {**CHART_TWIN, **LINE_TWIN, **SWEEP_TWIN}
     flipped = mirror(series)
 
     def both(s: Series) -> list[PatternHit]:
-        return [*detect_chart_patterns(s), *detect_trendline_patterns(s)]
+        return [*detect_chart_patterns(s), *detect_trendline_patterns(s), *detect_sweeps(s)]
 
     bull = {(h.pattern, h.index) for h in both(series) if h.direction == "long"}
     bear_on_mirror = {
@@ -102,11 +105,27 @@ def test_labels_name_the_part_they_sit_on(series: Series) -> None:
             ("Flag high", "Flag low"),
             ("Top", "Pole"),
             ("Pole", "Bottom"),
+            ("Left rim", "Cup low"),
+            ("Right rim", "Handle low"),
+            ("Cup high", "Left rim"),
+            ("Handle high", "Right rim"),
         ):
             if high in at and low in at:
                 assert at[high] >= at[low], (h.pattern, high, low)
         if h.direction == "short":
-            assert not {"Bottom 1", "Bottom 2", "Peak", "Top"} & at.keys(), h.pattern
+            assert (
+                not {
+                    "Bottom 1",
+                    "Bottom 2",
+                    "Bottom 3",
+                    "Peak",
+                    "Top",
+                    "Cup low",
+                    "Handle low",
+                    "Swing low",
+                }
+                & at.keys()
+            ), h.pattern
 
 
 @pytest.mark.parametrize("series", SERIES.values(), ids=SERIES.keys())
